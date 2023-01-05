@@ -1,7 +1,7 @@
 #include <limits>
 #include <algorithm>
 #include <cstdlib>
-#include <flock/flock.h>
+#include <verlib/verlib.h>
 
 // no parent pointers, serach to key, doesn't work likely because violations are getting rotated off search path
 // on read only workloads, it is faster than leaftree and natarajan but slower than bronson, probably because it is external.
@@ -17,15 +17,15 @@ struct Set {
 
   K key_min = std::numeric_limits<K>::min();
   
-  struct node {
+  struct node : verlib::versioned {
     K key;
     bool is_leaf;
-    write_once<bool> removed;
-    mutable_val<node*> left;
-    mutable_val<node*> right;
-    mutable_val<int32_t> lefth; // TODO: see if you can get away with storing 1 height
-    mutable_val<int32_t> righth;
-    lock lck;   
+    flck::atomic_write_once<bool> removed;
+    verlib::versioned_ptr<node> left;
+    verlib::versioned_ptr<node> right;
+    flck::atomic<int32_t> lefth; // TODO: see if you can get away with storing 1 height
+    flck::atomic<int32_t> righth;
+    flck::lock lck;   
     node(K k, node* left, node* right, int32_t lefth, int32_t righth)
       : key(k), is_leaf(false), left(left), right(right), lefth(lefth), righth(righth), removed(false) {};
   };
@@ -40,12 +40,13 @@ struct Set {
   };
 
   int32_t height(node* n) {
+    if (n == nullptr) abort(); // Guy : fails here on hybrid
     if(n->is_leaf) return 1;
     return 1 + std::max(n->lefth.load(), n->righth.load());
   }
 
-  memory_pool<node> node_pool;
-  memory_pool<leaf> leaf_pool;
+  verlib::memory_pool<node> node_pool;
+  verlib::memory_pool<leaf> leaf_pool;
 
   size_t max_iters = 10000000;
   
@@ -69,6 +70,7 @@ struct Set {
 
   bool correctHeight(node* n) {
     if(n->is_leaf) return true;
+    // Guy n->left.load() is nullptr with hybrid
     return n->lefth.load() == height(n->left.load()) && 
            n->righth.load() == height(n->right.load());
   }
@@ -84,7 +86,7 @@ struct Set {
 
   void fixHeight(node* n) {
     // std::cout << "fixed height" << std::endl;
-    n->lck.try_lock([=] () {
+    n->lck.try_lock([=] {
       if(n->removed.load()) return false;
       n->lefth = height(n->left.load());
       n->righth = height(n->right.load());
@@ -257,7 +259,7 @@ struct Set {
 
   bool insert(node* root, K k, V v) {
     // std::cout << "insert " << k << std::endl;
-    return with_epoch([=] {
+    return verlib::with_epoch([=] {
       int cnt = 0;
       while (true) {
         auto [gp, gp_left, p, p_left, l] = find_location(root, k);
@@ -287,7 +289,7 @@ struct Set {
   }
 
   bool remove(node* root, K k) {
-    return with_epoch([=] {
+    return verlib::with_epoch([=] {
        int cnt = 0;
        while (true) {
    auto [gp, gp_left, p, p_left, l] = find_location(root, k);
@@ -314,15 +316,17 @@ struct Set {
        }}); 
   }
 
+  std::optional<V> find_(node* root, K k) {
+    node* l = (root->left).load();
+    while (!l->is_leaf)
+      l = (k < l->key) ? (l->left).load() : (l->right).load();
+    auto ll = (leaf*) l;
+    if (ll->key == k) return ll->value; 
+    else return {};
+  }
+
   std::optional<V> find(node* root, K k) {
-    return with_epoch([&] () -> std::optional<V> {
-        node* l = (root->left).load();
-        while (!l->is_leaf)
-          l = (k < l->key) ? (l->left).load() : (l->right).load();
-        auto ll = (leaf*) l;
-        if (ll->key == k) return ll->value; 
-        else return {};
-    });
+    return verlib::with_epoch([&] { return find_(root, k);});
   }
 
   node* empty() {
@@ -398,7 +402,7 @@ struct Set {
        return rtup(lmin, rmax, lsum + rsum);
      };
     auto [minv, maxv, cnt] = crec(p->left.load());
-    if (verbose) std::cout << "average height = " << ((double) total_height(p) / cnt) << std::endl;
+    // std::cout << "average height = " << ((double) total_height(p) / cnt) << std::endl;
     return cnt-1;
   }
 

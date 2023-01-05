@@ -10,26 +10,26 @@
 // so wait_lock can ignore the lock if addresses do not match
 // (i.e. accidental collision).
 
-#include <flock/flock.h>
+#include <verlib/verlib.h>
 #include <parlay/primitives.h>
 
 template <typename K, typename V>
 struct Set {
 
-  struct alignas(32) node : ll_head {
-    ptr_type<node> next;
+  struct alignas(32) node : verlib::versioned {
+    verlib::versioned_ptr<node> next;
     K key;
     V value;
     bool is_end;
-    atomic_write_once<bool> removed;
-    lock_type lck;
+    flck::atomic_write_once<bool> removed;
+    flck::lock lck;
     node(K key, V value, node* next)
       : key(key), value(value), next(next), is_end(false), removed(false) {};
     node(node* next, bool is_end) // for head and tail
       : next(next), is_end(is_end), removed(false) {};
   };
 
-  memory_pool<node> node_pool;
+  verlib::memory_pool<node> node_pool;
 
   auto find_location(node* root, K k) {
     node* prev = nullptr;
@@ -49,7 +49,7 @@ struct Set {
   static constexpr int max_delay = 2000;
 
   bool insert(node* root, K k, V v) {
-    return with_epoch([=] {
+    return verlib::with_epoch([=] {
       int delay = init_delay;
       while (true) {
 	auto [prev, cur, nxt] = find_location(root, k);
@@ -69,7 +69,7 @@ struct Set {
   }
 
   bool remove(node* root, K k) {
-    return with_epoch([=] {
+    return verlib::with_epoch([=] {
       int delay = init_delay;
       while (true) {		 
 	auto [prev, cur, nxt] = find_location(root, k);
@@ -92,12 +92,14 @@ struct Set {
       }});
   }
   
+  std::optional<V> find_(node* root, K k) {
+    auto [prev, cur, nxt] = find_location(root, k);
+    if (!nxt->is_end && nxt->key == k) return nxt->value; 
+    else return {};
+  }
+
   std::optional<V> find(node* root, K k) {
-    return with_epoch([&] () -> std::optional<V> {
-	auto [prev, cur, nxt] = find_location(root, k);
-	if (!nxt->is_end && nxt->key == k) return nxt->value; 
-	else return {};
-      });
+    return verlib::with_epoch([&] { return find_(root,k);});
   }
 
   node* empty() {

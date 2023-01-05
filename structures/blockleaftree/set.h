@@ -1,4 +1,4 @@
-#include <flock/flock.h>
+#include <verlib/verlib.h>
 #include "rebalance.h"
 
 #ifdef BALANCED
@@ -21,19 +21,19 @@ struct Set {
   static constexpr int block_size= 368/sizeof(KV) - 1; // to fit in 384 bytes
   //static constexpr int block_size= 240/sizeof(KV) - 1; // to fit in 256 bytes
 
-  struct head : ll_head {
+  struct head : verlib::versioned {
     bool is_leaf;
     bool is_sentinal; // only used by leaf
-    write_once<bool> removed; // only used by node
+    flck::atomic_write_once<bool> removed; // only used by node
     head(bool is_leaf)
       : is_leaf(is_leaf), is_sentinal(false), removed(false) {}
   };
 
   // mutable internal node
-  struct node : head, lock_type {
+  struct node : head, flck::lock {
     K key;
-    ptr_type<node> left;
-    ptr_type<node> right;
+    verlib::versioned_ptr<node> left;
+    verlib::versioned_ptr<node> right;
     node(K k, node* left, node* right)
       : key(k), head{false}, left(left), right(right) {};
     node(node* left) // root node
@@ -52,8 +52,8 @@ struct Set {
     }
   };
 
-  memory_pool<node> node_pool;
-  memory_pool<leaf> leaf_pool;
+  verlib::memory_pool<node> node_pool;
+  verlib::memory_pool<leaf> leaf_pool;
 
   Rebalance<Set<K,V>> balance;
   Set() : balance(this) {}
@@ -84,7 +84,7 @@ struct Set {
   // The other values are "immutable" (i.e. they are either written once
   // without being read, or just read).
   bool insert(node* root, K k, V v) {
-    return with_epoch([=] {
+    return verlib::with_epoch([=] {
       while (true) {
 	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
 	leaf* old_l = (leaf*) l;
@@ -147,7 +147,7 @@ struct Set {
   // Removes a key from the leaf.  If the leaf will become empty by
   // removing it, then both the leaf and its parent need to be deleted.
   bool remove(node* root, K k) {
-    return with_epoch([=] {
+    return verlib::with_epoch([=] {
       while (true) {
 	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
 	leaf* old_l = (leaf*) l;
@@ -208,13 +208,13 @@ struct Set {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     ((p_left) ? &(p->left) : &(p->right))->validate();
     leaf* ll = (leaf*) l;
-    // note brute force is faster than binary search
-    if (ll->keyvals[i].key == k) return ll->keyvals[i].value;
+    for (int i=0; i < ll->size; i++) 
+      if (ll->keyvals[i].key == k) return ll->keyvals[i].value;
     return {};
   }
 
   std::optional<V> find(node* root, K k) {
-    return with_epoch([&] { return find_(root, k);});
+    return verlib::with_epoch([&] { return find_(root, k);});
   }
 
   node* empty() {
@@ -278,7 +278,7 @@ struct Set {
 	     else return rtup(lmin, rmax, lsum + rsum);
 	   };
     auto [minv, maxv, cnt] = crec(p->left.load());
-    if (verbose) std::cout << "average height = " << ((double) total_height(p) / cnt) << std::endl;
+    // std::cout << "average height = " << ((double) total_height(p) / cnt) << std::endl;
     return bad_val ? -1 : cnt;
   }
 

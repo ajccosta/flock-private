@@ -20,6 +20,7 @@ def getArg(str, default) :
 
 compare = getOption("-compare")
 test_only = getOption("-test")
+all = getOption("-all")
 
 rounds = int(getArg("-r", 3));
 
@@ -28,7 +29,7 @@ time = float(getArg("-t", 3.0));
 shuffle = getOption("-shuffle");
 
 if (getOption("-help") or getOption("-help")) :
-    print("./runall [-compare] [-shuffle] [-t t] [-test] [-r n] [-help]")
+    print("./runtests [-compare] [-shuffle] [-t t] [-test] [-r n] [-all] [-help]")
 
 zipfians = []
 file_suffix = ""
@@ -63,10 +64,14 @@ else :
     suffixes_all = ["","_nohelp","_indirect_ls","_noshortcut_ls","_ver_ls","_ver_rs","_ver_ws","_ver_ns","_ver_hw", "_ver_nohelp_ls"]
     suffixes_ro = suffixes_all + ["_ver_ro_ls"]
 
+if all :
+    lists = lists + ["list_onelock"];
+    trees = trees + ["hash", "leaftree", "blockleaftree", "avltree"]
+    
 if test_only :
     time = .1
     rounds = 1
-    mix_percents = [[25,25,25,16]]
+    mix_percents = [[25,25,0,16]]
     list_sizes = [100]
     tree_sizes = [1000000]
     zipfians = [.99]
