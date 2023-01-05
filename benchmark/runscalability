@@ -46,10 +46,7 @@ hostname = socket.gethostname()
 
 print(hostname)
 print(today)
-if short :
-    filename = "../../timings/short_" + hostname + "_" + today
-else :
-    filename = "../../timings/" + hostname + "_" + today
+filename = "../../timings/scalability_" + hostname + "_" + today
     
 if os.path.exists(filename) :
     os.remove(filename)
