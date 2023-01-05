@@ -30,7 +30,7 @@ struct Set {
       : key(k), is_leaf(false), left(left), right(right), lefth(lefth), righth(righth), removed(false) {};
   };
 
-  struct leaf {
+  struct leaf : verlib::versioned {
     K key;
     bool is_leaf;
     V value;

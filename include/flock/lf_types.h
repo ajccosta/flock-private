@@ -30,7 +30,7 @@ public:
   V read_snapshot() {return TV::value(v.load());}
   void store(V vv) {TV::cas(v, get_val(internal::lg), vv);}
   bool cas(V old_v, V new_v) { // not safe inside locks
-    assert(internal::log.is_empty());
+    assert(internal::lg.is_empty());
     return cas_ni(old_v, new_v);
   }
   bool cas_ni(V old_v, V new_v) { 

@@ -91,7 +91,7 @@ struct Log {
   template<typename V>
   std::pair<V,bool> commit_value(V newv) {
     if (is_empty()) return std::make_pair(newv, true);
-    assert(newv != nullptr); // check not committing 0
+    assert(newv != (V) 0); // check not committing 0
     log_entry* l = next_entry();
     void* oldv = l->load();
     if (oldv == nullptr && l->compare_exchange_strong(oldv, (void*) newv))
