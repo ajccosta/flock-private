@@ -1,6 +1,6 @@
 set(SOURCES test_sets.cpp)
 
-set(BENCH_FILES "runtests" "run_sanity_checks.py")
+set(BENCH_FILES "runtests" "run_sanity_checks.py" "runscalability")
 
 function(copy_bench_file NAME)
   file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${NAME}
