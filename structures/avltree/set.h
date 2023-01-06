@@ -16,10 +16,14 @@ template <typename K, typename V>
 struct Set {
 
   K key_min = std::numeric_limits<K>::min();
-  
-  struct node : verlib::versioned {
+
+  struct head : verlib::versioned {
     K key;
     bool is_leaf;
+    head(K key, bool is_leaf) : key(key), is_leaf(is_leaf) {}
+  };
+
+  struct node : head {
     flck::atomic_write_once<bool> removed;
     verlib::versioned_ptr<node> left;
     verlib::versioned_ptr<node> right;
@@ -27,16 +31,12 @@ struct Set {
     flck::atomic<int32_t> righth;
     flck::lock lck;   
     node(K k, node* left, node* right, int32_t lefth, int32_t righth)
-      : key(k), is_leaf(false), left(left), right(right), lefth(lefth), righth(righth), removed(false) {};
+      : head(k, false), left(left), right(right), lefth(lefth), righth(righth), removed(false) {};
   };
 
-  struct leaf : verlib::versioned {
-    K key;
-    bool is_leaf;
+  struct leaf : head {
     V value;
-    // mutable_val<node*> parent;
-    // leaf(K k, V v, node* p) : key(k), value(v), is_leaf(true), parent(p) {};
-    leaf(K k, V v) : key(k), value(v), is_leaf(true) {};
+    leaf(K k, V v) : head(k,true), value(v) {};
   };
 
   int32_t height(node* n) {
