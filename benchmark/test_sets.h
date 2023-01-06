@@ -169,6 +169,8 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
   // for mixed update/query, the percent that are updates
   int update_percent = P.getOptionIntValue("-u", 20); 
 
+  int range_query_threads = P.getOptionIntValue("-rqthreads", 0); 
+
   if (init_test) {  // trivial test inserting 4 elements and deleting one
     std::cout << "running sanity checks" << std::endl;
     auto tr = os.empty(4);
@@ -299,14 +301,21 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
           }
         }
 
+        size_t mp = m/p;
+        // set some number of threads to only do range queries
+        parlay::parallel_for(0, range_query_threads, [&] (size_t i) {
+          for(int j = i*mp; j < (i+1)*mp; j++) op_types[j] = Range;
+        }, 1);
+
         parlay::sequence<size_t> totals(p);
         parlay::sequence<long> addeds(p);
         parlay::sequence<long> range_counts(p);
+        parlay::sequence<long> range_sums(p);
         parlay::sequence<long> mfind_counts(p);
         parlay::sequence<long> retry_counts(p);
         parlay::sequence<long> update_counts(p);
         parlay::sequence<long> query_counts(p);
-        size_t mp = m/p;
+
         t.start();
         auto start = std::chrono::system_clock::now();
         std::atomic<bool> finish = false;
@@ -316,6 +325,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
           size_t total = 0;
           long added = 0;
           long range_count = 0;
+          long range_sum = 0;
           long mfind_count = 0;
           long retry_count = 0;
           long update_count = 0;
@@ -331,6 +341,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
                 totals[i] = total;
                 addeds[i] = added;
                 range_counts[i] = range_count;
+                range_sums[i] = range_sum;
                 mfind_counts[i] = mfind_count;
                 retry_counts[i] = retry_count;
                 update_counts[i] = update_count;
@@ -340,7 +351,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
             }
             // check that no overflow
             if (j >= (i+1)*mp) abort();
-         
+
             if (op_types[j] == Find) {
               query_count++;
               auto val = os.find(tr, b[j]);
@@ -357,7 +368,9 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 	      std::vector<K> range_keys{100ul + 2*range_size};
               key_type end = ((b[j] > max_key - range_gap)
                              ? max_key : b[j] + range_gap);
-              range_count += verlib::with_snapshot([&] {
+              range_count++;
+              // std::cout << "range query" << std::endl;
+              range_sum += verlib::with_snapshot([&] {
                 long cnt=0;
 		auto addf = [&] (K k, V v) {range_keys[cnt++] = k;};
                 os.range_(tr, addf, b[j], end);
@@ -404,7 +417,9 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 
           //std::cout << duration << " : " << trial_time << std::endl;
           size_t num_ops = parlay::reduce(totals);
-          std::cout << std::setprecision(4)
+
+          if(range_query_threads == 0) {
+            std::cout << std::setprecision(4)
               << P.commandName() << ","
               << update_percent << "%update,"
               << range_percent << "%range,"
@@ -414,6 +429,21 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
               << "p=" << p << ","
               << "z=" << zipfian_param << ","
               << num_ops / (duration * 1e6) << std::endl;
+          } else {
+            std::cout << std::setprecision(4)
+              << P.commandName() << ","
+              << update_percent << "%update,"
+              << range_percent << "%range,"
+              << multifind_percent << "%mfind,"
+              << "rs=" << range_size << ","
+              << "n=" << n << ","
+              << "p=" << p << ","
+              << "z=" << zipfian_param << ","
+              << "rq_throughput=" << parlay::reduce(range_counts) / (duration * 1e6) << ","
+              << "update_throughput=" << parlay::reduce(update_counts) / (duration * 1e6) << std::endl;
+          }
+
+
           // std::cout << "timestamp increments (per microsecond): " << (global_stamp.get_stamp()-start_timestamp)*1.0/(duration * 1e6) << std::endl;
           // std::cout << "final timestamp: " << global_stamp.get_stamp() << std::endl;
           if (do_check) {
@@ -428,7 +458,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
       #endif
             }
             if (range_percent > 0) {
-              long range_sum = parlay::reduce(range_counts);
+              long range_sum = parlay::reduce(range_sums);
               long retry_sum = parlay::reduce(retry_counts);
               long num_queries = num_ops * range_percent / 100;
               std::cout << "average range size = " << ((float) range_sum) / num_queries

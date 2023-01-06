@@ -6,12 +6,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # input_files = ["ip-172-31-45-236_10_25_22", "ip-172-31-40-178_10_25_22"]
-input_files = ["ip-172-31-35-105_12_28_22"]
+input_files = ["scalability_aware.aladdin.cs.cmu.edu_01_05_23"]
 output_folder = "dec28"
 zipfs = [0, 0.99]
 
 param_list = ['ds','per','up','range','mfind','rs','n','p','z']
 ds_list = ["arttree", "btree", "dlist", "list", "hash_block_lf", "hash_block"]
+ds_list_other = ["srivastava_abtree", "leis_olc_art"]
 
 num_tables = 0
 
@@ -34,6 +35,9 @@ def custom_round(num):
     return round(num, 3)
 
 def splitdsname(name):
+  for ds in ds_list_other:
+    if ds in name:
+      return ds, ''
   for ds in ds_list:
     if name == ds:
       return ds, 'non_per'
@@ -55,6 +59,7 @@ def toString(param):
   return ds_name + ',' + str(param['up']) + '%update,' + str(param['range']) + '%range,' + str(param['mfind']) + '%mfind,rs=' + str(param['rs']) + ',n=' + str(size) + ',p=' + str(param['p'])  + ',z=' + str(param['z'])
 
 def toParam(string):
+  string = string.replace('../', '')
   numbers = re.sub('[^0-9.]', ' ', string).split()
   ds, per = splitdsname(string.split(',')[0])
   param = {'ds' : ds, 'per': per}
@@ -224,7 +229,87 @@ def print_table_timestamp_inc(throughput, parameters, ds, per, size, mix_percent
   f.close()
   plot_bar_graph(data, headers, title, "Workload")
 
-def print_scalability_graphs(throughput, parameters, ds, per, size, mix_percents, params):
+def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, zipf, threads):
+  params = {}
+  # param_list = ['ds','per','up','range','mfind','rs','n','p','z']
+  params['up'] = mix_percent[0]
+  params['mfind'] = mix_percent[1]
+  params['range'] = mix_percent[2]
+  params['rs'] = mix_percent[3]
+  params['z'] = zipf
+  params['n'] = size
+
+  str_threads = []
+  for th in threads:
+    str_threads.append(str(th))
+
+  algs = []
+  for alg in ds:
+    if alg in ds_list_other:
+      algs.append({'ds' : alg, 'per' : ''})
+    else:
+      for pp in per:
+        algs.append({'ds':alg, 'per' : pp})
+
+  # print(graphtitle)
+  ymax = 0
+  series = {}
+  # error = {}
+  for alg in algs:
+    # if (alg == 'BatchBST64' or alg == 'ChromaticBatchBST64') and (bench.find('-0rq') == -1 or bench.find('2000000000') != -1):
+    #   continue
+    # if toString3(alg, 1, bench) not in results:
+    #   continue
+    params['ds'] = alg['ds']
+    params['per'] = alg['per']
+    key = alg['ds'] + "_" + alg['per']
+    if  alg['per'] == '':
+      key = alg['ds']
+    series[key] = []
+    # error[alg] = []
+    for th in threads:
+      params['p'] = th
+      if toString(params) not in throughput:
+        del series[key]
+        # del error[alg]
+        break
+      series[key].append(throughput[toString(params)])
+      # error[alg].append(stddev[toString3(alg, th, bench)])
+  
+  print(series)
+
+  fig, axs = plt.subplots()
+  # fig = plt.figure()
+  opacity = 0.8
+  rects = {}
+  
+  for alg in series:
+    ymax = max(ymax, max(series[alg]))
+    rects[alg] = axs.plot(threads, series[alg],
+      alpha=opacity,
+      # color=colors[alg],
+      #hatch=hatch[ds],
+      # linestyle=linestyles[alg],
+      marker='o',
+      markersize=10,
+      label=alg)
+
+  plt.axvline(x = 144, color = 'black', linestyle='--')
+
+  axs.set_ylim(bottom=-0.02*ymax)
+  # plt.xticks(threads, threads)
+  axs.set(xlabel='Number of threads', ylabel='Total throughput (Mop/s)')
+  legend_x = 1
+  legend_y = 0.5 
+  # if this_file_name == 'Update_heavy_with_RQ_-_100K_Keys':
+  #   plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
+
+  # plt.legend(framealpha=0.0)
+  plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
+  plt.grid()
+  plt.title(ds[0] + " scalability")
+  plt.savefig(ds[0] + " scalability.pdf", bbox_inches='tight')
+  plt.close('all')
   
   return
 
@@ -240,6 +325,17 @@ parameters = {}
 
 readResultsFile(throughputs, parameters)
 
+print(throughputs)
+print(parameters)
+
+# (throughput, parameters, ds, per, size, mix_percent, zipf, threads):
+
+print_scalability_graph(throughputs, parameters, ['btree', 'srivastava_abtree'], 
+  ['ver_ls', 'ver_nohelp_ls', 'nohelp', 'non_per'], 10000000, [5,0,0,16], 0.99, [1, 72, 144, 200])
+print_scalability_graph(throughputs, parameters, ['arttree', 'leis_olc_art'], 
+  ['ver_ls', 'ver_nohelp_ls', 'nohelp', 'non_per'], 10000000, [5,0,0,16], 0.99, [1, 72, 144, 200])
+
+exit()
 list_sizes = [100,1000]
 tree_sizes = [100000,10000000]
 
