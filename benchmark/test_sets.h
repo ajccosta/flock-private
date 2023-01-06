@@ -438,6 +438,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
               << "rs=" << range_size << ","
               << "n=" << n << ","
               << "p=" << p << ","
+              << "rqthreads=" << range_query_threads << ","
               << "z=" << zipfian_param << ","
               << "rq_throughput=" << parlay::reduce(range_counts) / (duration * 1e6) << ","
               << "update_throughput=" << parlay::reduce(update_counts) / (duration * 1e6) << std::endl;
