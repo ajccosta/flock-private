@@ -46,6 +46,23 @@ if not graphs_only:
   jemalloc = "LD_PRELOAD=`jemalloc-config --libdir`/libjemalloc.so.`jemalloc-config --revision` "
   numactl = "numactl -i all "
 
+  # run verlib data structures
+  cmdbase = "./../../build/benchmark/"
+
+  i = 0
+  for ds in verlib_datastructures:
+    for rqsize in rqsizes:
+      i = i+1
+      tmp_results_file = "verlib_results/data-trials" + str(i) + ".out"
+      cmd = numactl + cmdbase + ds + " -u " + str(ins+rmv) + " -n " + str(num_keys) + " -rs " + rqsize + " -tt " + runtime + " -p " + str(th) + " -rqthreads " + str(rq_threads) + " -id " + " -r " + str(repeats)
+      print(cmd)
+      f = open(tmp_results_file, "w")
+      f.write(cmd + '\n')
+      f.close()
+      if os.system(cmd + " >> " + tmp_results_file) != 0:
+        print("")
+        exit(1)
+
   # run C++ data structures
   cmdbase = "./cpp/microbench/" + socket.gethostname() + "."
 
@@ -80,23 +97,6 @@ if not graphs_only:
       cmd = numactl + cmdbase + str(th) + " " + str(repeats*2) + " " + runtime + " " + ds + " -ins" + str(ins) + " -del" + str(rmv) + " -rq0 -rqsize" + str(rqsize) + " -rqers" + rq_threads + " -keys" + str(key_range) + " -prefill -file-java/build/data-trials" + str(i) + ".csv"
       print(cmd)
       if os.system(cmd) != 0:
-        print("")
-        exit(1)
-
-  # run verlib data structures
-  cmdbase = "./../../build/benchmark/"
-
-  i = 0
-  for ds in verlib_datastructures:
-    for rqsize in rqsizes:
-      i = i+1
-      tmp_results_file = "verlib_results/data-trials" + str(i) + ".out"
-      cmd = numactl + cmdbase + ds + " -u " + str(ins+rmv) + " -n " + str(num_keys) + " -rs " + rqsize + " -tt " + runtime + " -p " + str(th) + " -rqthreads " + str(rq_threads) + " -id " + " -r " + str(repeats)
-      print(cmd)
-      f = open(tmp_results_file, "w")
-      f.write(cmd + '\n')
-      f.close()
-      if os.system(cmd + " >> " + tmp_results_file) != 0:
         print("")
         exit(1)
 
