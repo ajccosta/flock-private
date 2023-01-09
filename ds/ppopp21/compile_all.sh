@@ -7,7 +7,9 @@ echo "Finished compiling Java benchmarks"
 
 echo "Compiling C++ benchmarks..."
 cd cpp/microbench
-make vcasbst
-make bst.rq_unsafe
-make bst.rq_lockfree
+make bst.rq_lockfree skiplistlock.rq_bundle citrus.rq_bundle
+cd ../../
+
+cd ../../build/benchmark
+make btree_ver_ls
 echo "Finished compiling C++ benchmarks"

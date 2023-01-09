@@ -3,73 +3,44 @@ import matplotlib as mpl
 # mpl.use('Agg')
 mpl.rcParams['grid.linestyle'] = ":"
 mpl.rcParams.update({'font.size': 15})
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
 import os
 import statistics as st
+import re
 
 columns = ['throughput', 'name', 'nthreads', 'ratio', 'maxkey', 'rqsize', 'time', 'ninstrue', 'ninsfalse', 'ndeltrue', 'ndelfalse', 'nrqtrue', 'nrqfalse', 'merged-experiment']
 
-names = { 'BSTBST': 'BST',
-          'BST': 'BST',
+names = { 
           'LFCA': 'LFCA',
-          'KIWI': 'KIWI',
-          'ChromaticBatchBST64': 'CT-64',
-          'VcasChromaticBatchBSTGC64': 'VcasCT-64',
-          'BPBST64': 'PNB-BST',
-          'BatchBST64': 'BST-64',
-          'VcasBatchBSTGC64': 'VcasBST-64',
-          'KSTRQ' : 'KST',
-          'SnapTree' : 'SnapTree',
-
-          'vcasbst' : 'VcasBST',
-          'bst.rq_unsafe' : 'BST (non-atomic RQs)',
-          'bst.rq_lockfree' : 'EpochBST',}
+          'bst.rq_lockfree' : 'EpochBST',
+          'skiplistlock.rq_bundle' : 'BundledSkiplist',
+          'citrus.rq_bundle' : 'BundledCitrus',
+          'btree_ver_ls' : 'btree_ver_ls',
+}
 colors = {
-          'BPBST64': 'C8',
-          'LFCA': 'C2', 
-          'KIWI': 'C1',
-          'KSTRQ' : 'C4',
-          'SnapTree' : 'C9',
-          'ChromaticBatchBST64': 'C6',
-          'VcasChromaticBatchBSTGC64': 'C3',
-          'BatchBST64': 'C0',
-          'VcasBatchBSTGC64': 'C5',
-
-          'vcasbst': 'C0',
-          'bst.rq_unsafe': 'C1', 
-          'bst.rq_lockfree': 'C2'               
+          'LFCA': 'C3', 
+          'bst.rq_lockfree': 'C2',        
+          'skiplistlock.rq_bundle' : 'C0',
+          'citrus.rq_bundle' : 'C1',
+          'btree_ver_ls' : 'C4',     
 }
 linestyles = {
-              'BPBST64': '--',
-              'LFCA': '--', 
-              'KIWI': '-',
-              'KSTRQ' : '--',
-              'SnapTree' : '-',
-              'ChromaticBatchBST64': '-',
-              'VcasChromaticBatchBSTGC64': '-',
-              'BatchBST64': '--',
-              'VcasBatchBSTGC64': '--',       
-
-              'vcasbst': '--',
-              'bst.rq_unsafe': '--', 
-              'bst.rq_lockfree': '--',   
+              'LFCA': '-', 
+              'bst.rq_lockfree': '-',   
+              'skiplistlock.rq_bundle' : '-',
+              'citrus.rq_bundle' : '-',  
+              'btree_ver_ls' : '-',
 }
 markers =    {
-              'BPBST64': 'o',
-              'LFCA': 'v', 
-              'KIWI': '^',
-              'KSTRQ' : 's',
-              'SnapTree' : 'x',
-              'ChromaticBatchBST64': '|',
-              'VcasChromaticBatchBSTGC64': 'D',
-              'BatchBST64': '<',
-              'VcasBatchBSTGC64': '>',    
-
-              'vcasbst': 'o',
-              'bst.rq_unsafe': 'x', 
-              'bst.rq_lockfree': '>',       
+              'LFCA': 's',    
+              'bst.rq_lockfree': '>',      
+              'skiplistlock.rq_bundle' : 'o',
+              'citrus.rq_bundle' : 'x',    
+              'btree_ver_ls' : '^',
 }
 
 algList = ['KIWI', 'SnapTree', 'KSTRQ', 'BPBST64', 'LFCA', 'VcasBatchBSTGC64', 'VcasChromaticBatchBSTGC64']
@@ -134,6 +105,41 @@ def avg(numlist):
   else:
     return -1;
 
+param_list = ['ds','per','up','range','mfind','rs','n','p','z']
+
+def toParam(string):
+  numbers = re.sub('[^0-9.]', ' ', string).split()
+  ds = string.split(',')[0]
+  param = {'ds' : ds}
+  p = param_list[2:]
+  for i in range(len(p)):
+    if '.' in numbers[i]:
+      param[p[i]] = float(numbers[i])
+    else:
+      param[p[i]] = int(numbers[i])
+  return param
+
+def readVerlibResultsFile(filename, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs):
+  throughputs_raw = {}
+  for line in open(filename, "r"):
+    if not line.startswith('./'):
+      continue
+    string = line[2:].replace('../', '').replace('build/benchmark/', '')
+    param = toParam(string)
+    if param['ds'] not in algs:
+      algs.append(param['ds'])
+    key = toStringRQ(param['ds'], param['p'], param['n']*2, param['rs'])
+    numbers = re.sub('[^0-9.]', ' ', string).split()
+    if key+'-updates' not in throughputs_raw:
+      throughputs_raw[key+'-updates'] = []
+    if key+'-rqs' not in throughputs_raw:
+      throughputs_raw[key+'-rqs'] = []
+    throughputs_raw[key+'-rqs'].append(float(numbers[-2]))
+    throughputs_raw[key+'-updates'].append(float(numbers[-1]))
+  for key in throughputs_raw:
+    throughput[key] = sum(throughputs_raw[key])/len(throughputs_raw[key])
+    stddev[key] = st.pstdev(throughputs_raw[key])
+
 def readCppResultsFileMemory(filename, results, stddev, rqsizes, algs):
   resultsRaw = {}
   alg = ""
@@ -181,9 +187,12 @@ def readCppResultsFileMemory(filename, results, stddev, rqsizes, algs):
 
 def readCppResultsFile(filename, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs):
   throughputRaw = {}
-  threads.append("")
-  ratios.append("")
-  maxkeys.append("")
+  if len(threads) == 0:
+    threads.append("")
+  if len(ratios) == 0:
+    ratios.append("")
+  if len(maxkeys) == 0:
+    maxkeys.append("")
   alg = ""
   rqsize = ""
 
@@ -196,6 +205,10 @@ def readCppResultsFile(filename, throughput, stddev, threads, ratios, maxkeys, r
       alg = 'bst.rq_unsafe'
     elif line.find('bst.rq_lockfree') != -1:
       alg = 'bst.rq_lockfree'
+    elif line.find('skiplistlock.rq_bundle') != -1:
+      alg = 'skiplistlock.rq_bundle'
+    elif line.find('citrus.rq_bundle') != -1:
+      alg = 'citrus.rq_bundle'
     elif line.find('RQSIZE') != -1:
       rqsize = int(line.split("=")[1])
       if rqsize not in rqsizes:
@@ -431,7 +444,7 @@ def plot_java_scalability_graphs(inputFile, outputFile, graphtitle):
   plt.savefig(outputFile, bbox_inches='tight')
   plt.close('all')
 
-def plot_rqsize_graphs(inputFile, outputFile, graphtitle, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs):
+def plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs):
   threads.sort()
   rqsizes.sort()
   maxkeys.sort()
@@ -501,7 +514,7 @@ def plot_java_rqsize_graphs(inputFile, outputFile, graphtitle):
   algs = []
 
   readJavaResultsFile(inputFile, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
-  plot_rqsize_graphs(inputFile, outputFile, graphtitle, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
+  plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
 
 def plot_cpp_rqsize_graphs(inputFile, outputFile, graphtitle):
   throughput = {}
@@ -513,7 +526,25 @@ def plot_cpp_rqsize_graphs(inputFile, outputFile, graphtitle):
   algs = []
 
   readCppResultsFile(inputFile, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
-  plot_rqsize_graphs(inputFile, outputFile, graphtitle, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
+  plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
+
+def plot_combined_rqsize_graphs(inputFileCpp, inputFileJava, inputFileVerlib, outputFile, graphtitle):
+  throughput = {}
+  stddev = {}
+  threads = []
+  ratios = []
+  maxkeys = []
+  rqsizes = []
+  algs = []
+
+  readJavaResultsFile(inputFileJava, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
+  readCppResultsFile(inputFileCpp, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
+  readVerlibResultsFile(inputFileVerlib, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
+  print(throughput)
+  print(algs)
+  print(rqsizes)
+  print(threads)
+  plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs)
 
 def plot_memory_graphs(inputFile, outputFile, graphtitle, results, stddev, rqsizes, algs):
   # for key in results:

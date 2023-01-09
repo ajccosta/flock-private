@@ -2,8 +2,12 @@
 import os
 import re
 from tabulate import tabulate
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['ps.fonttype'] = 42
 
 # input_files = ["ip-172-31-45-236_10_25_22", "ip-172-31-40-178_10_25_22"]
 input_files = ["scalability_aware.aladdin.cs.cmu.edu_01_05_23"]
