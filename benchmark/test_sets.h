@@ -319,6 +319,9 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
         t.start();
         auto start = std::chrono::system_clock::now();
         std::atomic<bool> finish = false;
+	auto range_buffers = parlay::tabulate(p, [&] (size_t i) {
+			       return std::vector<K>(100ul + 2*range_size);});
+					     
         parlay::parallel_for(0, p, [&] (size_t i) {
           int cnt = 0;
           size_t j = i*mp;
@@ -331,6 +334,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
           long update_count = 0;
           long query_count = 0;
           volatile long keysum = 0;
+	  std::vector<K>& range_keys = range_buffers[i];
           while (true) {
             // every once in a while check if time is over
             if (cnt >= 100) { 
@@ -365,7 +369,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
               if (os.remove(tr, b[j])) added--;}
             else if (op_types[j] == Range) {
 #ifdef Range_Search
-	      std::vector<K> range_keys{100ul + 2*range_size};
               key_type end = ((b[j] > max_key - range_gap)
                              ? max_key : b[j] + range_gap);
               range_count++;

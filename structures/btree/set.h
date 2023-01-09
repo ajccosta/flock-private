@@ -16,12 +16,12 @@ struct Set {
   // for 8 byte keys and 8 byte values
   // it should be a length such that l mod 4 = 3
   // this is so it fills a cache line
-  static constexpr int leaf_block_size = 15;
-  static constexpr int leaf_min_size = 3;
-  static constexpr int leaf_join_cutoff = 12;
-  static constexpr int node_block_size = 15;
-  static constexpr int node_min_size = 3;
-  static constexpr int node_join_cutoff = 12;
+  static constexpr int leaf_block_size = 31;
+  static constexpr int leaf_min_size = 6;
+  static constexpr int leaf_join_cutoff = 24;
+  static constexpr int node_block_size = 31;
+  static constexpr int node_min_size = 6;
+  static constexpr int node_join_cutoff = 24;
     
   // ***************************************
   // Internal Nodes
