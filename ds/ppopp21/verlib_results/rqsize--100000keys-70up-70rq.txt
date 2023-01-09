@@ -1,9 +1,20 @@
 numactl -i all ./../../build/benchmark/btree_ver_ls -u 100 -n 100000 -rs 16 -tt 3 -p 140 -rqthreads 70 -id  -r 3
-./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=16,n=100000,p=140,rq_threads=70,z=0,rq_throughput=81.19,update_throughput=63.14
-./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=16,n=100000,p=140,rq_threads=70,z=0,rq_throughput=79.35,update_throughput=65.24
-./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=16,n=100000,p=140,rq_threads=70,z=0,rq_throughput=78.32,update_throughput=65.22
+range gap: 2951479051793520
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=16,n=100000,p=140,rq_threads=70,z=0,rq_throughput=78.45,update_throughput=62.76
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=16,n=100000,p=140,rq_threads=70,z=0,rq_throughput=76.88,update_throughput=65.14
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=16,n=100000,p=140,rq_threads=70,z=0,rq_throughput=77.81,update_throughput=63.57
 numactl -i all ./../../build/benchmark/btree_ver_ls -u 100 -n 100000 -rs 256 -tt 3 -p 140 -rqthreads 70 -id  -r 3
-./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=256,n=100000,p=140,rq_threads=70,z=0,rq_throughput=11.86,update_throughput=64.03
-./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=256,n=100000,p=140,rq_threads=70,z=0,rq_throughput=11.65,update_throughput=65.97
-./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=256,n=100000,p=140,rq_threads=70,z=0,rq_throughput=11.7,update_throughput=65.41
+range gap: 47223664828696320
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=256,n=100000,p=140,rq_threads=70,z=0,rq_throughput=11.37,update_throughput=64.11
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=256,n=100000,p=140,rq_threads=70,z=0,rq_throughput=11.24,update_throughput=65.45
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=256,n=100000,p=140,rq_threads=70,z=0,rq_throughput=11.18,update_throughput=65.06
 numactl -i all ./../../build/benchmark/btree_ver_ls -u 100 -n 100000 -rs 4096 -tt 3 -p 140 -rqthreads 70 -id  -r 3
+range gap: 755578637259141120
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=4096,n=100000,p=140,rq_threads=70,z=0,rq_throughput=0.4962,update_throughput=63.86
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=4096,n=100000,p=140,rq_threads=70,z=0,rq_throughput=0.4806,update_throughput=65.02
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=4096,n=100000,p=140,rq_threads=70,z=0,rq_throughput=0.4741,update_throughput=65.35
+numactl -i all ./../../build/benchmark/btree_ver_ls -u 100 -n 100000 -rs 65536 -tt 3 -p 140 -rqthreads 70 -id  -r 3
+range gap: 12089258196146257920
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=65536,n=100000,p=140,rq_threads=70,z=0,rq_throughput=0.01666,update_throughput=51.81
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=65536,n=100000,p=140,rq_threads=70,z=0,rq_throughput=0.01453,update_throughput=53.56
+./../../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=65536,n=100000,p=140,rq_threads=70,z=0,rq_throughput=0.01509,update_throughput=53.01
