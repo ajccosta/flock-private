@@ -1,6 +1,6 @@
 set(SOURCES test_sets.cpp)
 
-set(BENCH_FILES "runtests" "run_sanity_checks.py" "runscalability")
+set(BENCH_FILES "runtests" "run_sanity_checks.py" "runscalability" "runzipf")
 
 function(copy_bench_file NAME)
   file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${NAME}
@@ -18,19 +18,6 @@ set(FLOCK_BENCH_RECORDED_ONCE "btree" "list")
 
 set(OTHER_LIST_DIR ${PROJECT_SOURCE_DIR}/ds)
 set(OTHER_LIST_BENCH "harris_list" "harris_list_opt")
-
-# compile LFCA
-
-set(
-    LFCA_SOURCE
-    ${PROJECT_SOURCE_DIR}/ds/lfca/lfca.cpp
-    ${PROJECT_SOURCE_DIR}/ds/lfca/treap.cpp
-)
-
-add_executable("lfca" ${LFCA_SOURCE} ${SOURCES})
-target_compile_definitions("lfca" PRIVATE "")
-target_link_libraries("lfca" PRIVATE verlib)
-target_include_directories("lfca" PRIVATE ${PROJECT_SOURCE_DIR}/ds/lfca)
 
 function(add_benchmark NAME STRUCT_NAME DEFS)
   add_executable(${NAME} ${SOURCES})
