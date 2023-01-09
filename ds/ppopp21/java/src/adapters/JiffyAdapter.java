@@ -42,7 +42,20 @@ public class JiffyAdapter<K extends Comparable<? super K>> extends AbstractAdapt
 
     @Override
     public Object rangeQuery(K lo, K hi, int rangeSize, Random rng) {
-        return tree.subMap(lo, true, hi, true).keySet().toArray();
+        RangeScanResultHolder rangeScanResultHolder = rangeScanResult.get();
+        rangeScanResultHolder.rsResult.clear();
+        for(K k : tree.subMap(lo, true, hi, true).keySet()) {
+            rangeScanResultHolder.rsResult.push(k);
+        }
+
+        Object[] stackArray = rangeScanResultHolder.rsResult.getStackArray();
+        int stackSize = rangeScanResultHolder.rsResult.getEffectiveSize();
+
+        // Make a copy of the stack and return it
+        Object[] returnArray = new Object[stackSize];
+        for (int i = 0; i < stackSize; i++)
+            returnArray[i] = stackArray[i];
+        return returnArray;
     }
 
     // @Override
@@ -82,4 +95,49 @@ public class JiffyAdapter<K extends Comparable<? super K>> extends AbstractAdapt
         return tree.size();
     }
 
+    private final ThreadLocal<RangeScanResultHolder> rangeScanResult = new ThreadLocal<RangeScanResultHolder>() {
+        @Override
+        protected RangeScanResultHolder initialValue() {
+            return new RangeScanResultHolder();
+        }
+    };
+    private static final class RangeScanResultHolder {
+        private Stack rsResult;
+
+        RangeScanResultHolder() {
+            rsResult = new Stack();
+        }
+
+        private static final class Stack {
+            private final int INIT_SIZE = 128;
+            private Object[] stackArray;
+            private int head = 0;
+
+            Stack() {
+                stackArray = new Object[INIT_SIZE];
+            }
+
+            final void clear() {
+                head = 0;
+            }
+
+            final Object[] getStackArray() {
+                return stackArray;
+            }
+
+            final int getEffectiveSize() {
+                return head;
+            }
+
+            final void push(final Object x) {
+                if (head == stackArray.length) {
+                    final Object[] newStackArray = new Object[stackArray.length*4];
+                    System.arraycopy(stackArray, 0, newStackArray, 0, head);
+                    stackArray = newStackArray;
+                }
+                stackArray[head] = x;
+                ++head;
+            }
+        }
+    }
 }

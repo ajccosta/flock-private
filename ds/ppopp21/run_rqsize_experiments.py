@@ -39,7 +39,7 @@ verlib_results_file_name = "verlib_results/" + benchmark_name + ".txt"
 # print(results_file_name)
 
 cpp_datastructures = ["bst.rq_lockfree.out", "skiplistlock.rq_bundle.out", "citrus.rq_bundle.out"]
-java_datastructures = ["LFCA"]
+java_datastructures = ["LFCA", "Jiffy"]
 verlib_datastructures = ["btree_ver_ls"] 
 
 if not graphs_only:
@@ -77,7 +77,7 @@ if not graphs_only:
   for ds in java_datastructures:
     for rqsize in rqsizes:
       i = i+1
-      cmd = numactl + cmdbase + str(th) + " " + str(repeats) + " " + runtime + " " + ds + " -ins" + str(ins) + " -del" + str(rmv) + " -rq0 -rqsize" + str(rqsize) + " -rqers" + rq_threads + " -keys" + str(key_range) + " -prefill -file-java/build/data-trials" + str(i) + ".csv"
+      cmd = numactl + cmdbase + str(th) + " " + str(repeats*2) + " " + runtime + " " + ds + " -ins" + str(ins) + " -del" + str(rmv) + " -rq0 -rqsize" + str(rqsize) + " -rqers" + rq_threads + " -keys" + str(key_range) + " -prefill -file-java/build/data-trials" + str(i) + ".csv"
       print(cmd)
       if os.system(cmd) != 0:
         print("")

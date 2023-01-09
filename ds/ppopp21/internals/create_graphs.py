@@ -16,6 +16,7 @@ columns = ['throughput', 'name', 'nthreads', 'ratio', 'maxkey', 'rqsize', 'time'
 
 names = { 
           'LFCA': 'LFCA',
+          'Jiffy': 'Jiffy',
           'bst.rq_lockfree' : 'EpochBST',
           'skiplistlock.rq_bundle' : 'BundledSkiplist',
           'citrus.rq_bundle' : 'BundledCitrus',
@@ -23,6 +24,7 @@ names = {
 }
 colors = {
           'LFCA': 'C3', 
+          'Jiffy': 'C5',
           'bst.rq_lockfree': 'C2',        
           'skiplistlock.rq_bundle' : 'C0',
           'citrus.rq_bundle' : 'C1',
@@ -30,6 +32,7 @@ colors = {
 }
 linestyles = {
               'LFCA': '-', 
+              'Jiffy': '-',
               'bst.rq_lockfree': '-',   
               'skiplistlock.rq_bundle' : '-',
               'citrus.rq_bundle' : '-',  
@@ -37,6 +40,7 @@ linestyles = {
 }
 markers =    {
               'LFCA': 's',    
+              'Jiffy': '|',
               'bst.rq_lockfree': '>',      
               'skiplistlock.rq_bundle' : 'o',
               'citrus.rq_bundle' : 'x',    
