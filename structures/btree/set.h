@@ -33,9 +33,9 @@ struct Set {
   struct header : verlib::versioned {
     bool is_leaf;
     Status status;
-    char size;
+    int size;
     header(bool is_leaf, Status status, int size)
-      : is_leaf(is_leaf), status(status), size((char) size) {}
+      : is_leaf(is_leaf), status(status), size(size) {}
   };
 
   // Internal Node
@@ -295,8 +295,8 @@ struct Set {
     leaf* new_r = leaf_pool.new_obj(size-lsize);
     // hack to deal with broken g++-10 compiler
     if (true) {
-      K tmpK[20];
-      V tmpV[20];
+      K tmpK[leaf_block_size];
+      V tmpV[leaf_block_size];
 
       for (int i = 0; i < lsize; i++) {
         auto [key,val] = get_kv(i);
