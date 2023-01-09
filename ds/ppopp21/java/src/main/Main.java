@@ -28,6 +28,7 @@ import main.support.*;
 
 import algorithms.vcas.Camera;
 import algorithms.kiwi.KiWi;
+import pl.edu.put.concurrent.jiffy.Jiffy;
 
 import java.util.function.Predicate;
 import java.io.*;
@@ -394,8 +395,14 @@ public class Main {
                     } else falseDel++;
                 } else if (op < ratio.ins + ratio.del + ratio.rq) {
                     final Integer keyInt = rng.nextNatural(ex.maxkey - rqSize + 1)+1;
-                    if (((Object[]) (tree.rangeQuery((K) keyInt, (K) ((Integer) (keyInt + rqSize - 1)), 0, null))).length != 0) trueRQ++;
-                    else falseRQ++;
+//                    if(tree instanceof JiffyAdapter) {
+//                        if ((((JiffyAdapter)tree.rangeQuery((K) keyInt, (K) ((Integer) (keyInt + rqSize - 1)), 0, null))).size() != 0) trueRQ++;
+//                        else falseRQ++;
+//                    } else {
+                        if (((Object[]) (tree.rangeQuery((K) keyInt, (K) ((Integer) (keyInt + rqSize - 1)), 0, null))).length != 0) trueRQ++;
+                        else falseRQ++;
+//                    }
+
                 } else {
                     final Integer keyInt = gen.next();
                     // if(ThreadID.threadID.get() == null)

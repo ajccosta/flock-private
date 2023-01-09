@@ -13,18 +13,19 @@ public class Factories {
     public static final ArrayList<TreeFactory<Integer>> factories =
             new ArrayList<TreeFactory<Integer>>();
     static {
-        factories.add(new VcasBatchBSTGCFactory<Integer>());
-        factories.add(new LockFreeBSTFactory<Integer>());
-        factories.add(new LockFreeChromaticFactory<Integer>());
-        factories.add(new LockFreeBatchBSTFactory<Integer>());
-        factories.add(new LockFreePBSTFactory<Integer>());
-        factories.add(new LockFreeBPBSTFactory<Integer>());
+//        factories.add(new VcasBatchBSTGCFactory<Integer>());
+//        factories.add(new LockFreeBSTFactory<Integer>());
+//        factories.add(new LockFreeChromaticFactory<Integer>());
+//        factories.add(new LockFreeBatchBSTFactory<Integer>());
+//        factories.add(new LockFreePBSTFactory<Integer>());
+//        factories.add(new LockFreeBPBSTFactory<Integer>());
         factories.add(new LFCAFactory<Integer>());
-        factories.add(new LockFreeBatchChromaticFactory<Integer>());
-        factories.add(new VcasBatchChromaticGCFactory<Integer>());
-        factories.add(new KiwiFactory<Integer>());
-        factories.add(new SnapTreeFactory<Integer>());
-        factories.add(new LockFreeKSTRQFactory<Integer>());
+        factories.add(new JiffyFactory<Integer>());
+//        factories.add(new LockFreeBatchChromaticFactory<Integer>());
+//        factories.add(new VcasBatchChromaticGCFactory<Integer>());
+//        factories.add(new KiwiFactory<Integer>());
+//        factories.add(new SnapTreeFactory<Integer>());
+//        factories.add(new LockFreeKSTRQFactory<Integer>());
     }
 
     // factory classes for each supported data structure
@@ -51,6 +52,14 @@ public class Factories {
             return new LFCAAdapter();
         }
         public String getName() { return "LFCA"; }
+    }
+
+    @Exclude
+    protected static class JiffyFactory<K> extends TreeFactory<K> {
+        public SetInterface<K> newTree(final Object param) {
+            return new JiffyAdapter();
+        }
+        public String getName() { return "Jiffy"; }
     }
 
     @Exclude
