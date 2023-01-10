@@ -40,7 +40,7 @@ verlib_results_file_name = "verlib_results/" + benchmark_name + ".txt"
 
 cpp_datastructures = ["bst.rq_lockfree.out", "skiplistlock.rq_bundle.out", "citrus.rq_bundle.out"]
 java_datastructures = ["LFCA", "Jiffy"]
-verlib_datastructures = ["btree_ver_ls", "btree_ver_hw", "btree_ver_ws"] 
+verlib_datastructures = ["btree_ver_ls", "btree_ver_hw", "btree_ver_ws", "btree_ver_rs"] 
 
 if not graphs_only:
   jemalloc = "LD_PRELOAD=`jemalloc-config --libdir`/libjemalloc.so.`jemalloc-config --revision` "

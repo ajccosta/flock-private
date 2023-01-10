@@ -23,6 +23,7 @@ names = {
           'btree_ver_ls' : 'btree_ver_ls',
           'btree_ver_hw' : 'btree_ver_hw',
           'btree_ver_ws' : 'btree_ver_ws',
+          'btree_ver_rs' : 'btree_ver_rs',
 }
 colors = {
           'LFCA': 'C3', 
@@ -33,6 +34,7 @@ colors = {
           'btree_ver_ls' : 'C4',  
           'btree_ver_hw' : 'C5',
           'btree_ver_ws' : 'C6',   
+          'btree_ver_rs' : 'C7',  
 }
 linestyles = {
               'LFCA': '-', 
@@ -43,6 +45,7 @@ linestyles = {
               'btree_ver_ls' : '-',
               'btree_ver_hw' : '-',
               'btree_ver_ws' : '-',
+              'btree_ver_rs' : '-',
 }
 markers =    {
               'LFCA': 's',    
@@ -53,6 +56,7 @@ markers =    {
               'btree_ver_ls' : '^',
               'btree_ver_hw' : '^',
               'btree_ver_ws' : '^',
+              'btree_ver_rs' : '^',
 }
 
 algList = ['KIWI', 'SnapTree', 'KSTRQ', 'BPBST64', 'LFCA', 'VcasBatchBSTGC64', 'VcasChromaticBatchBSTGC64']
