@@ -22,6 +22,58 @@ num_tables = 0
 
 combined_output = ""
 
+names = { 
+          'btree_ver_ls': 'btree-lockfree-persistent',
+          'btree_ver_nohelp_ls': 'btree-blocking-persistent',
+          'btree_nohelp' : 'btree-blocking',
+          'btree_non_per' : 'btree-lockfree',
+          'srivastava_abtree': 'srivastava_abtree',
+
+          'arttree_ver_ls' : 'arttree-lockfree-persistent',
+          'arttree_ver_nohelp_ls' : 'arttree-blocking-persistent',
+          'arttree_nohelp' : 'arttree-blocking',
+          'arttree_non_per' : 'arttree-lockfree',
+          'leis_olc_art' : 'leis_artree',
+}
+colors = {
+          'btree_ver_ls': 'C0',
+          'btree_ver_nohelp_ls': 'C1',
+          'btree_nohelp' : 'C2',
+          'btree_non_per' : 'C3',
+          'srivastava_abtree': 'C4',
+
+          'arttree_ver_ls' : 'C0',
+          'arttree_ver_nohelp_ls' : 'C1',
+          'arttree_nohelp' : 'C2',
+          'arttree_non_per' : 'C3',
+          'leis_olc_art' : 'C4',
+}
+linestyles = {
+          'btree_ver_ls': '-',
+          'btree_ver_nohelp_ls': '-',
+          'btree_nohelp' : '--',
+          'btree_non_per' : '--',
+          'srivastava_abtree': '--',
+
+          'arttree_ver_ls' : '-',
+          'arttree_ver_nohelp_ls' : '-',
+          'arttree_nohelp' : '--',
+          'arttree_non_per' : '--',
+          'leis_olc_art' : '--',
+}
+markers =    {
+          'btree_ver_ls': 's',
+          'btree_ver_nohelp_ls': '>',
+          'btree_nohelp' : 'o',
+          'btree_non_per' : 'x',
+          'srivastava_abtree': '|',
+
+          'arttree_ver_ls' : 's',
+          'arttree_ver_nohelp_ls' : '>',
+          'arttree_nohelp' : 'o',
+          'arttree_non_per' : 'x',
+          'leis_olc_art' : '|',
+}
 
 # try to get LCFA running: https://github.com/kboyles8/lock-free-search-tree
 # https://www.scienceopen.com/hosted-document?doi=10.14293/S2199-1006.1.SOR-.PPIV7TZ.v1
@@ -110,7 +162,7 @@ def transpose(data_):
   return data
 
 
-colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
+colors_list = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
 
 def plot_bar_graph(data_, headers, title, x_axis):
   x_labels = []
@@ -137,7 +189,7 @@ def plot_bar_graph(data_, headers, title, x_axis):
   X = np.arange(len(data[0]))
 
   for i in range(len(data)):
-    plt.bar(X + i*barWidth, data[i], color=colors[i], width = barWidth,
+    plt.bar(X + i*barWidth, data[i], color=colors_list[i], width = barWidth,
         edgecolor ='grey', label =headers[i+1])
 
   plt.xlabel('x_axis', fontweight ='bold', fontsize = 15)
@@ -291,12 +343,12 @@ def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, 
     ymax = max(ymax, max(series[alg]))
     rects[alg] = axs.plot(threads, series[alg],
       alpha=opacity,
-      # color=colors[alg],
-      #hatch=hatch[ds],
-      # linestyle=linestyles[alg],
-      marker='o',
+      color=colors[alg],
+      # hatch=hatch[ds],
+      linestyle=linestyles[alg],
+      marker=markers[alg],
       markersize=10,
-      label=alg)
+      label=names[alg])
 
   plt.axvline(x = 144, color = 'black', linestyle='--')
 
@@ -335,9 +387,9 @@ print(parameters)
 # (throughput, parameters, ds, per, size, mix_percent, zipf, threads):
 
 print_scalability_graph(throughputs, parameters, ['btree', 'srivastava_abtree'], 
-  ['ver_ls', 'ver_nohelp_ls', 'nohelp', 'non_per'], 10000000, [5,0,0,16], 0.99, [1, 72, 144, 200])
+  ['nohelp', 'non_per', 'ver_ls', 'ver_nohelp_ls'], 10000000, [5,0,0,16], 0.99, [1, 72, 144, 200, 256,300,500])
 print_scalability_graph(throughputs, parameters, ['arttree', 'leis_olc_art'], 
-  ['ver_ls', 'ver_nohelp_ls', 'nohelp', 'non_per'], 10000000, [5,0,0,16], 0.99, [1, 72, 144, 200])
+  ['nohelp', 'non_per', 'ver_ls', 'ver_nohelp_ls'], 10000000, [5,0,0,16], 0.99, [1, 72, 144, 200, 256,300,500])
 
 exit()
 list_sizes = [100,1000]
