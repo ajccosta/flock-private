@@ -138,8 +138,8 @@ def runtest(test,procs,n,z,u) :
     str_rounds = "-r " + str(rounds) + " "
     str_time = "-tt " + str(time) + " "
     str_n = "-n " + str(n) + " "
-    if shuffle : str_other = "-shuffle "
-    else : str_other = ""
+    if shuffle : str_other = "-shuffle -id "
+    else : str_other = " -id "
     runstring("PARLAY_NUM_THREADS=" + str(num_threads) + " numactl -i all ./" + test + " " + str_time + str_rounds + str_n + str_update + str_zipfians + str_other)
 
 def run_tests(tests,suffixes,sizes) :

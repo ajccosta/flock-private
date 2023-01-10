@@ -40,7 +40,7 @@ verlib_results_file_name = "verlib_results/" + benchmark_name + ".txt"
 
 cpp_datastructures = ["bst.rq_lockfree.out", "skiplistlock.rq_bundle.out", "citrus.rq_bundle.out"]
 java_datastructures = ["LFCA", "Jiffy"]
-verlib_datastructures = ["btree_ver_ls"] 
+verlib_datastructures = ["btree_ver_ls", "btree_ver_hw", "btree_ver_ws", "btree_ver_rs"] 
 
 if not graphs_only:
   jemalloc = "LD_PRELOAD=`jemalloc-config --libdir`/libjemalloc.so.`jemalloc-config --revision` "
@@ -54,7 +54,7 @@ if not graphs_only:
     for rqsize in rqsizes:
       i = i+1
       tmp_results_file = "verlib_results/data-trials" + str(i) + ".out"
-      cmd = numactl + cmdbase + ds + " -u " + str(ins+rmv) + " -n " + str(num_keys) + " -rs " + rqsize + " -tt " + runtime + " -p " + str(th) + " -rqthreads " + str(rq_threads) + " -id " + " -r " + str(repeats)
+      cmd = numactl + cmdbase + ds + " -u " + str(ins+rmv) + " -n " + str(num_keys) + " -rs " + str(int(int(rqsize)/2)) + " -tt " + runtime + " -p " + str(th) + " -rqthreads " + str(rq_threads) + " -id " + " -r " + str(repeats) + " -dense"
       print(cmd)
       f = open(tmp_results_file, "w")
       f.write(cmd + '\n')

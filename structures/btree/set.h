@@ -16,12 +16,12 @@ struct Set {
   // for 8 byte keys and 8 byte values
   // it should be a length such that l mod 4 = 3
   // this is so it fills a cache line
-  static constexpr int leaf_block_size = 15;
-  static constexpr int leaf_min_size = 3;
-  static constexpr int leaf_join_cutoff = 12;
-  static constexpr int node_block_size = 15;
-  static constexpr int node_min_size = 3;
-  static constexpr int node_join_cutoff = 12;
+  static constexpr int leaf_block_size = 31;
+  static constexpr int leaf_min_size = 6;
+  static constexpr int leaf_join_cutoff = 24;
+  static constexpr int node_block_size = 31;
+  static constexpr int node_min_size = 6;
+  static constexpr int node_join_cutoff = 24;
     
   // ***************************************
   // Internal Nodes
@@ -33,9 +33,9 @@ struct Set {
   struct header : verlib::versioned {
     bool is_leaf;
     Status status;
-    char size;
+    int size;
     header(bool is_leaf, Status status, int size)
-      : is_leaf(is_leaf), status(status), size((char) size) {}
+      : is_leaf(is_leaf), status(status), size(size) {}
   };
 
   // Internal Node
@@ -295,8 +295,8 @@ struct Set {
     leaf* new_r = leaf_pool.new_obj(size-lsize);
     // hack to deal with broken g++-10 compiler
     if (true) {
-      K tmpK[20];
-      V tmpV[20];
+      K tmpK[leaf_block_size];
+      V tmpV[leaf_block_size];
 
       for (int i = 0; i < lsize; i++) {
         auto [key,val] = get_kv(i);

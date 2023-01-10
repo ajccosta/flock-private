@@ -307,6 +307,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
           for(int j = i*mp; j < (i+1)*mp; j++) op_types[j] = Range;
         }, 1);
 
+
         parlay::sequence<size_t> totals(p);
         parlay::sequence<long> addeds(p);
         parlay::sequence<long> range_counts(p);
@@ -319,6 +320,9 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
         t.start();
         auto start = std::chrono::system_clock::now();
         std::atomic<bool> finish = false;
+	auto range_buffers = parlay::tabulate(p, [&] (size_t i) {
+			       return std::vector<K>(100ul + 2*range_size);});
+					     
         parlay::parallel_for(0, p, [&] (size_t i) {
           int cnt = 0;
           size_t j = i*mp;
@@ -331,6 +335,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
           long update_count = 0;
           long query_count = 0;
           volatile long keysum = 0;
+	  std::vector<K>& range_keys = range_buffers[i];
           while (true) {
             // every once in a while check if time is over
             if (cnt >= 100) { 
@@ -365,14 +370,16 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
               if (os.remove(tr, b[j])) added--;}
             else if (op_types[j] == Range) {
 #ifdef Range_Search
-	      std::vector<K> range_keys{100ul + 2*range_size};
               key_type end = ((b[j] > max_key - range_gap)
                              ? max_key : b[j] + range_gap);
               range_count++;
               // std::cout << "range query" << std::endl;
               range_sum += verlib::with_snapshot([&] {
                 long cnt=0;
-		auto addf = [&] (K k, V v) {range_keys[cnt++] = k;};
+                auto addf = [&] (K k, V v) {
+                  assert(cnt < range_keys.size());
+                  range_keys[cnt++] = k;
+                };
                 os.range_(tr, addf, b[j], end);
 #ifdef LazyStamp
                 if (verlib::aborted) retry_count++;
@@ -458,10 +465,10 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
             << std::endl;
       #endif
             }
-            if (range_percent > 0) {
+            if (range_percent > 0 || range_query_threads > 0) {
               long range_sum = parlay::reduce(range_sums);
               long retry_sum = parlay::reduce(retry_counts);
-              long num_queries = num_ops * range_percent / 100;
+              long num_queries = parlay::reduce(range_counts);
               std::cout << "average range size = " << ((float) range_sum) / num_queries
       #ifdef LazyStamp
             << ", retry percent = " << (double) 100 * retry_sum / num_queries 
