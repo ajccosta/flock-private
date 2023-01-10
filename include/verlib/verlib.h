@@ -31,7 +31,7 @@ namespace verlib {
   using versioned_ptr = flck::atomic<T*>;
 
   template <typename F>
-  auto with_snapshot(F f) {
+  auto with_snapshot(F f, bool unused_parameter=false) {
     return flck::with_epoch([&] { return f();});
   }
 }

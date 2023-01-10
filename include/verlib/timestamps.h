@@ -304,9 +304,24 @@ thread_local TS current_stamp;
 
   bool junk = add_epoch_hooks();
 
+template <typename F>
+auto with_snapshot_internal(F f) {
+  return flck::with_epoch([&] {
+    local_stamp = global_stamp.get_read_stamp();
+    if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+      f();
+      local_stamp = -1;
+    } else {
+      auto r = f();
+      local_stamp = -1;
+      return r;
+    }
+  });
+}
+
 #ifndef LazyStamp
 template <typename F>
-auto with_snapshot(F f) {
+auto with_snapshot(F f, bool unused_parameter=false) {
   return flck::with_epoch([&] {
     local_stamp = global_stamp.get_read_stamp();
     if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
@@ -329,34 +344,48 @@ void print_retries() {
 }
 
 template <typename F>
-auto with_snapshot(F f) {
-  return with_epoch([&] {
-    local_stamp = global_stamp.get_stamp();
-    aborted = false;
-    speculative = true;
-    if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
-      f();
-      speculative = false;
-      if (aborted) {
-	aborted = false;
-	num_retries[parlay::worker_id()*16]++;
-	global_stamp.inc_read_stamp(local_stamp);
-	f();
+auto with_snapshot(F f, bool use_speculative=true) {
+  if(use_speculative) {
+    return with_epoch([&] {
+      local_stamp = global_stamp.get_stamp();
+      aborted = false;
+      speculative = true;
+      if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+        f();
+        speculative = false;
+        if (aborted) {
+          aborted = false;
+          num_retries[parlay::worker_id()*16]++;
+          global_stamp.inc_read_stamp(local_stamp);
+          f();
+        }
+        local_stamp = -1;
+      } else {
+        auto r = f();
+        speculative = false;
+        if (aborted) {
+          aborted = false;
+          num_retries[parlay::worker_id()*16]++;
+          global_stamp.inc_read_stamp(local_stamp);
+          r = f();
+        }
+        local_stamp = -1;
+        return r;
       }
-      local_stamp = -1;
-    } else {
-      auto r = f();
-      speculative = false;
-      if (aborted) {
-	aborted = false;
-	num_retries[parlay::worker_id()*16]++;
-	global_stamp.inc_read_stamp(local_stamp);
-	r = f();
+    });
+  } else {
+    return flck::with_epoch([&] {
+      local_stamp = global_stamp.get_read_stamp();
+      if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+        f();
+        local_stamp = -1;
+      } else {
+        auto r = f();
+        local_stamp = -1;
+        return r;
       }
-      local_stamp = -1;
-      return r;
-    }
-  });
+    });
+  }
 }
 
 #endif

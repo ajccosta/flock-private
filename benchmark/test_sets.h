@@ -374,6 +374,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
                              ? max_key : b[j] + range_gap);
               range_count++;
               // std::cout << "range query" << std::endl;
+              bool use_speculative = (range_size < 2048);
               range_sum += verlib::with_snapshot([&] {
                 long cnt=0;
                 auto addf = [&] (K k, V v) {
@@ -384,7 +385,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 #ifdef LazyStamp
                 if (verlib::aborted) retry_count++;
 #endif
-                return cnt;});
+                return cnt;}, use_speculative);
 #endif
             } else { // multifind
               mfind_count++;
