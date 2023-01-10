@@ -47,7 +47,9 @@ if not graphs_only:
   numactl = "numactl -i all "
 
   # run verlib data structures
-  cmdbase = "./../../build/benchmark/"
+  cmdbase = "./../build/benchmark/"
+
+  os.system("rm -rf verlib_results/*.out")
 
   i = 0
   for ds in verlib_datastructures:

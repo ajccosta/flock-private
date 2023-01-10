@@ -133,6 +133,7 @@ def toParam(string):
       param[p[i]] = float(numbers[i])
     else:
       param[p[i]] = int(numbers[i])
+  param['rs'] = 2*param['rs']
   return param
 
 def readVerlibResultsFile(filename, throughput, stddev, threads, ratios, maxkeys, rqsizes, algs):
@@ -484,10 +485,17 @@ def plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, rati
           del series[alg]
           del error[alg]
           break
-        series[alg].append(throughput[toStringRQ3(alg, size, bench, opType)])
-        error[alg].append(stddev[toStringRQ3(alg, size, bench, opType)])
+        if opType == 'rqs':
+          series[alg].append(throughput[toStringRQ3(alg, size, bench, opType)]*int(size))
+          error[alg].append(stddev[toStringRQ3(alg, size, bench, opType)]*int(size))
+        else:
+          series[alg].append(throughput[toStringRQ3(alg, size, bench, opType)])
+          error[alg].append(stddev[toStringRQ3(alg, size, bench, opType)])
+
     # create plot
-    
+
+    print(series)
+
     opacity = 0.8
     rects = {}
      
@@ -506,10 +514,10 @@ def plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, rati
     ax[opType].set_xscale('log', basex=2)
     # rqlabels=(8, 64, 258, '1K', '8K', '64K')
     # plt.xticks(rqsizes, rqlabels)
-    if opType == 'rqs':
-      ax[opType].set_yscale('log')
-    else:
-      ax[opType].set_ylim(bottom=-0.02*ymax)
+    # if opType == 'rqs':
+    #   ax[opType].set_yscale('log')
+    # else:
+    #   ax[opType].set_ylim(bottom=-0.02*ymax)
     ax[opType].set(xlabel='Range query size', ylabel=opType.replace('rqs', 'RQ').replace('updates', 'Update') + ' throughput' + ' (Mop/s)')
     ax[opType].grid()
     ax[opType].title.set_text(graphtitle+" "+opType.replace('rqs', 'RQ').replace('updates', 'update') + ' throughput')
