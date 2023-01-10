@@ -21,6 +21,8 @@ names = {
           'skiplistlock.rq_bundle' : 'BundledSkiplist',
           'citrus.rq_bundle' : 'BundledCitrus',
           'btree_ver_ls' : 'btree_ver_ls',
+          'btree_ver_hw' : 'btree_ver_hw',
+          'btree_ver_ws' : 'btree_ver_ws',
 }
 colors = {
           'LFCA': 'C3', 
@@ -28,7 +30,9 @@ colors = {
           'bst.rq_lockfree': 'C2',        
           'skiplistlock.rq_bundle' : 'C0',
           'citrus.rq_bundle' : 'C1',
-          'btree_ver_ls' : 'C4',     
+          'btree_ver_ls' : 'C4',  
+          'btree_ver_hw' : 'C5',
+          'btree_ver_ws' : 'C6',   
 }
 linestyles = {
               'LFCA': '-', 
@@ -37,6 +41,8 @@ linestyles = {
               'skiplistlock.rq_bundle' : '-',
               'citrus.rq_bundle' : '-',  
               'btree_ver_ls' : '-',
+              'btree_ver_hw' : '-',
+              'btree_ver_ws' : '-',
 }
 markers =    {
               'LFCA': 's',    
@@ -45,6 +51,8 @@ markers =    {
               'skiplistlock.rq_bundle' : 'o',
               'citrus.rq_bundle' : 'x',    
               'btree_ver_ls' : '^',
+              'btree_ver_hw' : '^',
+              'btree_ver_ws' : '^',
 }
 
 algList = ['KIWI', 'SnapTree', 'KSTRQ', 'BPBST64', 'LFCA', 'VcasBatchBSTGC64', 'VcasChromaticBatchBSTGC64']

@@ -11,5 +11,5 @@ make bst.rq_lockfree skiplistlock.rq_bundle citrus.rq_bundle
 cd ../../
 
 cd ../../build/benchmark
-make btree_ver_ls
+make btree_ver_ls btree_ver_hw btree_ver_ws
 echo "Finished compiling C++ benchmarks"

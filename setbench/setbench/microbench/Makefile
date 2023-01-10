@@ -49,7 +49,7 @@ ifeq ($(skip_validation), 1)
 endif
 
 # FLAGS += -march=native
-FLAGS += -DMAX_THREADS_POW2=512
+FLAGS += -DMAX_THREADS_POW2=1024
 FLAGS += -DCPU_FREQ_GHZ=2.1 #$(shell ./experiments/get_cpu_ghz.sh)
 FLAGS += -DMEMORY_STATS=if\(1\) -DMEMORY_STATS2=if\(0\)
 FLAGS += -std=c++17 -mcx16 -gdwarf
