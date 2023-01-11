@@ -557,22 +557,29 @@ struct Set {
   }
 
   template<typename AddF>
-  void range_internal(node* a, AddF& add, K start, K end) {
+  bool range_internal(node* a, AddF& add, K start, K end) {
     while (true) {
       if (a->is_leaf) {
 	leaf* la = (leaf*) a;
 	int s = la->prev(start, 0);
 	int e = la->prev(end, s);
-	for (int i = s; i < e; i++) add(la->keyvals[i].key, la->keyvals[i].value);
-	return;
+	for (int i = s; i < e; i++) {
+	  add(la->keyvals[i].key, la->keyvals[i].value);
+#ifdef LazyStamp
+	  if (verlib::aborted) return false;
+#endif
+	}
+	return true;
       }
       int s = a->find(start);
       int e = a->find(end, s);
       if (s == e) a = a->children[s].read_snapshot();
       else {
-	for (int i = s; i <= e; i++) 
-	  range_internal(a->children[i].read_snapshot(), add, start, end);
-	return;
+	for (int i = s; i <= e; i++) {
+	  if (!range_internal(a->children[i].read_snapshot(), add, start, end))
+	    return false;
+	}
+	return true;
       }
     }
   }
