@@ -43,7 +43,7 @@ java_datastructures = ["LFCA", "Jiffy"]
 verlib_datastructures = ["btree_ver_ls", "btree_ver_hw", "btree_ver_ws", "btree_ver_rs"] 
 
 if not graphs_only:
-  jemalloc = "LD_PRELOAD=`jemalloc-config --libdir`/libjemalloc.so.`jemalloc-config --revision` "
+  jemalloc = "LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so "
   numactl = "numactl -i all "
 
   # run verlib data structures
