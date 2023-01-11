@@ -141,7 +141,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
   bool clear = P.getOption("-clear");
 
   // number of samples 
-  long m = P.getOptionIntValue("-m", fixed_time ? (long) (trial_time * 5000000 * std::min(p, 100)) : n);
+  long m = P.getOptionIntValue("-m", fixed_time ? (long) (trial_time * 2000000 * std::min(p, 100)) : n);
     
   // check consistency, on by default
   bool do_check = ! P.getOption("-no_check");
@@ -338,11 +338,12 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 	  std::vector<K>& range_keys = range_buffers[i];
           while (true) {
             // every once in a while check if time is over
-            if (cnt >= 100) { 
+            if (cnt >= 100 || finish) { 
               cnt = 0;
               auto current = std::chrono::system_clock::now();
               double duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count();
               if (duration > 1000*trial_time || finish) {
+                if(!finish) finish.store(true);
                 totals[i] = total;
                 addeds[i] = added;
                 range_counts[i] = range_count;
@@ -417,6 +418,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
           }
         }, 1);
         double duration = t.stop();
+        std::cout << "duration: " << duration << std::endl;
 
         if (i != 0) { // don't report zeroth round -- warmup
           if (finish && (duration < trial_time/4))

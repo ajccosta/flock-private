@@ -28,7 +28,7 @@ FLAGS += -DRWLOCK_FAVOR_READERS
 #FLAGS += -DDEBUG=if\(1\) -DDEBUG1=if\(1\) -DDEBUG2=if\(1\)
 #FLAGS += -DDEBUG=if\(1\) -DDEBUG1=if\(0\) -DDEBUG2=if\(0\)
 FLAGS += -DDEBUG=if\(0\) -DDEBUG1=if\(0\) -DDEBUG2=if\(0\)
-FLAGS += -DMEMORY_STATS=if\(1\) -DMEMORY_STATS2=if\(1\)
+FLAGS += -DMEMORY_STATS=if\(0\) -DMEMORY_STATS2=if\(0\)
 #FLAGS += -DMEMORY_STATS=if\(0\) -DMEMORY_STATS2=if\(0\)
 FLAGS += -DINSERT_FUNC=insertIfAbsent
 #FLAGS += -DUSE_PAPI
@@ -81,6 +81,10 @@ all: abtree bslack bst lazylist lflist citrus rlu skiplistlock vcasbst
 # LDFLAGS += -I`jemalloc-config --includedir` \
 # -L`jemalloc-config --libdir` -Wl,-rpath,`jemalloc-config --libdir` \
 # -ljemalloc `jemalloc-config --libs`
+
+.PHONY: rqsize_exp
+
+rqsize_exp: bst.rq_lockfree skiplistlock.rq_bundle citrus.rq_bundle
 
 .PHONY: bundle rbundle
 # LDFLAGS += -lpapi

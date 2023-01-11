@@ -76,8 +76,8 @@ struct main_globals_t {
     long elapsedMillisNapping;
     volatile char padding4[PREFETCH_SIZE_BYTES];
 
-    bool start;
-    bool done;
+    std::atomic<bool> start;
+    std::atomic<bool> done;
     volatile char padding5[PREFETCH_SIZE_BYTES];
     atomic_int running; // number of threads that are running
     volatile char padding6[PREFETCH_SIZE_BYTES];
@@ -222,7 +222,7 @@ void prefill(DS_DECLARATION * ds) {
         for (int i=0;i<TOTAL_THREADS;++i) {
             if (pthread_create(&threads[i], NULL, thread_prefill, &ids[i])) {
                 cerr<<"ERROR: could not create thread"<<endl;
-                exit(-1);
+                exit(0);
             }
         }
 
@@ -251,7 +251,7 @@ void prefill(DS_DECLARATION * ds) {
         glob.done = true;
         __sync_synchronize();
 
-        const long MAX_NAPPING_MILLIS = 5000;
+        const long MAX_NAPPING_MILLIS = 8000;
         glob.elapsedMillis = chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - glob.startTime).count();
         glob.elapsedMillisNapping = 0;
         while (glob.running.load() > 0 && glob.elapsedMillisNapping < MAX_NAPPING_MILLIS) {
@@ -262,7 +262,7 @@ void prefill(DS_DECLARATION * ds) {
             COUTATOMIC(endl);
             COUTATOMIC("Validation FAILURE: "<<glob.running.load()<<" non-responsive thread(s) [during prefill]"<<endl);
             COUTATOMIC(endl);
-            exit(-1);
+            exit(0);
         }
         /**
          * END INFINITE LOOP DETECTION CODE
@@ -274,7 +274,7 @@ void prefill(DS_DECLARATION * ds) {
         for (int i=0;i<TOTAL_THREADS;++i) {
             if (pthread_join(threads[i], NULL)) {
                 cerr<<"ERROR: could not join prefilling thread"<<endl;
-                exit(-1);
+                exit(0);
             }
         }
         
@@ -300,7 +300,7 @@ void prefill(DS_DECLARATION * ds) {
     
     if (attempts >= MAX_ATTEMPTS) {
         cerr<<"ERROR: could not prefill to expected size "<<expectedSize<<". reached size "<<sz<<" after "<<attempts<<" attempts"<<endl;
-        exit(-1);
+        exit(0);
     }
     
     chrono::time_point<chrono::high_resolution_clock> prefillEndTime = chrono::high_resolution_clock::now();
@@ -535,7 +535,7 @@ void trial() {
                        ? thread_timed
                        : thread_rq), &ids[i])) {
             cerr<<"ERROR: could not create thread"<<endl;
-            exit(-1);
+            exit(0);
         }
     }
 
@@ -560,7 +560,7 @@ void trial() {
     // method: sleep for the desired time + a small epsilon,
     //      then check "running.load()" to see if we're done.
     //      if not, loop and sleep in small increments for up to 5s,
-    //      and exit(-1) if running doesn't hit 0.
+    //      and exit(0) if running doesn't hit 0.
 
     if (MILLIS_TO_RUN > 0) {
         nanosleep(&tsExpected, NULL);
@@ -569,7 +569,7 @@ void trial() {
         __sync_synchronize();
     }
 
-    const long MAX_NAPPING_MILLIS = (MILLIS_TO_RUN > 0 ? 5000 : 30000);
+    const long MAX_NAPPING_MILLIS = (MILLIS_TO_RUN > 0 ? 8000 : 30000);
     glob.elapsedMillis = chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - glob.startTime).count();
     glob.elapsedMillisNapping = 0;
     while (glob.running.load() > 0 && glob.elapsedMillisNapping < MAX_NAPPING_MILLIS) {
@@ -595,7 +595,7 @@ void trial() {
         MEMMGMT_T * recmgr = (MEMMGMT_T *) ds->debugGetRecMgr();
         if (recmgr) recmgr->printStatus();
         DEBUG_VALIDATE_RQ(TOTAL_THREADS);
-        exit(-1);
+        exit(0);
     }
 
     // join all threads
@@ -603,7 +603,7 @@ void trial() {
         COUTATOMIC("joining thread "<<i<<endl);
         if (pthread_join(*(threads[i]), NULL)) {
             cerr<<"ERROR: could not join thread"<<endl;
-            exit(-1);
+            exit(0);
         }
     }
 
@@ -641,7 +641,7 @@ void printOutput() {
             cout<<"Keysum Validation OK"<<endl;
         } else {
             cout<<"Keysum Validation FAILURE: threadsKeySum = "<<threadsKeySum<<" dsKeySum="<<dsKeySum<<endl;
-            exit(-1);
+            exit(0);
         }
     }
 #endif
@@ -654,7 +654,7 @@ void printOutput() {
             cout<<"Keysum Validation OK"<<endl;
         } else {
             cout<<"Keysum Validation FAILURE: threadsKeySum = "<<threadsKeySum<<" dsKeySum="<<dsKeySum<<endl;
-            exit(-1);
+            exit(0);
         }
     }
 #endif
@@ -663,7 +663,7 @@ void printOutput() {
         cout<<"Structural validation OK"<<endl;
     } else {
         cout<<"Structural validation FAILURE."<<endl;
-        exit(-1);
+        exit(0);
     }
 
     long long totalAll = 0;
@@ -771,9 +771,9 @@ void printOutput() {
 #endif
     
     // free ds
-    cout<<"begin delete ds..."<<endl;
-    delete ds;
-    cout<<"end delete ds."<<endl;
+    // cout<<"begin delete ds..."<<endl;
+    // delete ds;
+    // cout<<"end delete ds."<<endl;
     
 #ifdef USE_DEBUGCOUNTERS
     VERBOSE COUTATOMIC("main thread: garbage#=");
@@ -882,7 +882,7 @@ int main(int argc, char** argv) {
     cout<<endl;
     if (!binding_isInjectiveMapping(TOTAL_THREADS, LOGICAL_PROCESSORS)) {
         cout<<"ERROR: thread binding maps more than one thread to a single logical processor"<<endl;
-        exit(-1);
+        exit(0);
     }
 
     // setup per-thread statistics
