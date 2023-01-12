@@ -10,8 +10,9 @@ mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 
 # input_files = ["ip-172-31-45-236_10_25_22", "ip-172-31-40-178_10_25_22"]
-input_files = ["scalability_aware.aladdin.cs.cmu.edu_01_05_23"]
-output_folder = "dec28"
+# input_files = ["scalability_aware.aladdin.cs.cmu.edu_01_05_23"]
+input_files = ["ip-172-31-35-105_01_11_23"]
+output_folder = "jan12"
 zipfs = [0, 0.99]
 
 param_list = ['ds','per','up','range','mfind','rs','n','p','z']
@@ -130,6 +131,7 @@ def toParam(string):
 # mutates throughputs and parameters
 def readResultsFile(throughputs, parameters):
   throughputs_raw = {}
+  param = {}
   for filename in input_files:
     for line in open(filename, "r"):
       if not line.startswith('./'):
@@ -245,7 +247,7 @@ def print_table_mix_percent(throughput, parameters, mix_percent, params):
   params['range'] = mix_percent[2]
   params['rs'] = mix_percent[3]
   rowvals = parameters['ds']
-  colvals = ['indirect_ls', 'noshortcut_ls', 'ver_ls', 'ver_lock_ls', 'ver_ro_ls', 'non_per']
+  colvals = ['indirect_ls', 'noshortcut_ls', 'ver_ls', 'ver_ro_ls', 'non_per']
   print_table(throughput, parameters, 'ds', 'per', params, rowvals, colvals)
 
 def print_table_timestamp_inc(throughput, parameters, ds, per, size, mix_percents, params):
@@ -384,14 +386,6 @@ readResultsFile(throughputs, parameters)
 print(throughputs)
 print(parameters)
 
-# (throughput, parameters, ds, per, size, mix_percent, zipf, threads):
-
-print_scalability_graph(throughputs, parameters, ['btree', 'srivastava_abtree'], 
-  ['nohelp', 'non_per', 'ver_ls', 'ver_nohelp_ls'], 10000000, [5,0,0,16], 0.99, [1, 72, 144, 200, 256,300,500])
-print_scalability_graph(throughputs, parameters, ['arttree', 'leis_olc_art'], 
-  ['nohelp', 'non_per', 'ver_ls', 'ver_nohelp_ls'], 10000000, [5,0,0,16], 0.99, [1, 72, 144, 200, 256,300,500])
-
-exit()
 list_sizes = [100,1000]
 tree_sizes = [100000,10000000]
 
