@@ -1,0 +1,301 @@
+860a7bb
+duration: 1.00102
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.345
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.383
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.377
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,211.4
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,219.8
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,217.1
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,374
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,365
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,368.8
+duration: 1.00162
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,210.6
+duration: 1.009
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,200
+duration: 1.01
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,204.1
+duration: 1.00277
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,188
+duration: 1.015
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,157.2
+duration: 1.004
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,165.5
+duration: 1.00102
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.184
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.149
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.155
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,216
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,217.6
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,219.8
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,363.9
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,355.3
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,352.6
+duration: 1.0021
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,196.2
+duration: 1.002
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,187.6
+duration: 1.002
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,205.5
+duration: 1.01118
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,165.4
+duration: 1.017
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,179.7
+duration: 1.016
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,149.5
+duration: 1.00101
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.105
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.08
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,4.011
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,203.5
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,203.6
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,206.6
+duration: 1.00101
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,344.6
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,330.4
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,327.5
+duration: 1.00198
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,321
+duration: 1.002
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,312.4
+duration: 1.002
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,309.5
+duration: 1.00605
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,312.3
+duration: 1.003
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,312.7
+duration: 1.017
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,303.1
+duration: 1.00102
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,3.928
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,3.899
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,3.911
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,204.5
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,208.6
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,209.7
+duration: 1.00101
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,340.2
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,332.7
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,328.1
+duration: 1.00157
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,309.4
+duration: 1.017
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,302.3
+duration: 1.002
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,310.8
+duration: 1.01791
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,302.8
+duration: 1.003
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,305.7
+duration: 1.003
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,301.1
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,7.35
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,7.184
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,7.161
+duration: 1.00101
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,338.9
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,343.5
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,340.1
+duration: 1.00101
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,478.2
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,481.7
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,486.5
+duration: 1.01534
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,293.3
+duration: 1.002
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,317
+duration: 1.002
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,296
+duration: 1.00921
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,227.8
+duration: 1.003
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,229.3
+duration: 1.003
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,214.8
+duration: 1.00101
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,7.026
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,6.911
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,6.884
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,316.6
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,319.9
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,328.5
+duration: 1.00101
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,451.9
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,443.9
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,439.1
+duration: 1.00258
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,254
+duration: 1.002
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,226.5
+duration: 1.002
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,248.9
+duration: 1.01759
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,178.6
+duration: 1.003
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,188.8
+duration: 1.008
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,186.9
+duration: 1.00101
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,7.132
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,6.959
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,6.944
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,330.4
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,330.6
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,344.1
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,472.3
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,469.6
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,465
+duration: 1.00197
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,461.7
+duration: 1.002
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,471.2
+duration: 1.002
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,459.2
+duration: 1.00281
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,459.9
+duration: 1.013
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,450.2
+duration: 1.003
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,456.1
+duration: 1.00101
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,5.745
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,5.636
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,5.644
+duration: 1.00101
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,279.6
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,281.4
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,282.4
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,418.9
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,418.6
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,416.2
+duration: 1.00181
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,404.6
+duration: 1.002
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,403.8
+duration: 1.002
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,402.8
+duration: 1.01138
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,397.6
+duration: 1.017
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,390.7
+duration: 1.017
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,395.8
+duration: 1.00101
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,7.892
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,7.728
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,7.749
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,336.4
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,317.5
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,340.8
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,510.2
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,502.9
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,498.7
+duration: 1.00217
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,342.8
+duration: 1.002
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,383.9
+duration: 1.002
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,307.4
+duration: 1.02445
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,264.1
+duration: 1.003
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,227.3
+duration: 1.018
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,251.9
+duration: 1.00101
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,3.199
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,3.063
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=1,z=0.99,3.037
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,180.2
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,180.3
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=64,z=0.99,182.8
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,292
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,291.6
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,291.9
+duration: 1.00174
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,236.6
+duration: 1.003
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,233.1
+duration: 1.002
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=192,z=0.99,237.3
+duration: 1.0027
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,241.1
+duration: 1.011
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,198.4
+duration: 1.003
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=256,z=0.99,223.2
