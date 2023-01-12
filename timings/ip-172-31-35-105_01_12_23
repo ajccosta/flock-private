@@ -1,0 +1,536 @@
+ccee7a2
+duration: 1.001
+./hash_block_lf,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,1676
+duration: 1.00101
+./hash_block_lf,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,667.3
+duration: 1.00101
+./hash_block_lf_nohelp,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,1596
+duration: 1.00101
+./hash_block_lf_nohelp,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,670.8
+duration: 1.00101
+./hash_block_lf_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,1009
+retry percent = 1.538
+duration: 1.00101
+./hash_block_lf_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,422.6
+retry percent = 82.26
+duration: 1.00101
+./hash_block_lf_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,1275
+retry percent = 1.592
+duration: 1.00101
+./hash_block_lf_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,425.3
+retry percent = 81.3
+duration: 1.001
+./hash_block_lf_ver_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,1269
+retry percent = 1.558
+duration: 1.00102
+./hash_block_lf_ver_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,435.6
+retry percent = 82.04
+duration: 1.00101
+./hash_block_lf_ver_rs,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,703.6
+duration: 1.00101
+./hash_block_lf_ver_rs,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,378.8
+duration: 1.00101
+./hash_block_lf_ver_ws,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,575.6
+duration: 1.00101
+./hash_block_lf_ver_ws,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,279.4
+duration: 1.00101
+./hash_block_lf_ver_ns,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,1528
+duration: 1.00101
+./hash_block_lf_ver_ns,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,590.9
+duration: 1.00101
+./hash_block_lf_ver_hw,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,1344
+duration: 1.00101
+./hash_block_lf_ver_hw,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,540.8
+duration: 1.00101
+./hash_block_lf_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,1130
+retry percent = 1.558
+duration: 1.00101
+./hash_block_lf_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,445.6
+retry percent = 84.48
+...
+duration: 1.00101
+./hash_block_lf,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,704
+duration: 1.00101
+./hash_block_lf,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,719.7
+duration: 1.00101
+./hash_block_lf_nohelp,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,684.6
+duration: 1.00101
+./hash_block_lf_nohelp,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,739.3
+duration: 1.00101
+./hash_block_lf_indirect_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,392
+retry percent = 0.1021
+duration: 1.00101
+./hash_block_lf_indirect_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,402.1
+retry percent = 73.35
+duration: 1.00101
+./hash_block_lf_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,555.2
+retry percent = 0.09921
+duration: 1.00101
+./hash_block_lf_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,464
+retry percent = 72.21
+duration: 1.00101
+./hash_block_lf_ver_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,602.1
+retry percent = 0.09797
+duration: 1.00101
+./hash_block_lf_ver_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,474.5
+retry percent = 72.44
+duration: 1.00101
+./hash_block_lf_ver_rs,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,459.6
+duration: 1.00101
+./hash_block_lf_ver_rs,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,430.2
+duration: 1.00101
+./hash_block_lf_ver_ws,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,471.8
+duration: 1.00101
+./hash_block_lf_ver_ws,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,321.8
+duration: 1.00101
+./hash_block_lf_ver_ns,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,647.6
+duration: 1.00101
+./hash_block_lf_ver_ns,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,627.1
+duration: 1.00101
+./hash_block_lf_ver_hw,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,613
+duration: 1.00101
+./hash_block_lf_ver_hw,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,635.4
+duration: 1.00101
+./hash_block_lf_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,541
+retry percent = 0.09901
+duration: 1.00101
+./hash_block_lf_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,480.4
+retry percent = 73.75
+...
+duration: 1.00101
+./arttree,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,661.7
+duration: 1.00101
+./arttree,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,551.9
+duration: 1.00101
+./arttree_nohelp,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,788.1
+duration: 1.00101
+./arttree_nohelp,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,563.4
+duration: 1.00101
+./arttree_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,346.6
+retry percent = 1.827
+duration: 1.00101
+./arttree_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,299.6
+retry percent = 72.77
+duration: 1.00101
+./arttree_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,483.1
+retry percent = 1.88
+duration: 1.00101
+./arttree_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,338.5
+retry percent = 71.05
+duration: 1.00101
+./arttree_ver_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,495.6
+retry percent = 1.853
+duration: 1.00101
+./arttree_ver_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,341
+retry percent = 70.04
+duration: 1.00101
+./arttree_ver_rs,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,386.9
+duration: 1.00101
+./arttree_ver_rs,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,305.7
+duration: 1.00101
+./arttree_ver_ws,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,362.6
+duration: 1.00101
+./arttree_ver_ws,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,244.9
+duration: 1.00101
+./arttree_ver_ns,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,534.9
+duration: 1.00102
+./arttree_ver_ns,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,445.4
+duration: 1.00101
+./arttree_ver_hw,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,491.9
+duration: 1.00101
+./arttree_ver_hw,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,410.2
+duration: 1.00101
+./arttree_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,607
+retry percent = 1.936
+duration: 1.00101
+./arttree_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,362.4
+retry percent = 76.63
+...
+duration: 1.00101
+./arttree,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,349.2
+duration: 1.00101
+./arttree,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,480.2
+duration: 1.00101
+./arttree_nohelp,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,392.2
+duration: 1.00101
+./arttree_nohelp,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,496.3
+duration: 1.00102
+./arttree_indirect_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,155.6
+retry percent = 0.1066
+duration: 1.00101
+./arttree_indirect_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,204.1
+retry percent = 64.73
+duration: 1.00101
+./arttree_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,230.3
+retry percent = 0.1045
+duration: 1.00101
+./arttree_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,281
+retry percent = 63.96
+duration: 1.00101
+./arttree_ver_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,255.1
+retry percent = 0.09996
+duration: 1.00101
+./arttree_ver_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,295.7
+retry percent = 64.98
+duration: 1.00101
+./arttree_ver_rs,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,225.1
+duration: 1.00101
+./arttree_ver_rs,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,268.8
+duration: 1.00101
+./arttree_ver_ws,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,224.5
+duration: 1.00101
+./arttree_ver_ws,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,238.6
+duration: 1.00101
+./arttree_ver_ns,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,267.9
+duration: 1.00101
+./arttree_ver_ns,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,356
+duration: 1.00101
+./arttree_ver_hw,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,251.1
+duration: 1.00101
+./arttree_ver_hw,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,321.2
+duration: 1.00101
+./arttree_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,286.4
+retry percent = 0.09863
+duration: 1.00101
+./arttree_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,319.6
+retry percent = 67.54
+...
+duration: 1.00101
+./btree,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,502.5
+duration: 1.00102
+./btree,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,423.3
+duration: 1.00101
+./btree_nohelp,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,550.8
+duration: 1.00101
+./btree_nohelp,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,539.8
+duration: 1.00101
+./btree_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,336.2
+retry percent = 12.16
+duration: 1.00102
+./btree_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,271.3
+retry percent = 71.92
+duration: 1.00101
+./btree_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,447.9
+retry percent = 12.48
+duration: 1.00101
+./btree_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,286.9
+retry percent = 67.61
+duration: 1.00101
+./btree_ver_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,441.1
+retry percent = 12.48
+duration: 1.00101
+./btree_ver_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,285.5
+retry percent = 68.03
+duration: 1.00101
+./btree_ver_rs,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,355.6
+duration: 1.00101
+./btree_ver_rs,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,273.3
+duration: 1.00101
+./btree_ver_ws,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,325.2
+duration: 1.00103
+./btree_ver_ws,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,232.8
+duration: 1.00101
+./btree_ver_ns,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,483.6
+duration: 1.00103
+./btree_ver_ns,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,334.4
+duration: 1.00101
+./btree_ver_hw,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,466.3
+duration: 1.00103
+./btree_ver_hw,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,330
+duration: 1.00101
+./btree_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,491.1
+retry percent = 13.15
+duration: 1.00101
+./btree_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,359.5
+retry percent = 80.58
+duration: 1.00101
+./btree_ver_ro_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0,458
+retry percent = 12.77
+duration: 1.00101
+./btree_ver_ro_ls,50%update,0%range,25%mfind,rs=16,n=100000,p=127,z=0.99,303.6
+retry percent = 70.23
+...
+duration: 1.00101
+./btree,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,256.1
+duration: 1.00101
+./btree,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,310.4
+duration: 1.00101
+./btree_nohelp,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,269.2
+duration: 1.00101
+./btree_nohelp,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,341.2
+duration: 1.00101
+./btree_indirect_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,170.2
+retry percent = 0.5961
+duration: 1.00101
+./btree_indirect_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,190.5
+retry percent = 64.56
+duration: 1.00101
+./btree_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,246.4
+retry percent = 0.5679
+duration: 1.00101
+./btree_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,251.7
+retry percent = 63.29
+duration: 1.00101
+./btree_ver_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,243.8
+retry percent = 0.5697
+duration: 1.00101
+./btree_ver_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,247.1
+retry percent = 63.4
+duration: 1.00101
+./btree_ver_rs,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,215.3
+duration: 1.00101
+./btree_ver_rs,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,237.4
+duration: 1.00101
+./btree_ver_ws,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,212.3
+duration: 1.00101
+./btree_ver_ws,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,206.3
+duration: 1.00101
+./btree_ver_ns,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,246.6
+duration: 1.00101
+./btree_ver_ns,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,291.9
+duration: 1.00101
+./btree_ver_hw,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,243.7
+duration: 1.00101
+./btree_ver_hw,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,286.2
+duration: 1.00101
+./btree_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,256.5
+retry percent = 0.5681
+duration: 1.00101
+./btree_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,271.9
+retry percent = 66.36
+duration: 1.00101
+./btree_ver_ro_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0,249.7
+retry percent = 0.568
+duration: 1.00101
+./btree_ver_ro_ls,50%update,0%range,25%mfind,rs=16,n=10000000,p=127,z=0.99,258.5
+retry percent = 64.96
+...
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 111
+duration: 1.00101
+./dlist,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,76.79
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 117
+duration: 1.00101
+./dlist,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,81.58
+duration: 1.00101
+./dlist_nohelp,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,85.64
+duration: 1.00101
+./dlist_nohelp,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,87.05
+duration: 1.00102
+./dlist_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,56.94
+retry percent = 99.78
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 113
+duration: 1.00102
+./dlist_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,58.9
+retry percent = 99.73
+duration: 1.00102
+./dlist_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,53.07
+retry percent = 99.77
+duration: 1.00102
+./dlist_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,53.85
+retry percent = 99.73
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 114
+duration: 1.00102
+./dlist_ver_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,52.42
+retry percent = 99.75
+duration: 1.00101
+./dlist_ver_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,53.36
+retry percent = 99.72
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 115
+duration: 1.00102
+./dlist_ver_rs,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,48.2
+duration: 1.00102
+./dlist_ver_rs,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,49.62
+duration: 1.00103
+./dlist_ver_ws,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,32.87
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 112
+duration: 1.00102
+./dlist_ver_ws,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,33.68
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 111
+duration: 1.00101
+./dlist_ver_ns,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,60.04
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 115
+duration: 1.00101
+./dlist_ver_ns,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,62.55
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 112
+duration: 1.00102
+./dlist_ver_hw,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,57.17
+duration: 1.00101
+./dlist_ver_hw,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,58.33
+duration: 1.00101
+./dlist_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,54.47
+retry percent = 99.73
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 111
+duration: 1.00101
+./dlist_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,54.83
+retry percent = 99.69
+...
+duration: 1.00106
+./dlist,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,37.69
+duration: 1.00106
+./dlist,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,39.78
+duration: 1.00105
+./dlist_nohelp,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,41.36
+duration: 1.00106
+./dlist_nohelp,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,42.72
+duration: 1.00116
+./dlist_indirect_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,15.02
+retry percent = 99.99
+duration: 1.00114
+./dlist_indirect_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,15.3
+retry percent = 99.98
+duration: 1.0011
+./dlist_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,20.07
+retry percent = 99.97
+duration: 1.00111
+./dlist_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,20.65
+retry percent = 99.97
+duration: 1.0011
+./dlist_ver_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,21.48
+retry percent = 99.96
+duration: 1.00109
+./dlist_ver_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,22.46
+retry percent = 99.95
+duration: 1.00108
+./dlist_ver_rs,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,23.48
+duration: 1.00108
+./dlist_ver_rs,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,24.8
+duration: 1.0011
+./dlist_ver_ws,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,20.41
+duration: 1.00108
+./dlist_ver_ws,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,21.66
+duration: 1.00108
+./dlist_ver_ns,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,28.96
+duration: 1.00108
+./dlist_ver_ns,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,29.7
+duration: 1.0011
+./dlist_ver_hw,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,23.6
+duration: 1.00109
+./dlist_ver_hw,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,25.27
+duration: 1.00109
+./dlist_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,23.43
+retry percent = 99.96
+duration: 1.00108
+./dlist_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,24.85
+retry percent = 99.95
+...
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 115
+duration: 1.00101
+./list,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,88.68
+duration: 1.00101
+./list,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,92.87
+duration: 1.00101
+./list_nohelp,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,101.1
+duration: 1.00101
+./list_nohelp,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,101.6
+duration: 1.00102
+./list_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,60.72
+retry percent = 99.78
+duration: 1.00102
+./list_indirect_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,62.51
+retry percent = 99.74
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 113
+duration: 1.00102
+./list_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,55.41
+retry percent = 99.74
+duration: 1.00102
+./list_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,55.55
+retry percent = 99.69
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 113
+duration: 1.00102
+./list_ver_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,55.14
+retry percent = 99.74
+duration: 1.00101
+./list_ver_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,55.51
+retry percent = 99.7
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 113
+duration: 1.00102
+./list_ver_rs,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,49.18
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 112
+duration: 1.00102
+./list_ver_rs,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,49.9
+duration: 1.00102
+./list_ver_ws,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,33.88
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 114
+duration: 1.00102
+./list_ver_ws,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,35.06
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 113
+duration: 1.00102
+./list_ver_ns,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,65.62
+duration: 1.00101
+./list_ver_ns,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,68.27
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 112
+duration: 1.00101
+./list_ver_hw,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,61.95
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 114
+duration: 1.00102
+./list_ver_hw,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,62.37
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 113
+duration: 1.00101
+./list_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,57.2
+retry percent = 99.72
+warning: expected approxiamtely 100 keys after random inserts and deletes, found 111
+duration: 1.00102
+./list_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,56.02
+retry percent = 99.67
+duration: 1.00102
+./list_ver_ro_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0,56.71
+retry percent = 99.68
+duration: 1.00101
+./list_ver_ro_ls,50%update,0%range,25%mfind,rs=16,n=100,p=127,z=0.99,58.18
+retry percent = 99.63
+...
+duration: 1.00106
+./list,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,39.69
+duration: 1.00106
+./list,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,41.54
+duration: 1.00105
+./list_nohelp,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,44.78
+duration: 1.00105
+./list_nohelp,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,45.71
+duration: 1.00116
+./list_indirect_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,14.63
+retry percent = 99.98
+duration: 1.00116
+./list_indirect_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,15.06
+retry percent = 99.98
+duration: 1.0011
+./list_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,19.54
+retry percent = 99.97
+duration: 1.0011
+./list_noshortcut_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,20.11
+retry percent = 99.97
+duration: 1.0011
+./list_ver_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,21.62
+retry percent = 99.96
+duration: 1.00108
+./list_ver_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,22.53
+retry percent = 99.95
+duration: 1.00109
+./list_ver_rs,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,23.69
+duration: 1.00108
+./list_ver_rs,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,25.02
+duration: 1.0011
+./list_ver_ws,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,20.35
+duration: 1.00109
+./list_ver_ws,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,21.83
+duration: 1.00107
+./list_ver_ns,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,29.99
+duration: 1.00107
+./list_ver_ns,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,30.97
+duration: 1.0011
+./list_ver_hw,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,24.86
+duration: 1.00108
+./list_ver_hw,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,26.26
+duration: 1.00109
+./list_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,24.11
+retry percent = 99.95
+duration: 1.00108
+./list_ver_nohelp_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,25.75
+retry percent = 99.94
+duration: 1.00107
+./list_ver_ro_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0,26.25
+retry percent = 99.95
+duration: 1.00107
+./list_ver_ro_ls,50%update,0%range,25%mfind,rs=16,n=1000,p=127,z=0.99,27.56
+retry percent = 99.94
+...
