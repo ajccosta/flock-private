@@ -503,7 +503,7 @@ def plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, rati
       if max(series[alg]) > ymax:
         ymax = max(series[alg])
       # print(alg)
-      rects[alg] = ax[opType].plot(rqsizes, series[alg],
+      rects[alg] = ax[opType].plot([x/2 for x in rqsizes], series[alg],
         alpha=opacity,
         color=colors[alg],
         #hatch=hatch[ds],
