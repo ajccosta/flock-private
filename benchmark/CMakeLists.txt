@@ -12,7 +12,8 @@ foreach(file ${BENCH_FILES})
 endforeach()
 	
 set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
-set(FLOCK_BENCH "leaftree" "blockleaftree" "arttree" "btree" "dlist" "list" "list_onelock" "hash" "avltree") # "dlist" "hash_block" )
+#set(FLOCK_BENCH "leaftree" "blockleaftree" "arttree" "btree" "dlist" "list" "list_onelock" "hash" "avltree") # "dlist" "hash_block" )
+set(FLOCK_BENCH "arttree" "btree" "dlist" "list") # "dlist" "hash_block" )
 set(FLOCK_BENCH_USE_CAS "hash_block")
 set(FLOCK_BENCH_RECORDED_ONCE "btree" "list")
 
