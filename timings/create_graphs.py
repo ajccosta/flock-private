@@ -207,10 +207,10 @@ def plot_bar_graph(data_, headers, title, x_axis, params={}):
     plt.bar(X + i*barWidth, data[i], color=colors_list[i], width = barWidth,
         edgecolor ='grey', label=headers[i+1])
 
-  if bool(params):
-    plt.xlabel('Data structure')
-  else:
+  if not bool(params):
     plt.xlabel('Operation mix')
+  # else:
+    # plt.xlabel('Data structure')
   plt.ylabel('Throughput (Mop/s)')
   plt.xticks([r + barWidth*(len(data)-1)/2 for r in range(len(data[0]))], x_labels)
 

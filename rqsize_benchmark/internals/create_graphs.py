@@ -440,7 +440,7 @@ def plot_retry_percent_graphs(outputFile, graphtitle, throughput, stddev, thread
   legend_x = 1
   legend_y = 0.5 
   plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
-  plt.savefig(outputFile.replace('png', 'retry-percent.png').replace('pdf', 'retry-percent.pdf'), bbox_inches='tight')
+  plt.savefig(outputFile.replace('.png', '-retry-percent.png').replace('.pdf', '-retry-percent.pdf'), bbox_inches='tight')
   plt.close('all')
 
 def plot_combined_rqsize_graphs(inputFileCpp, inputFileJava, inputFileVerlib, outputFile, graphtitle):

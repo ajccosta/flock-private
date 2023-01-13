@@ -354,7 +354,7 @@ def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, 
       markersize=10,
       label=names[alg])
 
-  plt.axvline(x = 144, color = 'black', linestyle='--')
+  plt.axvline(x = 128, color = 'black', linestyle='--')
 
   axs.set_ylim(bottom=-0.02*ymax)
   # plt.xticks(threads, threads)
