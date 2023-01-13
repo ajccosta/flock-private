@@ -6,6 +6,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
+mpl.rcParams['grid.linestyle'] = ":"
+mpl.rcParams.update({'font.size': 35})
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 
@@ -166,7 +168,13 @@ def transpose(data_):
 
 colors_list = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
 
-def plot_bar_graph(data_, headers, title, x_axis):
+def export_legend(legend, filename="legend.pdf"):
+    fig  = legend.figure
+    fig.canvas.draw()
+    bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    fig.savefig(filename, dpi="figure", bbox_inches=bbox)
+
+def plot_bar_graph(data_, headers, title, x_axis, params={}):
   x_labels = []
   for r in range(len(data_)):
     is_list = False
@@ -174,10 +182,15 @@ def plot_bar_graph(data_, headers, title, x_axis):
       if c == 0 or data_[r][c] == '-':
         if c == 0:
           if data_[r][c] == 'list':
-            x_labels.append('list (10x)')
+            x_labels.append('list\n(10x)')
             is_list = True
+          elif data_[r][c] == 'dlist':
+            x_labels.append('dlist\n(10x)')
+            is_list = True
+          elif data_[r][c] == 'hash_block_lf':
+            x_labels.append('hash')
           else:
-            x_labels.append(data_[r][c])
+            x_labels.append((data_[r][c]))
         data_[r][c] = 0
       elif is_list:
         # print("true")
@@ -192,16 +205,31 @@ def plot_bar_graph(data_, headers, title, x_axis):
 
   for i in range(len(data)):
     plt.bar(X + i*barWidth, data[i], color=colors_list[i], width = barWidth,
-        edgecolor ='grey', label =headers[i+1])
+        edgecolor ='grey', label=headers[i+1])
 
-  plt.xlabel('x_axis', fontweight ='bold', fontsize = 15)
-  plt.ylabel('Throughput (Mop/s)', fontweight ='bold', fontsize = 15)
+  if bool(params):
+    plt.xlabel('Data structure')
+  else:
+    plt.xlabel('Operation mix')
+  plt.ylabel('Throughput (Mop/s)')
   plt.xticks([r + barWidth*(len(data)-1)/2 for r in range(len(data[0]))], x_labels)
 
-  plt.title(title)
+  # plt.title(title)
 
-  plt.legend()
-  plt.savefig(output_folder + '/' + title + ".png", bbox_inches='tight')
+  plt.tight_layout()
+
+  # plt.legend()
+  outfilename = title
+  if bool(params):
+    outfilename = str(params['up']) + 'up_' + str(params['mfind']) + 'mfind_' + str(params['rs']) + 'rs_' + str(params['z']) + 'z_' + str(params['n']['tree']) + 'n'
+  plt.savefig(output_folder + '/' + outfilename + ".pdf", bbox_inches='tight')
+  legend_x = 1
+  legend_y = 0.5 
+  legend = plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y), ncol=7, framealpha=0.0)
+  if bool(params):
+    export_legend(legend, output_folder+'/optimization-legend.pdf')
+  else:
+    export_legend(legend, output_folder+'/timestamp-legend.pdf')
   plt.close('all')
 
 
@@ -239,14 +267,18 @@ def print_table(throughput, parameters, row, col, params, rowvals=[], colvals=[]
   print()
   f.write(output)
   f.close()
-  plot_bar_graph(data, headers, title, "Data Structure")
+  plot_bar_graph(data, headers, title, "Data Structure", p)
 
 def print_table_mix_percent(throughput, parameters, mix_percent, params):
   params['up'] = mix_percent[0]
   params['mfind'] = mix_percent[1]
   params['range'] = mix_percent[2]
   params['rs'] = mix_percent[3]
-  rowvals = parameters['ds']
+  rowvals = []
+  for ds in ds_list + ds_list_other:
+    if ds in parameters['ds']:
+      rowvals.append(ds)
+  # rowvals = parameters['ds']
   colvals = ['indirect_ls', 'noshortcut_ls', 'ver_ls', 'ver_ro_ls', 'non_per']
   print_table(throughput, parameters, 'ds', 'per', params, rowvals, colvals)
 
@@ -262,7 +294,7 @@ def print_table_timestamp_inc(throughput, parameters, ds, per, size, mix_percent
   headers = ['workload (up-mfind-range-rs)', 'read', 'write', 'lazy', 'hardware', 'non_per']
   data = []
   for mix_percent in mix_percents:
-    row_data = [mix_percent]
+    row_data = [str(mix_percent[0]) + "-" + str(mix_percent[1]) + '-' + str(mix_percent[3])]
     for c in colvals:
       p['per'] = per + c
       if c == 'non_per': 
@@ -285,7 +317,7 @@ def print_table_timestamp_inc(throughput, parameters, ds, per, size, mix_percent
   print(output)
   f.write(output)
   f.close()
-  plot_bar_graph(data, headers, title, "Workload")
+  plot_bar_graph(data, headers, title, "Operation mix")
 
 def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, zipf, threads):
   params = {}
@@ -365,7 +397,7 @@ def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, 
   # plt.legend(framealpha=0.0)
   plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
   plt.grid()
-  plt.title(ds[0] + " scalability")
+  # plt.title(ds[0] + " scalability")
   plt.savefig(ds[0] + " scalability.pdf", bbox_inches='tight')
   plt.close('all')
   
@@ -394,7 +426,8 @@ large = {'list' : list_sizes[1], 'tree' : tree_sizes[1]}
 
 
 # mix_percents = [[5,0,0,0], [5,25,0,4], [5,25,0,16], [5,0,95,48], [5,5,0,16], [50,0,0,0], [50,25,0,16]]
-mix_percents = [[5,0,0,0], [50,0,0,0], [5,25,0,4], [5,25,0,16], [50,25,0,16], [5,0,95,48]]
+# mix_percents = [[5,0,0,0], [50,0,0,0], [5,25,0,4], [5,25,0,16], [50,25,0,16], [5,0,95,48]]
+mix_percents = [[5,0,0,0], [5,25,0,4], [5,25,0,16], [50,25,0,16]]
 
 for zipf in zipfs:
   params_small = {'n': small,

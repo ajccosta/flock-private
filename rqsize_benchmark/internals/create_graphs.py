@@ -2,7 +2,7 @@ import csv
 import matplotlib as mpl
 # mpl.use('Agg')
 mpl.rcParams['grid.linestyle'] = ":"
-mpl.rcParams.update({'font.size': 15})
+mpl.rcParams.update({'font.size': 20})
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ names = {
           'citrus.rq_bundle' : 'BundledCitrus',
           'btree_ver_ls' : 'btree_ver_ls',
           'btree_ver_hw' : 'btree_ver_hw',
-          'btree_ver_ws' : 'btree_ver_ws',
+          # 'btree_ver_ws' : 'btree_ver_ws',
           'btree_ver_rs' : 'btree_ver_rs',
 }
 colors = {
@@ -33,7 +33,7 @@ colors = {
           'citrus.rq_bundle' : 'C1',
           'btree_ver_ls' : 'C4',  
           'btree_ver_hw' : 'C5',
-          'btree_ver_ws' : 'C6',   
+          # 'btree_ver_ws' : 'C6',   
           'btree_ver_rs' : 'C7',  
 }
 linestyles = {
@@ -44,7 +44,7 @@ linestyles = {
               'citrus.rq_bundle' : '-',  
               'btree_ver_ls' : '-',
               'btree_ver_hw' : '-',
-              'btree_ver_ws' : '-',
+              # 'btree_ver_ws' : '-',
               'btree_ver_rs' : '-',
 }
 markers =    {
@@ -55,7 +55,7 @@ markers =    {
               'citrus.rq_bundle' : 'x',    
               'btree_ver_ls' : '^',
               'btree_ver_hw' : '^',
-              'btree_ver_ws' : '^',
+              # 'btree_ver_ws' : '^',
               'btree_ver_rs' : '^',
 }
 
@@ -343,6 +343,8 @@ def plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, rati
     rects = {}
      
     for alg in series:
+      if alg not in names:
+        continue
       if max(series[alg]) > ymax:
         ymax = max(series[alg])
       # print(alg)
@@ -362,9 +364,13 @@ def plot_rqsize_graphs(outputFile, graphtitle, throughput, stddev, threads, rati
     # else:
     #   ax[opType].set_ylim(bottom=-0.02*ymax)
     ax[opType].set_xticks(rqsizes)
-    ax[opType].set(xlabel='Range query size', ylabel=opType.replace('rqs', 'RQ').replace('updates', 'Update') + ' throughput' + ' (Mop/s)')
+    ax[opType].set(xlabel='Range query size')
+    if opType == 'rqs':
+      ax[opType].set_ylabel('RQ throughput (keys/s)')
+    else:
+      ax[opType].set_ylabel('Update throughput (Mop/s)')
     ax[opType].grid()
-    ax[opType].title.set_text(graphtitle+" "+opType.replace('rqs', 'RQ').replace('updates', 'update') + ' throughput')
+    # ax[opType].title.set_text(graphtitle+" "+opType.replace('rqs', 'RQ').replace('updates', 'update') + ' throughput')
 
   legend_x = 1
   legend_y = 0.5 
@@ -429,12 +435,12 @@ def plot_retry_percent_graphs(outputFile, graphtitle, throughput, stddev, thread
   ax.set_xticks(rqsizes)
   ax.set(xlabel='Range query size', ylabel='Retry percent')
   ax.grid()
-  ax.title.set_text(graphtitle+" retry percent")
+  # ax.title.set_text(graphtitle+" retry percent")
 
   legend_x = 1
   legend_y = 0.5 
   plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
-  plt.savefig(outputFile.replace('png', 'retry-percent.png'), bbox_inches='tight')
+  plt.savefig(outputFile.replace('png', 'retry-percent.png').replace('pdf', 'retry-percent.pdf'), bbox_inches='tight')
   plt.close('all')
 
 def plot_combined_rqsize_graphs(inputFileCpp, inputFileJava, inputFileVerlib, outputFile, graphtitle):

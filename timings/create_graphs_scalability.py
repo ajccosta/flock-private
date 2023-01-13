@@ -6,6 +6,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
+mpl.rcParams['grid.linestyle'] = ":"
+mpl.rcParams.update({'font.size': 15})
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 
@@ -22,31 +24,31 @@ num_tables = 0
 
 combined_output = ""
 
-names = { 
-          'btree_ver_ls': 'btree-lockfree-persistent',
-          'btree_ver_nohelp_ls': 'btree-blocking-persistent',
+names = { 'srivastava_abtree': 'srivastava_abtree',
           'btree_nohelp' : 'btree-blocking',
           'btree_non_per' : 'btree-lockfree',
-          'srivastava_abtree': 'srivastava_abtree',
+          'btree_ver_nohelp_ls': 'btree-blocking-persistent',
+          'btree_ver_ls': 'btree-lockfree-persistent',
 
+          
+          'leis_olc_art' : 'leis_artree',
+          'arttree_non_per' : 'arttree-lockfree',
+          'arttree_nohelp' : 'arttree-blocking',
           'arttree_ver_ls' : 'arttree-lockfree-persistent',
           'arttree_ver_nohelp_ls' : 'arttree-blocking-persistent',
-          'arttree_nohelp' : 'arttree-blocking',
-          'arttree_non_per' : 'arttree-lockfree',
-          'leis_olc_art' : 'leis_artree',
 }
 colors = {
           'btree_ver_ls': 'C0',
-          'btree_ver_nohelp_ls': 'C1',
+          'btree_ver_nohelp_ls': 'C0',
           'btree_nohelp' : 'C2',
-          'btree_non_per' : 'C3',
-          'srivastava_abtree': 'C4',
+          'btree_non_per' : 'C2',
+          'srivastava_abtree': 'C3',
 
           'arttree_ver_ls' : 'C0',
-          'arttree_ver_nohelp_ls' : 'C1',
+          'arttree_ver_nohelp_ls' : 'C0',
           'arttree_nohelp' : 'C2',
-          'arttree_non_per' : 'C3',
-          'leis_olc_art' : 'C4',
+          'arttree_non_per' : 'C2',
+          'leis_olc_art' : 'C1',
 }
 linestyles = {
           'btree_ver_ls': '-',
@@ -72,7 +74,7 @@ markers =    {
           'arttree_ver_nohelp_ls' : '>',
           'arttree_nohelp' : 'o',
           'arttree_non_per' : 'x',
-          'leis_olc_art' : '|',
+          'leis_olc_art' : '*',
 }
 
 # try to get LCFA running: https://github.com/kboyles8/lock-free-search-tree
@@ -339,7 +341,9 @@ def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, 
   opacity = 0.8
   rects = {}
   
-  for alg in series:
+  for alg in names.keys():
+    if alg not in series:
+      continue
     ymax = max(ymax, max(series[alg]))
     rects[alg] = axs.plot(threads, series[alg],
       alpha=opacity,
@@ -364,7 +368,7 @@ def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, 
   plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
   plt.grid()
   plt.title(ds[0] + " scalability")
-  plt.savefig(output_folder + '/' + ds[0] + " scalability.png", bbox_inches='tight')
+  plt.savefig(output_folder + '/' + ds[0] + " scalability.pdf", bbox_inches='tight')
   plt.close('all')
   
   return
