@@ -1,0 +1,61 @@
+6f2f60b
+duration: 1.00101
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,340
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,338.4
+duration: 1.001
+./btree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,339.7
+duration: 1.00101
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,355.1
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,345.2
+duration: 1.001
+./btree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,342.8
+duration: 1.00101
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,330.6
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,327.1
+duration: 1.001
+./btree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,326.5
+duration: 1.00101
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,323
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,315
+duration: 1.001
+./btree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,312.4
+duration: 1.00101
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,457.8
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,434.8
+duration: 1.001
+./arttree_nohelp,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,437.2
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,393.5
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,391.6
+duration: 1.001
+./arttree_ver_nohelp_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,392
+duration: 1.00101
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,431.7
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,432.7
+duration: 1.001
+./arttree,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,421
+duration: 1.00101
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,389.8
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,383.1
+duration: 1.001
+./arttree_ver_ls,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,379.3
+duration: 1.00101
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,445.6
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,438.7
+duration: 1.001
+./../setbench/leis_olc_art,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,432
+duration: 1.00101
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,256.3
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,253.2
+duration: 1.001
+./../setbench/srivastava_abtree_pub,5%update,0%range,0%mfind,rs=16,n=10000000,p=128,z=0.99,253
