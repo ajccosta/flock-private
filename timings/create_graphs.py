@@ -11,7 +11,7 @@ mpl.rcParams['ps.fonttype'] = 42
 
 # input_files = ["ip-172-31-45-236_10_25_22", "ip-172-31-40-178_10_25_22"]
 # input_files = ["scalability_aware.aladdin.cs.cmu.edu_01_05_23"]
-input_files = ["ip-172-31-35-105_01_11_23"]
+input_files = ["ip-172-31-35-105_01_11_23", "ip-172-31-35-105_01_12_23"]
 output_folder = "jan12"
 zipfs = [0, 0.99]
 
@@ -394,7 +394,7 @@ large = {'list' : list_sizes[1], 'tree' : tree_sizes[1]}
 
 
 # mix_percents = [[5,0,0,0], [5,25,0,4], [5,25,0,16], [5,0,95,48], [5,5,0,16], [50,0,0,0], [50,25,0,16]]
-mix_percents = [[5,0,0,0], [50,0,0,0], [5,25,0,4], [5,25,0,16], [5,0,95,48]]
+mix_percents = [[5,0,0,0], [50,0,0,0], [5,25,0,4], [5,25,0,16], [50,25,0,16], [5,0,95,48]]
 
 for zipf in zipfs:
   params_small = {'n': small,
