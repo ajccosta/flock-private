@@ -131,7 +131,13 @@ public:
   void validate() {
     set_stamp(v.load());     // ensure time stamp is set
   }
-  
+
+#ifdef SlowStore
+  void store(V* newv) {
+    V* oldv = load();
+    cas(oldv, newv);
+  }
+#else  
   void store(V* ptr) {
     versioned* old_v = v.load();
     versioned* new_v = ptr;
@@ -158,6 +164,7 @@ public:
     set_stamp(new_v);
     if (use_indirect) shortcut(new_v);
   }
+#endif
   
   bool cas(V* exp, V* ptr) {
 #ifndef NoShortcut
