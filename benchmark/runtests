@@ -61,8 +61,8 @@ else :
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     mix_percents = [[5,0,0,0], [5,25,0,4], [5,25,0,16], [5,0,95,48], [50,0,0,0]]
-    suffixes_all = ["","_nohelp","_indirect_ls","_noshortcut_ls","_ver_ls","_ver_rs","_ver_ws","_ver_ns","_ver_hw", "_ver_nohelp_ls"]
-    suffixes_ro = suffixes_all + ["_ver_ro_ls"]
+    suffixes_all = ["","_nohelp","_indirect_ls","_noshortcut_ls","_ver_ls","_ver_rs","_ver_ws","_ver_ns","_ver_hw", "_ver_nohelp_ls","_ver_ls_ss"]
+    suffixes_ro = suffixes_all + ["_ver_ro_ls","_ver_ro_rs","_ver_ro_ls_ss","_ver_ro_rs_ss"]
 
 if all :
     lists = lists + ["list_onelock"];
@@ -158,7 +158,7 @@ def run_tests(tests,suffixes,sizes) :
 
 try :
     processors = getProcessors()
-    os.system("make -j")
+    os.system("pushd ..; make -j")
     runstring("git rev-parse --short HEAD")
     run_tests(trees,suffixes_all,tree_sizes)
     run_tests(trees_ro,suffixes_ro,tree_sizes)

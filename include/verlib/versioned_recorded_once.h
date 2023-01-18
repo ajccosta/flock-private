@@ -87,7 +87,13 @@ public:
     V* head = v.load();
     if(head != nullptr) set_stamp(head);
   }
-  
+
+#ifdef SlowStore
+  void store(V* newv) {
+    V* oldv = load();
+    cas(oldv, newv);
+  }
+#else  
   void store(V* newv) {
     V* oldv = flck::commit(v.load());
     if (newv == nullptr) {
@@ -109,6 +115,7 @@ public:
       //newv->next_version = oldv->next_version;
     });
   }
+#endif
 
   bool cas(V* expv, V* newv) {
     if (newv == nullptr) {
