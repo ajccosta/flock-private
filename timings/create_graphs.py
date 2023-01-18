@@ -174,7 +174,7 @@ def export_legend(legend, filename="legend.pdf"):
     bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
-def plot_bar_graph(data_, headers, title, x_axis, params={}):
+def plot_bar_graph(data_, headers, title, x_axis, params={},colnamedict={}):
   x_labels = []
   for r in range(len(data_)):
     is_list = False
@@ -204,8 +204,14 @@ def plot_bar_graph(data_, headers, title, x_axis, params={}):
   X = np.arange(len(data[0]))
 
   for i in range(len(data)):
+    name = headers[i+1]
+    for key in colnamedict.keys():
+      if name in key:
+        name = colnamedict[name]
+        break
+      
     plt.bar(X + i*barWidth, data[i], color=colors_list[i], width = barWidth,
-        edgecolor ='grey', label=headers[i+1])
+        edgecolor ='grey', label=name)
 
   if not bool(params):
     plt.xlabel('Operation mix')
@@ -233,11 +239,12 @@ def plot_bar_graph(data_, headers, title, x_axis, params={}):
   plt.close('all')
 
 
-def print_table(throughput, parameters, row, col, params, rowvals=[], colvals=[]):
+def print_table(throughput, parameters, row, col, params, rowvals=[], colvals=[],colnamedict={}):
   p = params.copy()
   p[row] = '*'
   p[col] = '*'
   title = toString(p)
+  title = str(params['up']) + 'up_' + str(params['mfind']) + 'mfind_' + str(params['rs']) + 'rs_' + str(params['z']) + 'z_' + str(params['n']['tree']) + 'n'
   output = title + '\n========================================= \n\n'
   f = open(output_folder + '/' + title + ".txt", "w")
   if rowvals == []:
@@ -267,7 +274,7 @@ def print_table(throughput, parameters, row, col, params, rowvals=[], colvals=[]
   print()
   f.write(output)
   f.close()
-  plot_bar_graph(data, headers, title, "Data Structure", p)
+  plot_bar_graph(data, headers, title, "Data Structure", p, colnamedict)
 
 def print_table_mix_percent(throughput, parameters, mix_percent, params):
   params['up'] = mix_percent[0]
@@ -279,8 +286,12 @@ def print_table_mix_percent(throughput, parameters, mix_percent, params):
     if ds in parameters['ds']:
       rowvals.append(ds)
   # rowvals = parameters['ds']
+  colnames  = ['indirect', 'NoShortcut', 'IndOnNeed', 'RecOnce', 'Non-versioned']
   colvals = ['indirect_ls', 'noshortcut_ls', 'ver_ls', 'ver_ro_ls', 'non_per']
-  print_table(throughput, parameters, 'ds', 'per', params, rowvals, colvals)
+  colnamedict = {}
+  for i in range(len(colvals)):
+    colnamedict[colvals[i]] = colnames[i]
+  print_table(throughput, parameters, 'ds', 'per', params, rowvals, colvals, colnamedict)
 
 def print_table_timestamp_inc(throughput, parameters, ds, per, size, mix_percents, params):
   p = params.copy()
@@ -291,7 +302,7 @@ def print_table_timestamp_inc(throughput, parameters, ds, per, size, mix_percent
   f = open(output_folder + '/' + title + ".txt", "w")
 
   colvals = ['_rs', '_ws', '_ls', '_hw', 'non_per']
-  headers = ['workload (up-mfind-range-rs)', 'read', 'write', 'lazy', 'hardware', 'non_per']
+  headers = ['workload (up-mfind-range-rs)', 'queryTS', 'updateTS', 'optTS', 'hwTS', 'Non-versioned']
   data = []
   for mix_percent in mix_percents:
     row_data = [str(mix_percent[0]) + "-" + str(mix_percent[1]) + '-' + str(mix_percent[3])]
@@ -317,7 +328,7 @@ def print_table_timestamp_inc(throughput, parameters, ds, per, size, mix_percent
   print(output)
   f.write(output)
   f.close()
-  plot_bar_graph(data, headers, title, "Operation mix")
+  plot_bar_graph(data, headers, title, "Operation mix (updates-mfinds-querysize)")
 
 def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, zipf, threads):
   params = {}
@@ -398,7 +409,7 @@ def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, 
   plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
   plt.grid()
   # plt.title(ds[0] + " scalability")
-  plt.savefig(ds[0] + " scalability.pdf", bbox_inches='tight')
+  plt.savefig(ds[0] + "-scalability.pdf", bbox_inches='tight')
   plt.close('all')
   
   return
@@ -427,7 +438,8 @@ large = {'list' : list_sizes[1], 'tree' : tree_sizes[1]}
 
 # mix_percents = [[5,0,0,0], [5,25,0,4], [5,25,0,16], [5,0,95,48], [5,5,0,16], [50,0,0,0], [50,25,0,16]]
 # mix_percents = [[5,0,0,0], [50,0,0,0], [5,25,0,4], [5,25,0,16], [50,25,0,16], [5,0,95,48]]
-mix_percents = [[5,0,0,0], [5,25,0,4], [5,25,0,16], [50,25,0,16]]
+mix_percents = [[5,0,0,0], [5,25,0,4], [5,25,0,16], [50,25,0,16],[50,0,0,0]]
+mix_percents_ts = [[50,0,0,0], [5,25,0,4], [5,25,0,16], [50,25,0,16]]
 
 for zipf in zipfs:
   params_small = {'n': small,
@@ -451,7 +463,7 @@ for zipf in zipfs:
       else:
         sizes = tree_sizes
       for n in sizes:
-        print_table_timestamp_inc(throughputs, parameters, ds, per, n, mix_percents, params)
+        print_table_timestamp_inc(throughputs, parameters, ds, per, n, mix_percents_ts, params)
 
 print(parameters)
 print()

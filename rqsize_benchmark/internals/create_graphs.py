@@ -20,10 +20,10 @@ names = {
           'bst.rq_lockfree' : 'EpochBST',
           'skiplistlock.rq_bundle' : 'BundledSkiplist',
           'citrus.rq_bundle' : 'BundledCitrus',
-          'btree_ver_ls' : 'btree_ver_ls',
-          'btree_ver_hw' : 'btree_ver_hw',
+          'btree_ver_ls' : 'VerlibBtreeOptTS',
+          'btree_ver_hw' : 'VerlibBtreeHwTS',
           # 'btree_ver_ws' : 'btree_ver_ws',
-          'btree_ver_rs' : 'btree_ver_rs',
+          'btree_ver_rs' : 'VerlibBtreeQueryTS',
 }
 colors = {
           'LFCA': 'C3', 
@@ -53,8 +53,8 @@ markers =    {
               'bst.rq_lockfree': '>',      
               'skiplistlock.rq_bundle' : 'o',
               'citrus.rq_bundle' : 'x',    
-              'btree_ver_ls' : '^',
-              'btree_ver_hw' : '^',
+              'btree_ver_ls' : 'D',
+              'btree_ver_hw' : '*',
               # 'btree_ver_ws' : '^',
               'btree_ver_rs' : '^',
 }

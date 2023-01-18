@@ -24,18 +24,18 @@ num_tables = 0
 
 combined_output = ""
 
-names = { 'srivastava_abtree': 'srivastava_abtree',
-          'btree_nohelp' : 'btree-blocking',
-          'btree_non_per' : 'btree-lockfree',
-          'btree_ver_nohelp_ls': 'btree-blocking-persistent',
-          'btree_ver_ls': 'btree-lockfree-persistent',
+names = { 'srivastava_abtree': 'SB-abtree',
+          'btree_nohelp' : 'FlockBtreeBlocking',
+          'btree_non_per' : 'FlockBtreeLockfree',
+          'btree_ver_nohelp_ls': 'VerlibBtreeBlocking',
+          'btree_ver_ls': 'VerlibBtreeLockfree',
 
           
-          'leis_olc_art' : 'leis_artree',
-          'arttree_non_per' : 'arttree-lockfree',
-          'arttree_nohelp' : 'arttree-blocking',
-          'arttree_ver_ls' : 'arttree-lockfree-persistent',
-          'arttree_ver_nohelp_ls' : 'arttree-blocking-persistent',
+          'leis_olc_art' : 'LSKN-arttree',
+          'arttree_non_per' : 'FlockArttreeLockfree',
+          'arttree_nohelp' : 'FlockArttreeBlocking',
+          'arttree_ver_ls' : 'VerlibArttreeLockfree',
+          'arttree_ver_nohelp_ls' : 'VerlibArttreeBlocking',
 }
 colors = {
           'btree_ver_ls': 'C0',
@@ -367,8 +367,8 @@ def print_scalability_graph(throughput, parameters, ds, per, size, mix_percent, 
   # plt.legend(framealpha=0.0)
   plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
   plt.grid()
-  plt.title(ds[0] + " scalability")
-  plt.savefig(output_folder + '/' + ds[0] + " scalability.pdf", bbox_inches='tight')
+  # plt.title(ds[0] + " scalability")
+  plt.savefig(output_folder + '/' + ds[0] + "-scalability.pdf", bbox_inches='tight')
   plt.close('all')
   
   return

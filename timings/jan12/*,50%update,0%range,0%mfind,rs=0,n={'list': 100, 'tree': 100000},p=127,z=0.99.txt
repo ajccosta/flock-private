@@ -6,5 +6,5 @@ ds               indirect_ls    noshortcut_ls    ver_ls  ver_ro_ls      non_per
 arttree                134              158       158    -                188
 btree                  113              108       109    122              144
 dlist                   28.8             30.1      27.1  -                 36.3
-hash_block_lf          188              236       223    -                240
 list                    31.6             33.2      29.6  29.9              41.3
+hash_block_lf          188              236       223    -                240
