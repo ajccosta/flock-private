@@ -1,7 +1,10 @@
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
 
-template <typename K, typename V>
+template <typename K,
+	  typename V,
+	  class Hash = std::hash<K>,
+	  class KeyEqual = std::equal_to<K>>
 struct Set {
 
   struct alignas(32) node : verlib::versioned {
@@ -22,14 +25,14 @@ struct Set {
   verlib::memory_pool<node> node_pool;
 
   slot* get_slot(Table& table, K k) {
-    //return &table[parlay::hash64_2(k) & (table.size()-1u)];
-    return &table[(k * 0x9ddfea08eb382d69ULL) & (table.size()-1u)];
+    //return &table[(k * 0x9ddfea08eb382d69ULL) & (table.size()-1u)];
+    return &table[Hash{}(k) & (table.size()-1u)];
   }
 
   auto find_in_slot(slot* s, K k) {
     auto cur = &s->head;
     node* nxt = cur->read();
-    while (nxt != nullptr && nxt->key != k) {
+    while (nxt != nullptr && !KeyEqual{}(nxt->key, k)) {
       cur = &(nxt->next);
       nxt = cur->read();
     }

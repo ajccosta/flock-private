@@ -13,8 +13,11 @@
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
 
-template <typename K, typename V>
+template <typename K,
+	  typename V,
+	  typename Compare = std::less<K>>
 struct Set {
+  static auto less = Compare{};
 
   struct alignas(32) node : verlib::versioned {
     verlib::versioned_ptr<node> next;
@@ -37,7 +40,7 @@ struct Set {
     node* nxt = (cur->next).read();
     while (true) {
       node* nxt_nxt = (nxt->next).read(); // prefetch
-      if (nxt->is_end || nxt->key >= k) break;
+      if (nxt->is_end || !less(nxt->key, k)) break;
       prev = cur;
       cur = nxt;
       nxt = nxt_nxt;
@@ -53,7 +56,7 @@ struct Set {
       int delay = init_delay;
       while (true) {
 	auto [prev, cur, nxt] = find_location(root, k);
-	if (!nxt->is_end && nxt->key == k) return false; //already there
+	if (!nxt->is_end && !less(k, nxt->key)) return false; //already there
 	if (prev != nullptr)
 	  prev->lck.wait_lock(); // important to ensure lock freedom
 	if (cur->lck.try_lock([=] {
@@ -73,7 +76,7 @@ struct Set {
       int delay = init_delay;
       while (true) {		 
 	auto [prev, cur, nxt] = find_location(root, k);
-	if (nxt->is_end || k != nxt->key) return false; // not found
+	if (nxt->is_end || less(k, nxt->key)) return false; // not found
 	if (prev != nullptr) prev->lck.wait_lock();
 	nxt->lck.wait_lock();
 	if (cur->lck.try_lock([=] {
@@ -94,7 +97,7 @@ struct Set {
   
   std::optional<V> find_(node* root, K k) {
     auto [prev, cur, nxt] = find_location(root, k);
-    if (!nxt->is_end && nxt->key == k) return nxt->value; 
+    if (!nxt->is_end && !less(k, nxt->key)) return nxt->value; 
     else return {};
   }
 
@@ -131,7 +134,7 @@ struct Set {
     long i = 1;
     while (!ptr->is_end) {
       i++;
-      if (ptr->key <= k) {
+      if (!less(k, ptr->key)) {
 	std::cout << "bad key: " << k << ", " << ptr->key << std::endl;
 	abort();
       }

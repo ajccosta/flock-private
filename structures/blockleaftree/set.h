@@ -7,11 +7,18 @@ bool balanced = true;
 bool balanced = false;
 #endif
 
-template <typename K_, typename V_>
+template <typename K_,
+	  typename V_,
+	  typename Compare = std::less<K_>>
 struct Set {
   using K = K_;
-  using V = V_;
+  using V = K_;
   
+  static auto less = Compare{};
+  static bool equal(K a, K b) {
+    return !less(a,b) && !less(b,a);
+  }
+
   struct KV {
     K key;
     V value;
@@ -47,7 +54,8 @@ struct Set {
     leaf() : size(0), head{true} {};
     std::optional<V> find(K k) {
       for (int i=0; i < size; i++) 
-	if (keyvals[i].key == k) return keyvals[i].value;
+	if (!less(k, keyvals[i].key) && !less(keyvals[i].key, k))
+	  return keyvals[i].value;
       return {};
     }
   };
@@ -70,7 +78,7 @@ struct Set {
       gp = p;
       gp_left = p_left;
       p = l;
-      p_left = (k < p->key);
+      p_left = less(k, p->key);
       l = p_left ? (p->left).read() : (p->right).read();
     }
     return std::make_tuple(gp, gp_left, p, p_left, l);
@@ -105,11 +113,11 @@ struct Set {
 
 	      // first insert into a new block
 	      int i=0;
-	      for (;i < old_l->size && old_l->keyvals[i].key < k; i++) {
+	      for (;i < old_l->size && less(old_l->keyvals[i].key, k); i++) {
 		new_l->keyvals[i] = old_l->keyvals[i];
 	      }
 	      int offset = 0;
-	      if (i == old_l->size || k != old_l->keyvals[i].key) {
+	      if (i == old_l->size || less(k, old_l->keyvals[i].key)) {
 		new_l->keyvals[i] = KV(k,v);
 		offset = 1;
 	      }
@@ -176,7 +184,7 @@ struct Set {
 	    return true;
 
 	  // The leaf has 1 key.  
-	} else if (old_l->keyvals[0].key == k) { // check the one key matches k
+	} else if (equal(old_l->keyvals[0].key, k)) { // check the one key matches k
 
 	  // We need to delete the leaf (l) and its parent (p), and point
 	  // the granparent (gp) to the other child of p.
@@ -209,7 +217,7 @@ struct Set {
     ((p_left) ? &(p->left) : &(p->right))->validate();
     leaf* ll = (leaf*) l;
     for (int i=0; i < ll->size; i++) 
-      if (ll->keyvals[i].key == k) return ll->keyvals[i].value;
+      if (equal(ll->keyvals[i].key, k)) return ll->keyvals[i].value;
     return {};
   }
 
@@ -258,8 +266,8 @@ struct Set {
 	       K minv = l->keyvals[0].key;
 	       K maxv = l->keyvals[0].key;
 	       for (int i=1; i < l->size; i++) {
-		 minv = std::min(minv, l->keyvals[i].key);
-		 maxv = std::max(minv, l->keyvals[i].key);
+		 if (less(l->keyvals[i].key, minv)) minv = l->keyvals[i].key;
+		 if (less(maxv, l->keyvals[i].key)) maxv = l->keyvals[i].key;
 	       }
 	       return rtup(minv, maxv, l->size);
 	     }
@@ -269,7 +277,7 @@ struct Set {
 	     long lsum,rsum;
 	     parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec(l);},
 			    [&] () { std::tie(rmin,rmax,rsum) = crec(r);});
-	     if ((lsum > 0 && lmax >= p->key) || rmin < p->key) {
+	     if ((lsum > 0 && !less(lmax, p->key)) || less(rmin, p->key)) {
 	       std::cout << "bad value: " << lmax << ", " << p->key << ", " << rmin << std::endl;
 	       bad_val = true;
 	     }

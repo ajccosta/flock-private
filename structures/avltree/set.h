@@ -12,8 +12,11 @@
 
 // TODO: minimize number of writes to the log
 
-template <typename K, typename V>
+template <typename K,
+	  typename V,
+	  typename Compare = std::less<K>>
 struct Set {
+  static auto less = Compare{};
 
   K key_min = std::numeric_limits<K>::min();
 

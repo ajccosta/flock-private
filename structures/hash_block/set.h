@@ -3,7 +3,10 @@
 #define Range_Search 1
 #define Dense_Keys 1
 
-template <typename K, typename V>
+template <typename K,
+	  typename V,
+	  class Hash = std::hash<K>,
+	  class KeyEqual = std::equal_to<K>>
 struct Set {
 
   template <int Size>
@@ -31,7 +34,7 @@ struct Set {
     }
     Node(node* old, K k) : cnt(old->cnt - 1) {
       for (int i=0, j=0; i < cnt; i++,j++) {
-	if (k == old->entries[i].key) j++;
+	if (KeyEqual{}(k, old->entries[i].key)) j++;
 	entries[i] = ((Node<Size>*) old)->entries[j];
       }
     }
@@ -50,12 +53,12 @@ struct Set {
   struct Table {
     parlay::sequence<slot> table;
     slot* get_slot(K k) {
-      //size_t idx = parlay::hash64(k) & (table.size()-1u);
-      size_t idx = (k * 0x9ddfea08eb382d69ULL) & (table.size()-1u);
+      //size_t idx = (k * 0x9ddfea08eb382d69ULL) & (table.size()-1u);
+      size_t idx = Hash{}(k)  & (table.size()-1u);
       return &table[idx];
     }
     Table(size_t n) {
-      size_t nn = std::max((size_t) (n*1.5), 1ul << 14);
+      size_t nn = std::max((size_t) (n*2), 1ul << 14);
       size_t size = 1ul << parlay::log2_up(nn);
       table = parlay::sequence<slot>(size);
     }
@@ -96,7 +99,7 @@ struct Set {
   std::optional<V> find_at(slot* s, K k) {
     node* x = s->ptr.load();
     if (x == nullptr) return {};
-    if (x->entries[0].key == k)
+    if (KeyEqual{}(x->entries[0].key, k))
       return x->entries[0].value;
     int i = x->find(k);
     if (i == -1) return {};

@@ -6,11 +6,11 @@
 // Nodes are split or joined on the way down to ensure that each node
 // can fit one more child, or remove one more child.
 
-template <typename K_, typename V_>
+template <typename K,
+	  typename V,
+	  typename Compare = std::less<K>>
 struct Set {
-  using K = K_;
-  using V = V_;
-  
+  static auto less = Compare{};
   struct KV {K key; V value;};
 
   // for 8 byte keys and 8 byte values
@@ -51,7 +51,7 @@ struct Set {
     flck::lock lck;
     
     int find(K k, uint i=0) {
-      while (i < header::size-1 && keys[i] <= k) i++;
+      while (i < header::size-1 && !less(k, keys[i])) i++;
       return i;
     }
 
@@ -216,13 +216,13 @@ struct Set {
     
     std::optional<V> find(K k) {
       int i=0;
-      while (i < header::size && keyvals[i].key < k) i++;
-      if (i == header::size || keyvals[i].key != k) return {};
+      while (i < header::size && less(keyvals[i].key, k)) i++;
+      if (i == header::size || less(k, keyvals[i].key)) return {};
       else return keyvals[i].value;
     }
 
     int prev(K k, int i=0) {
-      while (i < header::size && keyvals[i].key < k) i++;
+      while (i < header::size && less(keyvals[i].key, k)) i++;
       return i;
     }
     
@@ -253,7 +253,7 @@ struct Set {
     int i=0;
 
     // copy part before the new key
-    for (;i < size && l->keyvals[i].key < k; i++)
+    for (;i < size && less(l->keyvals[i].key, k); i++)
       new_l->keyvals[i] = l->keyvals[i];
 
     // copy in the new key and value
@@ -275,7 +275,7 @@ struct Set {
     int i=0;
 
     // part before the key
-    for (;i < size && l->keyvals[i].key < k; i++)
+    for (;i < size && less(l->keyvals[i].key, k); i++)
       new_l->keyvals[i] = l->keyvals[i];
 
     // part after the key, shifted left
@@ -645,8 +645,8 @@ struct Set {
       K minv = l->keyvals[0].key;
       K maxv = l->keyvals[0].key;
       for (int i=1; i < l->size; i++) {
-	minv = std::min(minv, l->keyvals[i].key);
-	maxv = std::max(minv, l->keyvals[i].key);
+	if (less(l->keyvals[i].key, minv)) minv = l->keyvals[i].key;
+	if (less(maxv, l->keyvals[i].key)) maxv = l->keyvals[i].key;
       }
       return rtup(minv, maxv, l->size);
     }
@@ -660,8 +660,8 @@ struct Set {
     long total = parlay::reduce(parlay::map(r, [&] (auto x) {
 		    return std::get<2>(x);}));
     parlay::parallel_for(0, p->size - 1, [&] (size_t i) {
-	if (std::get<1>(r[i]) >= p->keys[i] ||
-	    p->keys[i] > std::get<0>(r[i+1])) {
+	if (!less(std::get<1>(r[i]), p->keys[i]) ||
+	    less(std::get<0>(r[i+1]), p->keys[i])) {
 	  std::cout << "keys not ordered around key: " << p->keys[i]
 		    << " max before = " << std::get<1>(r[i])
 		    << " min after = " << std::get<0>(r[i+1]) << std::endl;

@@ -2,17 +2,20 @@
 #include <parlay/primitives.h>
 #define Range_Search 1
 
-template <typename K, typename V>
-struct Set {
-
-  enum node_type : char {Full, Indirect, Sparse, Leaf};
-
-  // extracts byte from key at position pos
-  // assumes little endian, and currently specific to integer types
-  // need to generalize to character or byte strings
+template <typename K>
+struct int_string {
+  static int length(K s) { return sizeof(K);}
   static int get_byte(K key, int pos) {
     return (key >> (8*(sizeof(K)-1-pos))) & 255;
   }
+};
+
+template <typename K,
+	  typename V,
+	  typename String = int_string<K>>
+struct Set {
+
+  enum node_type : char {Full, Indirect, Sparse, Leaf};
 
   struct header : verlib::versioned {
     K key;
@@ -37,11 +40,11 @@ struct Set {
     bool is_full() {return false;}
 
     node_ptr* get_child(K k) {
-      auto b = get_byte(k, header::byte_num);
+      auto b = String::get_byte(k, header::byte_num);
       return &children[b];}
 
     void init_child(int k, node* c) {
-      auto b = get_byte(k, header::byte_num);
+      auto b = String::get_byte(k, header::byte_num);
       children[b].init(c);
     }
 
@@ -64,21 +67,21 @@ struct Set {
     bool is_full() {return num_used.load() == 64;}
     
     node_ptr* get_child(K k) {
-      int i = idx[get_byte(k, header::byte_num)].load();
+      int i = idx[String::get_byte(k, header::byte_num)].load();
       if (i == -1) return nullptr;
       else return &ptr[i];}
 
     // Requires that node is not full (i.e. num_used < 64)
     void add_child(K k, node* v) {
       int i = num_used.load();
-      idx[get_byte(k, header::byte_num)] = i;
+      idx[String::get_byte(k, header::byte_num)] = i;
       ptr[i] = v;
       num_used = i+1;
     }
 
     void init_child(K k, node* c) {
       int i = num_used.load()-1;
-      idx[get_byte(k, header::byte_num)] = i;
+      idx[String::get_byte(k, header::byte_num)] = i;
       ptr[i].init(c);
     }
 
@@ -101,14 +104,14 @@ struct Set {
 
     node_ptr* get_child(K k) {
       __builtin_prefetch (((char*) ptr) + 64);
-      int kb = get_byte(k, header::byte_num);
+      int kb = String::get_byte(k, header::byte_num);
       for (int i=0; i < num_used; i++) 
 	if (keys[i] == kb) return &ptr[i];
       return nullptr;
     }
 
     void init_child(K k, node* c) {
-      int kb = get_byte(k, header::byte_num);
+      int kb = String::get_byte(k, header::byte_num);
       keys[num_used-1] = kb;
       ptr[num_used-1].init(c);
     }
@@ -116,9 +119,9 @@ struct Set {
     // constructor for a new sparse node with two children
     sparse_node(int byte_num, node* v1, K k1, node* v2, K k2)
       : header(k1, Sparse, byte_num), num_used(2) {
-      keys[0] = get_byte(k1, byte_num);
+      keys[0] = String::get_byte(k1, byte_num);
       ptr[0].init(v1);
-      keys[1] = get_byte(k2, byte_num);
+      keys[1] = String::get_byte(k2, byte_num);
       ptr[1].init(v2);
     }
 
@@ -128,7 +131,7 @@ struct Set {
 
   struct leaf : header {
     V value;
-    leaf(K key, V value) : header(key, Leaf, sizeof(K)), value(value) {};
+    leaf(K key, V value) : header(key, Leaf, String::length(key)), value(value) {};
   };
 
   verlib::memory_pool<full_node> full_pool;
@@ -200,7 +203,7 @@ struct Set {
 		  // seemingly broken g++ (10.3) compiler makes the following fail
 		  //   f_n->init_child(k, c);
 		  // inlining by hand fixes it.
-		  auto b = get_byte(k, f_n->byte_num);
+		  auto b = String::get_byte(k, f_n->byte_num);
 		  f_n->children[b].init(c);
 		});
 		indirect_pool.retire(i_n);
@@ -257,7 +260,7 @@ struct Set {
 	return std::make_tuple(gp, p, cptr, c, byte_pos);
       byte_pos++;
       while (byte_pos < c->byte_num &&
-	     get_byte(k, byte_pos) == get_byte(c->key, byte_pos))
+	     String::get_byte(k, byte_pos) == String::get_byte(c->key, byte_pos))
 	byte_pos++;
       if (byte_pos != c->byte_num || c->nt == Leaf) // reached leaf
 	return std::make_tuple(gp, p, cptr, c, byte_pos);
@@ -376,17 +379,21 @@ struct Set {
     }
     for (int i = pos; i < a->byte_num; i++) {
       if (start == empty && end == empty) break;
-      if (start.has_value() && get_byte(start.value(), i) > get_byte(a->key, i)
-	  || end.has_value() && get_byte(end.value(), i) < get_byte(a->key, i))
+      if (start.has_value()
+	  && String::get_byte(start.value(), i) > String::get_byte(a->key, i)
+	  || end.has_value()
+	  && String::get_byte(end.value(), i) < String::get_byte(a->key, i))
 	return;
-      if (start.has_value() && get_byte(start.value(), i) < get_byte(a->key,i)) 
+      if (start.has_value() &&
+	  String::get_byte(start.value(), i) < String::get_byte(a->key,i)) 
 	start = empty;
-      if (end.has_value() && get_byte(end.value(), i) > get_byte(a->key, i)) {
+      if (end.has_value() &&
+	  String::get_byte(end.value(), i) > String::get_byte(a->key, i)) {
 	end = empty;
       }
     }
-    int sb = start.has_value() ? get_byte(start.value(), a->byte_num) : 0;
-    int eb = end.has_value() ? get_byte(end.value(), a->byte_num) : 255;
+    int sb = start.has_value() ? String::get_byte(start.value(), a->byte_num) : 0;
+    int eb = end.has_value() ? String::get_byte(end.value(), a->byte_num) : 255;
     if (a->nt == Full) {
       for (int i = sb; i <= eb; i++) 
 	range_internal(((full_node*) a)->children[i].read_snapshot(), add,

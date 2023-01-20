@@ -2,8 +2,11 @@
 #include <verlib/verlib.h>
 #define Range_Search 1
 
-template <typename K, typename V>
+template <typename K,
+	  typename V,
+	  typename Compare = std::less<K>>
 struct Set {
+  static auto less = Compare{};
 
   struct alignas(64) node : verlib::versioned, flck::lock {
     bool is_end;
@@ -25,7 +28,7 @@ struct Set {
     node* nxt = (root->next).load();
     while (true) {
       node* nxt_nxt = (nxt->next).load(); // prefetch
-      if (nxt->is_end || nxt->key >= k) break;
+      if (nxt->is_end || !less(nxt->key, k)) break;
       nxt = nxt_nxt;
     }
     return nxt;
@@ -41,7 +44,7 @@ struct Set {
       int delay = init_delay;
       while (true) {
 	node* next = find_location(root, k);
-	if (!next->is_end && next->key == k) return false;
+	if (!next->is_end && !less(k, next->key)) return false;
 	node* prev = (next->prev).load();
 	// fails if something inserted before in meantime
 	if ((prev->is_end || prev->key < k) && 
@@ -64,7 +67,7 @@ struct Set {
       int delay = init_delay;
       while (true) {
 	node* loc = find_location(root, k);
-	if (loc->is_end || loc->key != k) return false;
+	if (loc->is_end || less(k, loc->key)) return false;
 	node* prev = (loc->prev).load();
 	if (prev->try_lock([=] {
 	      if (prev->removed.load() || (prev->next).load() != loc)
@@ -86,7 +89,7 @@ struct Set {
   
   std::optional<V> find_(node* root, K k) {
     node* loc = find_location(root, k);
-    if (!loc->is_end && loc->key == k) return loc->value; 
+    if (!loc->is_end && !less(k, loc->key)) return loc->value; 
     else return {};
   }
 
@@ -97,7 +100,7 @@ struct Set {
   template<typename AddF>
   void range_(node* root, AddF& add, K start, K end) {
       auto nxt = find_location(root, start);
-      while (!nxt->is_end && nxt->key <= end) {
+      while (!nxt->is_end && !less(end, nxt->key)) {
 	add(nxt->key, nxt->value);
 	nxt = nxt->next.load();
       }
@@ -134,7 +137,7 @@ struct Set {
     long i = 1;
     while (!ptr->is_end) {
       i++;
-      if (ptr->key <= k) {
+      if (!less(k, ptr->key)) {
 	std::cout << "bad key: " << k << ", " << ptr->key << std::endl;
 	abort();
       }

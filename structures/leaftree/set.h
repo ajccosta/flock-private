@@ -1,7 +1,13 @@
 #include <verlib/verlib.h>
 
-template <typename K, typename V>
+template <typename K,
+	  typename V,
+	  typename Compare = std::less<K>>
 struct Set {
+  static auto less = Compare{};
+  static bool equal(K a, K b) {
+    return !less(a,b) && !less(b,a);
+  }
 
   // common header for internal nodes and leaves
   struct node : verlib::versioned {
@@ -44,7 +50,7 @@ struct Set {
       gp = p;
       gp_left = p_left;
       p = (internal*) l;
-      p_left = (k < p->key);
+      p_left = less(k, p->key);
       l = p_left ? (p->left).load() : (p->right).load();
     }
     return std::make_tuple(gp, gp_left, p, p_left, (leaf*) l);
@@ -56,7 +62,7 @@ struct Set {
       while (true) {
 	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
 	if (!l->is_sentinal &&
-	    ((!upsert && l->key == k) ||
+	    ((!upsert && equal(l->key, k)) ||
 	     (upsert && prev_leaf != nullptr && prev_leaf->key == k &&
 	      l != prev_leaf)))
 	  return false;
@@ -80,7 +86,7 @@ struct Set {
       leaf* prev_leaf = nullptr;
        while (true) {
 	 auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-	 if (l->is_sentinal || k != l->key ||
+	 if (l->is_sentinal || !equal(k, l->key) ||
 	     (prev_leaf != nullptr && prev_leaf != l))
 	   return false;
 	 prev_leaf = l;
@@ -106,7 +112,7 @@ struct Set {
     node* l = ptr->read();
     while (!l->is_leaf) {
       internal* p = (internal*) l;
-      auto ptr = (k < p->key) ? &(p->left) : &(p->right);
+      auto ptr = less(k, p->key) ? &(p->left) : &(p->right);
       l = ptr->read();
     }
     ptr->validate();
@@ -175,7 +181,7 @@ struct Set {
 	     long lsum, rsum;
 	     parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((pp->left).load());},
 			    [&] () { std::tie(rmin,rmax,rsum) = crec((pp->right).load());});
-	     if ((lsum !=0 && lmax >= pp->key) || rmin < pp->key)
+	     if ((lsum !=0 && !less(lmax, pp->key)) || less(rmin, pp->key))
 	       std::cout << "out of order key: " << lmax << ", " << pp->key << ", " << rmin << std::endl;
 	     if (lsum == 0) return rtup(pp->key, rmax, rsum);
 	     else return rtup(lmin, rmax, lsum + rsum);
