@@ -76,11 +76,9 @@ void test_persistence_concurrent(SetType& os) {
         counter2++;
         if(max_seen > 2 && max_seen < N-3) 
           counter++; // saw an intermediate state
-        // if(counter2 > 10 && counter == 0) break;
       }
       if(counter < 3) {
         std::cout << "not enough iterations by query thread" << std::endl;
-        // abort();
       }
     } 
   }, 1);
@@ -132,10 +130,9 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
   // shuffles the memory pool to break sharing of cache lines
   // by neighboring list/tree nodes
   bool shuffle = P.getOption("-shuffle");
-  bool initialize_with_deletes = P.getOption("-id");
 
   // verbose
-  bool verbose = P.getOption("-v");
+  bool verbose = P.getOption("-verbose");
 
   // clear the memory pool between rounds
   bool clear = P.getOption("-clear");
@@ -150,7 +147,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
   // try_only = !P.getOption("-strict_lock");
 
   // run a trivial test
-  bool init_test = P.getOption("-i"); // run trivial test
+  bool init_test = P.getOption("-simple_test"); // run trivial test
 
   // use zipfian distribution
   double zipfian_param = P.getOptionDoubleValue("-z", 0.0);
@@ -191,7 +188,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
     assert(!os.find(tr, 10).has_value());
     assert(!os.find(tr, 3).has_value());
 
-    // #ifdef Multi_Find
     verlib::with_snapshot([&] {
       assert_key_exists(os.find_(tr, 7).has_value());
       assert_key_exists(os.find_(tr, 1).has_value());
@@ -199,10 +195,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
       assert(!os.find_(tr, 10).has_value());
       assert(!os.find_(tr, 3).has_value());
       });
-    // #endif
 
-    // os.print(tr);
-    // std::cout << "size = " << os.check(tr) << std::endl;
     os.retire(tr);
 
     // run persistence tests
@@ -216,16 +209,12 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
     key_type max_key;
 
     if (use_sparse) {
-      // don't use top bit since it breaks setbench version of arttree (leis_olt_art)
-      //max_key = ~0ul >> 1;
       max_key = ~0ul;
       auto x = parlay::delayed_tabulate(1.2*nn,[&] (size_t i) {
        return (key_type) parlay::hash64(i);}); // generate 64-bit keys
-      //return (key_type) ((parlay::hash64(i) << 1) >> 1);}); // generate 63-bit keys
       auto xx = parlay::remove_duplicates(x);
       auto y = parlay::random_shuffle(xx);
       // don't use zero since it breaks setbench code
-      // following lines seem problematic, y[i]+1 has the potential to overflow and pick 0, not sure why max_key is there, seems like it doesn't change anything.
       a = parlay::tabulate(nn, [&] (size_t i) {return std::min(max_key-1,y[i])+1;}); 
     } else {
       max_key = nn;
@@ -241,8 +230,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
     } else
       b = parlay::tabulate(m, [&] (int i) {return a[parlay::hash64(i) % nn]; });
 
-    // parlay::parallel_for(0, m, [&] (size_t i) { assert(b[i] != 0); });
-    
     // initially set to all finds
     parlay::sequence<op_type> op_types(m, Find);
 
@@ -306,7 +293,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
         parlay::parallel_for(0, range_query_threads, [&] (size_t i) {
           for(int j = i*mp; j < (i+1)*mp; j++) op_types[j] = Range;
         }, 1);
-
 
         parlay::sequence<size_t> totals(p);
         parlay::sequence<long> addeds(p);
@@ -374,7 +360,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
               key_type end = ((b[j] > max_key - range_gap)
                              ? max_key : b[j] + range_gap);
               range_count++;
-              // std::cout << "range query" << std::endl;
               bool use_speculative = true; //(range_size < 2048);
               range_sum += verlib::with_snapshot([&] {
                 long cnt=0;
@@ -425,7 +410,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
             std::cout << "warning out of samples, finished in "
                 << duration << " seconds" << std::endl;
 
-          //std::cout << duration << " : " << trial_time << std::endl;
           size_t num_ops = parlay::reduce(totals);
 
           if(range_query_threads == 0) {
@@ -454,9 +438,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
               << "update_throughput=" << parlay::reduce(update_counts) / (duration * 1e6) << std::endl;
           }
 
-
-          // std::cout << "timestamp increments (per microsecond): " << (global_stamp.get_stamp()-start_timestamp)*1.0/(duration * 1e6) << std::endl;
-          // std::cout << "final timestamp: " << global_stamp.get_stamp() << std::endl;
           if (do_check) {
             size_t final_cnt = os.check(tr);
             long updates = parlay::reduce(addeds);
@@ -508,7 +489,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
                    flags[i] = os.insert(tr, b[i], 123);
         });
 
-        //os.print(tr);
         std::cout << "insert," << m << "," << mops(t.stop()) << std::endl;
 
         if (do_check) {
@@ -518,10 +498,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
             std::cout << "incorrect size after insert: inserted="
                 << len << " succeeded=" << total << " found=" << lenc
                 << std::endl;
-            //os.print(tr);
             auto x = parlay::sort(parlay::remove_duplicates(b));
-            //for (auto y : x)
-            //  std::cout << y << std::endl;
           }
         }
         if (stats) {
@@ -572,6 +549,4 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
       }
     }
   }
-  //if (verbose)
-  //  std::cout << "final timestamp: " << verlib::global_stamp.get_stamp() << std::endl;
 }

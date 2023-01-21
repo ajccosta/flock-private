@@ -17,6 +17,9 @@ template <typename K,
 	  typename Compare = std::less<K>>
 struct Set {
   static auto less = Compare{};
+  static bool equal(K a, K b) {
+    return !less(a,b) && !less(b,a);
+  }
 
   K key_min = std::numeric_limits<K>::min();
 
@@ -65,7 +68,7 @@ struct Set {
       gp = p;
       gp_left = p_left;
       p = l;
-      p_left = (k < p->key);
+      p_left = less(k, p->key);
       l = p_left ? (p->left).load() : (p->right).load();
     }
     return std::make_tuple(gp, gp_left, p, p_left, l);
@@ -73,7 +76,6 @@ struct Set {
 
   bool correctHeight(node* n) {
     if(n->is_leaf) return true;
-    // Guy n->left.load() is nullptr with hybrid
     return n->lefth.load() == height(n->left.load()) && 
            n->righth.load() == height(n->right.load());
   }
@@ -88,7 +90,6 @@ struct Set {
   }
 
   void fixHeight(node* n) {
-    // std::cout << "fixed height" << std::endl;
     n->lck.try_lock([=] {
       if(n->removed.load()) return false;
       n->lefth = height(n->left.load());
@@ -249,7 +250,7 @@ struct Set {
           heightViolation = false;
         }
         p = n;
-        n = (k < n->key) ? n->left.load() : n->right.load();
+        n = less(k, n->key) ? n->left.load() : n->right.load();
       }
       if(nodeWithViolation == nullptr) break; // no vioaltions found
       if(heightViolation) fixHeight(nodeWithViolation);
@@ -266,7 +267,7 @@ struct Set {
       int cnt = 0;
       while (true) {
         auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-        if (k == l->key) return false;
+        if (equal(k, l->key)) return false;
         if (p->lck.try_lock([=] () {
               auto ptr = p_left ? &(p->left) : &(p->right);
               if (p->removed.load() || ptr->load() != l) return false;
@@ -296,7 +297,7 @@ struct Set {
        int cnt = 0;
        while (true) {
    auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-   if (k != l->key) return false;
+   if (!equal(k, l->key)) return false;
    if (gp->lck.try_lock([=] () {
        return p->lck.try_lock([=] () {
             auto ptr = gp_left ? &(gp->left) : &(gp->right);
@@ -322,9 +323,9 @@ struct Set {
   std::optional<V> find_(node* root, K k) {
     node* l = (root->left).load();
     while (!l->is_leaf)
-      l = (k < l->key) ? (l->left).load() : (l->right).load();
+      l = less(k, l->key) ? (l->left).load() : (l->right).load();
     auto ll = (leaf*) l;
-    if (ll->key == k) return ll->value; 
+    if (equal(ll->key, k)) return ll->value; 
     else return {};
   }
 
@@ -400,7 +401,7 @@ struct Set {
        long lsum, rsum;
        parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((p->left).load());},
           [&] () { std::tie(rmin,rmax,rsum) = crec((p->right).load());});
-       if (lmax >= p->key || rmin < p->key)
+       if (!less(lmax, p->key) || less(rmin, p->key))
          std::cout << "out of order key: " << lmax << ", " << p->key << ", " << rmin << std::endl;
        return rtup(lmin, rmax, lsum + rsum);
      };

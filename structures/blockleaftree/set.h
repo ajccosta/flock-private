@@ -1,5 +1,5 @@
 #include <verlib/verlib.h>
-#include "rebalance.h"
+//#include "rebalance.h"
 
 #ifdef BALANCED
 bool balanced = true;
@@ -12,7 +12,7 @@ template <typename K_,
 	  typename Compare = std::less<K_>>
 struct Set {
   using K = K_;
-  using V = K_;
+  using V = V_;
   
   static auto less = Compare{};
   static bool equal(K a, K b) {
@@ -63,8 +63,8 @@ struct Set {
   verlib::memory_pool<node> node_pool;
   verlib::memory_pool<leaf> leaf_pool;
 
-  Rebalance<Set<K,V>> balance;
-  Set() : balance(this) {}
+  //Rebalance<Set<K,V,Compare>> balance;
+  //Set() : balance(this) {}
 
   enum direction {left, right};
   
@@ -144,7 +144,7 @@ struct Set {
 	      leaf_pool.retire(old_l);
 	      return true;
 	    })) {
-	  if (balanced) balance.rebalance(p, root, k);
+	  //if (balanced) balance.rebalance(p, root, k);
 	  return true;
 	}
 	// try again if unsuccessful
@@ -281,7 +281,7 @@ struct Set {
 	       std::cout << "bad value: " << lmax << ", " << p->key << ", " << rmin << std::endl;
 	       bad_val = true;
 	     }
-	     if (balanced) balance.check_balance(p, l, r);
+	     //if (balanced) balance.check_balance(p, l, r);
 	     if (lsum == 0) return rtup(p->key, rmax, rsum);
 	     else return rtup(lmin, rmax, lsum + rsum);
 	   };

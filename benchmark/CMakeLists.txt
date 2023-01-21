@@ -10,10 +10,10 @@ endfunction()
 foreach(file ${BENCH_FILES})
   copy_bench_file(${file})
 endforeach()
-	
+
 set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
-set(FLOCK_BENCH "leaftree" "blockleaftree" "arttree" "btree" "dlist" "list" "list_onelock" "hash" "avltree") 
-#set(FLOCK_BENCH "arttree" "btree" "dlist" "list") # "dlist" "hash_block" )
+#set(FLOCK_BENCH "leaftree" "blockleaftree" "arttree" "btree" "dlist" "list" "list_onelock" "hash" "avltree") 
+set(FLOCK_BENCH "arttree" "btree" "dlist" "list") # "dlist" "hash_block" )
 set(FLOCK_BENCH_USE_CAS "hash_block")
 set(FLOCK_BENCH_RECORDED_ONCE "btree" "list")
 
@@ -70,4 +70,19 @@ foreach(bench ${FLOCK_BENCH_USE_CAS})
   add_benchmark(${bench}_lf_ver_ls ${STRUCT_DIR}/${bench} "NoHelp;UseCAS;Versioned;LazyStamp")
   add_benchmark(${bench}_lf_ver_nohelp_ls ${STRUCT_DIR}/${bench} "UseCAS;Versioned;LazyStamp")
 #  add_benchmark(${bench}_lf_simple_nohelp_ls ${STRUCT_DIR}/${bench} "UseCAS;Versioned;Simple;LazyStamp")
+endforeach()
+
+set(STRING_SOURCES test_string.cpp)
+
+function(add_string_benchmark NAME STRUCT_NAME DEFS)
+  add_executable(${NAME} ${STRING_SOURCES})
+  target_compile_definitions(${NAME} PRIVATE ${DEFS})
+  target_link_libraries(${NAME} PRIVATE verlib)
+  target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
+endfunction()
+
+set(STRING_BENCH "btree" "list" "leaftree" "blockleaftree")
+
+foreach(bench ${STRING_BENCH})
+  add_string_benchmark(${bench}_string ${STRUCT_DIR}/${bench} "")
 endforeach()

@@ -73,9 +73,9 @@ struct Set {
 	      if (p->removed.load() || l_new != l) return false;
 	      node* new_l = leaf_pool.new_obj(k, v);
 	      if (k == l->key) *ptr = new_l; // update existing key (only if upsert)
-	      else *ptr = ((l->is_sentinal || k > l->key) ?
-			   internal_pool.new_obj(k, l, new_l) :
-			   internal_pool.new_obj(l->key, new_l, l));
+	      else *ptr = ((l->is_sentinal || less(l->key, k) ?
+			    internal_pool.new_obj(k, l, new_l) :
+			    internal_pool.new_obj(l->key, new_l, l)));
 	      return true;});
 	if (r) return (k != l->key);
       }});

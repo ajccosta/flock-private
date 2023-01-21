@@ -21,11 +21,11 @@ struct Rebalance {
   // The key k is needed to decide the side of p from gp, and c from p.
   bool fix_priority(node* gp, node* p, node* c, int k) {
     return gp->try_lock([=] {
-	auto ptr = (k < gp->key) ? &(gp->left) : &(gp->right);
+	auto ptr = Tree::less(k, gp->key) ? &(gp->left) : &(gp->right);
 	return (!gp->removed.load() && // gp has not been removed
 		ptr->load() == p &&    // p has not changed
 		p->try_lock([=] {
-		    bool on_left = (k < p->key);
+		    bool on_left = Tree::less(k, p->key);
 		    return ((on_left ? (p->left.load() == c) : // c has not changed
 			     (p->right.load() == c)) &&
 			    c->try_lock([=] {
@@ -50,11 +50,11 @@ struct Rebalance {
       node* gp = root;
       node* p = (gp->left).load();
       if (p->is_leaf) return;
-      node* c = (k < p->key) ? (p->left).load() : (p->right).load();
+      node* c = Tree::less(k, p->key) ? (p->left).load() : (p->right).load();
       while (!c->is_leaf && priority(p) >= priority(c)) {
 	gp = p;
 	p = c;
-	c = (k < p->key) ? (p->left).load() : (p->right).load();
+	c = Tree::less(k, p->key) ? (p->left).load() : (p->right).load();
       }
       if (c->is_leaf) return;
       fix_priority(gp, p, c, k);
@@ -63,7 +63,7 @@ struct Rebalance {
 
 
   void rebalance(node* p, node* root, int k) {
-    node* c = (k < p->key) ? (p->left).load() : (p->right).load();
+    node* c = Tree::less(k, p->key) ? (p->left).load() : (p->right).load();
     if (!c->is_leaf) fix_path(root, k);
   }
 
