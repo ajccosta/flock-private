@@ -17,7 +17,7 @@ template <typename K,
 	  typename Compare = std::less<K>>
 struct Set {
   static auto less = Compare{};
-  static bool equal(K a, K b) {
+  static bool equal(const K& a, const K& b) {
     return !less(a,b) && !less(b,a);
   }
 

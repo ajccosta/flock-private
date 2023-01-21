@@ -1,6 +1,15 @@
 #include <parlay/io.h>
+
+#define CHARS
+
+#ifdef CHARS
 using K = parlay::chars;
+#else
+using K = std::string;
+#endif
+
 using V = unsigned long;
+
 
 #include <verlib/verlib.h>
 #include "set.h"

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <limits>
+#include <ctype.h>
 
 #include <parlay/primitives.h>
 #include <parlay/random.h>
@@ -57,7 +58,13 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
   int range_query_threads = P.getOptionIntValue("-rqthreads", 0); 
 
   auto str = parlay::chars_from_file(filename);
-  auto a = parlay::tokens(str, [] (char c) {return c == ' ';});
+  auto b = parlay::tokens(str, [] (char c) {return !isalnum(c);});
+#ifdef CHARS
+  auto a = std::move(b);
+#else
+  auto a = parlay::map(std::move(b), [] (const parlay::chars& x) {
+			    return std::string(x.begin(), x.end());});
+#endif
   long m = a.size();
   long nn = parlay::remove_duplicates(a).size();
   long n = nn/2;
@@ -82,12 +89,11 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
     auto tr = os.empty(n);
     if (verbose) std::cout << "round " << i << std::endl;
 
-    std::cout << "before" << std::endl;
     parlay::parallel_for(0, m, [&] (size_t i) {
 	auto k = a[parlay::hash64(i) % m];
 	if(i%2==0) os.insert(tr, k, 123); 
-	else os.remove(tr, k); }, 10, true);
-    std::cout << "after" << std::endl;
+	else os.remove(tr, k);
+			       }, 10, true);
     
     size_t initial_size = os.check(tr);
 
@@ -112,7 +118,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
     auto range_buffers = parlay::tabulate(p, [&] (size_t i) {
 	return std::vector<V>(100ul + 2*range_size);});
 
-    std::cout << "start" << std::endl;
     parlay::parallel_for(0, p, [&] (size_t i) {
 	int cnt = 0;
 	size_t j = i*mp;

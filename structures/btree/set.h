@@ -13,16 +13,6 @@ struct Set {
   static auto less = Compare{};
   struct KV {K key; V value;};
 
-  // for 8 byte keys and 8 byte values
-  // it should be a length such that l mod 4 = 3
-  // this is so it fills a cache line
-  static constexpr int leaf_block_size = 31;
-  static constexpr int leaf_min_size = 6;
-  static constexpr int leaf_join_cutoff = 24;
-  static constexpr int node_block_size = 31;
-  static constexpr int node_min_size = 6;
-  static constexpr int node_join_cutoff = 24;
-    
   // ***************************************
   // Internal Nodes
   // ***************************************
@@ -38,6 +28,15 @@ struct Set {
       : is_leaf(is_leaf), status(status), size(size) {}
   };
 
+  static constexpr int block_bytes = 64 * 7;
+  static constexpr int kv_bytes = block_bytes - sizeof(header) - 16 + sizeof(K);
+  static constexpr int leaf_block_size = kv_bytes/sizeof(KV);
+  static constexpr int leaf_min_size = leaf_block_size/5;
+  static constexpr int leaf_join_cutoff = leaf_min_size * 4;
+  static constexpr int node_block_size = leaf_block_size;
+  static constexpr int node_min_size = leaf_min_size;
+  static constexpr int node_join_cutoff = leaf_join_cutoff;
+
   // Internal Node
   // Has node_block_size children, and one fewer keys to divide them
   // The only mutable fields are the child pointers (children) and the
@@ -51,7 +50,16 @@ struct Set {
     flck::lock lck;
     
     int find(K k, uint i=0) {
-      while (i < header::size-1 && !less(k, keys[i])) i++;
+      //while (i < header::size-1 && !less(k, keys[i])) i++;
+      //return i;
+      if (header::size == 1) return 0;
+      uint mid = (header::size-1)/2;
+      if (less(k, keys[mid])) // first half
+      	while (!less(k, keys[i])) i++;
+      else {
+      	i = std::max(i, mid+1);
+      	while (i < header::size-1 && !less(k, keys[i])) i++;
+      }
       return i;
     }
 
@@ -215,7 +223,15 @@ struct Set {
     KV keyvals[leaf_block_size];
     
     std::optional<V> find(K k) {
-      int i=0;
+      uint i=0;
+      // if (header::size == 0) return std::optional<V>();
+      // uint mid = header::size/2;
+      // if (!less(keyvals[mid].key, k)) // first half
+      // 	while (less(keyvals[i].key, k)) i++;
+      // else {
+      // 	i = mid+1;
+      // 	while (i < header::size && less(keyvals[i].key, k)) i++;
+      // }
       while (i < header::size && less(keyvals[i].key, k)) i++;
       if (i == header::size || less(k, keyvals[i].key)) return {};
       else return keyvals[i].value;

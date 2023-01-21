@@ -84,5 +84,5 @@ endfunction()
 set(STRING_BENCH "btree" "list" "leaftree" "blockleaftree")
 
 foreach(bench ${STRING_BENCH})
-  add_string_benchmark(${bench}_string ${STRUCT_DIR}/${bench} "")
+  add_string_benchmark(${bench}_string ${STRUCT_DIR}/${bench} "NoHelp")
 endforeach()

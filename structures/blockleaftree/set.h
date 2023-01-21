@@ -15,7 +15,7 @@ struct Set {
   using V = V_;
   
   static auto less = Compare{};
-  static bool equal(K a, K b) {
+  static bool equal(const K& a, const K& b) {
     return !less(a,b) && !less(b,a);
   }
 
@@ -25,8 +25,8 @@ struct Set {
     KV(K key, V value) : key(key), value(value) {}
     KV() {}
   };
-  static constexpr int block_size= 368/sizeof(KV) - 1; // to fit in 384 bytes
-  //static constexpr int block_size= 240/sizeof(KV) - 1; // to fit in 256 bytes
+  static constexpr int block_bytes = 64 * 4; // 6 cache lines
+  static constexpr int block_size = (block_bytes - 16)/sizeof(KV) - 1; 
 
   struct head : verlib::versioned {
     bool is_leaf;
@@ -121,7 +121,7 @@ struct Set {
 		new_l->keyvals[i] = KV(k,v);
 		offset = 1;
 	      }
-	      if (offset == 0) abort();
+	      if (offset == 0) {std::cout << "ouch" << std::endl; abort();}
 	      for (; i < old_l->size ; i++ )
 		new_l->keyvals[i+offset] = old_l->keyvals[i];
 
@@ -235,6 +235,7 @@ struct Set {
   node* empty(size_t n) { return empty(); }
 
   void retire(node* p) {
+    return;
     if (p == nullptr) return;
     if (p->is_leaf) leaf_pool.retire((leaf*) p);
     else {
