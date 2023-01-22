@@ -40,7 +40,7 @@ struct Set {
   verlib::memory_pool<internal> internal_pool;
   verlib::memory_pool<leaf> leaf_pool;
 
-  auto find_location(internal* root, K k) {
+  auto find_location(internal* root, const K& k) {
     internal* gp = nullptr;
     bool gp_left = false;
     internal* p = root;
@@ -56,14 +56,14 @@ struct Set {
     return std::make_tuple(gp, gp_left, p, p_left, (leaf*) l);
   }
 
-  bool insert(internal* root, K k, V v, bool upsert=false) {
+  bool insert(internal* root, const K& k, const V& v, bool upsert=false) {
     return verlib::with_epoch([=] {
       leaf* prev_leaf = nullptr;
       while (true) {
 	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
 	if (!l->is_sentinal &&
 	    ((!upsert && equal(l->key, k)) ||
-	     (upsert && prev_leaf != nullptr && prev_leaf->key == k &&
+	     (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
 	      l != prev_leaf)))
 	  return false;
 	prev_leaf = l;
@@ -72,16 +72,16 @@ struct Set {
 	      auto l_new = ptr->load();
 	      if (p->removed.load() || l_new != l) return false;
 	      node* new_l = leaf_pool.new_obj(k, v);
-	      if (k == l->key) *ptr = new_l; // update existing key (only if upsert)
+	      if (equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
 	      else *ptr = ((l->is_sentinal || less(l->key, k) ?
 			    internal_pool.new_obj(k, l, new_l) :
 			    internal_pool.new_obj(l->key, new_l, l)));
 	      return true;});
-	if (r) return (k != l->key);
+	if (r) return !equal(k, l->key);
       }});
   }
 
-  bool remove(internal* root, K k) {
+  bool remove(internal* root, const K& k) {
     return verlib::with_epoch([=] {
       leaf* prev_leaf = nullptr;
        while (true) {
@@ -107,7 +107,7 @@ struct Set {
        }}); 
   }
 
-  std::optional<V> find_(internal* root, K k) {
+  std::optional<V> find_(internal* root, const K& k) {
     auto ptr = &(root->left);
     node* l = ptr->read();
     while (!l->is_leaf) {
@@ -117,11 +117,11 @@ struct Set {
     }
     ptr->validate();
     auto ll = (leaf*) l;
-    if (!ll->is_sentinal && ll->key == k) return ll->value; 
+    if (!ll->is_sentinal && equal(ll->key, k)) return ll->value; 
     else return {};
   }
 
-  std::optional<V> find(internal* root, K k) {
+  std::optional<V> find(internal* root, const K& k) {
     return verlib::with_epoch([&] { return find_(root, k);});
   }
 

@@ -2,6 +2,7 @@
 #include <verlib/verlib.h>
 #define Range_Search 1
 #define Dense_Keys 1
+#define HASH 1
 
 template <typename K,
 	  typename V,
@@ -15,7 +16,7 @@ struct Set {
     struct KV {K key; V value;};
     int cnt;
     KV entries[Size];
-    int find(K k) {
+    int find(const K& k) {
       for (int i=0; i < cnt; i++)
 	if (entries[i].key == k) return i;
       return -1;
@@ -23,7 +24,7 @@ struct Set {
     Node(K k, V v) : cnt(1) { // could this overload with the other constructor if K is a pointer?
       entries[0] = KV{k,v};
     }
-    Node(node* old, K k, V v) {
+    Node(node* old, const K& k, const V& v) {
       if (old == nullptr) cnt = 1;
       else {
 	cnt = old->cnt + 1;
@@ -32,7 +33,7 @@ struct Set {
       }
       entries[cnt-1] = KV{k,v};
     }
-    Node(node* old, K k) : cnt(old->cnt - 1) {
+    Node(node* old, const K& k) : cnt(old->cnt - 1) {
       for (int i=0, j=0; i < cnt; i++,j++) {
 	if (KeyEqual{}(k, old->entries[i].key)) j++;
 	entries[i] = ((Node<Size>*) old)->entries[j];
@@ -52,15 +53,14 @@ struct Set {
 
   struct Table {
     parlay::sequence<slot> table;
-    slot* get_slot(K k) {
+    slot* get_slot(const K& k) {
       //size_t idx = (k * 0x9ddfea08eb382d69ULL) & (table.size()-1u);
       size_t idx = Hash{}(k)  & (table.size()-1u);
       return &table[idx];
     }
     Table(size_t n) {
-      size_t nn = std::max((size_t) (n*2), 1ul << 14);
-      size_t size = 1ul << parlay::log2_up(nn);
-      table = parlay::sequence<slot>(size);
+      size_t size = (1ul << std::max(parlay::log2_up(n), 14ul));
+      table = parlay::sequence<slot>(2*size);
     }
   };
   
@@ -69,7 +69,7 @@ struct Set {
   verlib::memory_pool<Node<7>> node_pool_7;
   verlib::memory_pool<Node<31>> node_pool_31;
 
-  node* insert_to_node(node* old, K k, V v) {
+  node* insert_to_node(node* old, const K& k, const V& v) {
     if (old == nullptr) return (node*) node_pool_1.new_obj(k, v);
     if (old->cnt < 3) return (node*) node_pool_3.new_obj(old, k, v);
     else if (old->cnt < 7) return (node*) node_pool_7.new_obj(old, k, v);
@@ -77,7 +77,7 @@ struct Set {
     else abort();
   }
 
-  node* remove_from_node(node* old, K k) {
+  node* remove_from_node(node* old, const K& k) {
     if (old->cnt == 1) return (node*) nullptr;
     if (old->cnt == 2) return (node*) node_pool_1.new_obj(old, k);
     else if (old->cnt <= 4) return (node*) node_pool_3.new_obj(old, k);
@@ -96,7 +96,7 @@ struct Set {
 
   // should not require gcc attribute, but compiler screws up otherwise
   __attribute__((always_inline))
-  std::optional<V> find_at(slot* s, K k) {
+  std::optional<V> find_at(slot* s, const K& k) {
     node* x = s->ptr.load();
     if (x == nullptr) return {};
     if (KeyEqual{}(x->entries[0].key, k))
@@ -106,12 +106,12 @@ struct Set {
     else return x->entries[i].value;
   }
   
-  std::optional<V> find_(Table& table, K k) {
+  std::optional<V> find_(Table& table, const K& k) {
     slot* s = table.get_slot(k);
     return find_at(s, k);
   }
 
-  std::optional<V> find(Table& table, K k) {
+  std::optional<V> find(Table& table, const K& k) {
     slot* s = table.get_slot(k);
     __builtin_prefetch (s);
     auto x = verlib::with_epoch([&] { return find_at(s, k);});
@@ -121,7 +121,7 @@ struct Set {
   static constexpr int init_delay=200;
   static constexpr int max_delay=2000;
 
-  bool insert_at(slot* s, K k, V v) {
+  bool insert_at(slot* s, const K& k, const V& v) {
     int delay = init_delay;
     while (true) {
       node* x = s->ptr.load();
@@ -145,12 +145,12 @@ struct Set {
     }
   }
 
-  bool insert(Table& table, K k, V v) {
+  bool insert(Table& table, const K& k, const V& v) {
     slot* s = table.get_slot(k); 
     return verlib::with_epoch([&] {return insert_at(s, k, v);});
   }
   
-  bool remove_at(slot* s, K k) {
+  bool remove_at(slot* s, const K& k) {
     int delay = init_delay;
     while (true) {
       node* x = s->ptr.load();
@@ -174,20 +174,20 @@ struct Set {
     }
   }
 
-  bool remove(Table& table, K k) {
+  bool remove(Table& table, const K& k) {
     slot* s = table.get_slot(k);
     return verlib::with_epoch([&] {return remove_at(s, k);});
   }
 
   template<typename AddF>
-  void range_(Table& table, AddF& add, K start, K end) {
-      for (K k = start; k <= end; k++) {
-	auto x = find_(table, k);
-#ifdef LazyStamp
-	if (verlib::aborted) return;
-#endif
-	if (x.has_value()) add(k, x.value());
-      }
+  void range_(Table& table, AddF& add, const K& start, const K& end) {
+//       for (K k = start; k <= end; k++) {
+// 	auto x = find_(table, k);
+// #ifdef LazyStamp
+// 	if (verlib::aborted) return;
+// #endif
+// 	if (x.has_value()) add(k, x.value());
+//       }
   }
 
   Table empty(size_t n) {return Table(n);}
@@ -203,7 +203,6 @@ struct Set {
     std::cout << std::endl;
   }
 
-  
   void retire(Table& t) {
     auto& table = t.table;
     parlay::parallel_for (0, table.size(), [&] (size_t i) {

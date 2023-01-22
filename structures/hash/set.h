@@ -1,5 +1,6 @@
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
+#define HASH 1
 
 template <typename K,
 	  typename V,
@@ -24,12 +25,12 @@ struct Set {
 
   verlib::memory_pool<node> node_pool;
 
-  slot* get_slot(Table& table, K k) {
+  slot* get_slot(Table& table, const K& k) {
     //return &table[(k * 0x9ddfea08eb382d69ULL) & (table.size()-1u)];
     return &table[Hash{}(k) & (table.size()-1u)];
   }
 
-  auto find_in_slot(slot* s, K k) {
+  auto find_in_slot(slot* s, const K& k) {
     auto cur = &s->head;
     node* nxt = cur->read();
     while (nxt != nullptr && !KeyEqual{}(nxt->key, k)) {
@@ -39,7 +40,7 @@ struct Set {
     return std::make_pair(cur,nxt);
   }
 
-  std::optional<V> find(Table& table, K k) {
+  std::optional<V> find(Table& table, const K& k) {
     slot* s = get_slot(table, k);
     __builtin_prefetch (s);
     return verlib::with_epoch([&] () -> std::optional<V> {
@@ -50,7 +51,7 @@ struct Set {
       });
   }
 
-  std::optional<V> find_(Table& table, K k) {
+  std::optional<V> find_(Table& table, const K& k) {
     slot* s = get_slot(table, k);
     auto [cur, nxt] = find_in_slot(s, k);
     cur->validate();
@@ -58,7 +59,7 @@ struct Set {
     else return {};
   }
 
-  bool insert_at(slot* s, K k, V v) {
+  bool insert_at(slot* s, const K& k, const V& v) {
     while (true) {
       unsigned int vn = s->version_num.load();
       auto [cur, nxt] = find_in_slot(s, k);
@@ -73,12 +74,12 @@ struct Set {
 
   }
 
-  bool insert(Table& table, K k, V v) {
+  bool insert(Table& table, const K& k, const V& v) {
     slot* s = get_slot(table, k);
     return verlib::with_epoch([&] {return insert_at(s, k, v);});
   }
 			
-  bool remove_at(slot* s, K k) {
+  bool remove_at(slot* s, const K& k) {
     while (true) {
       unsigned int vn = s->version_num.load();
       auto [cur, nxt] = find_in_slot(s, k);
@@ -93,7 +94,7 @@ struct Set {
     }
   }
 
-  bool remove(Table& table, K k) {
+  bool remove(Table& table, const K& k) {
     slot* s = get_slot(table, k);
     return verlib::with_epoch([&] {return remove_at(s, k);});
   }

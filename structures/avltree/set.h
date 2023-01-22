@@ -56,7 +56,7 @@ struct Set {
 
   size_t max_iters = 10000000;
   
-  auto find_location(node* root, K k) {
+  auto find_location(node* root, const K& k) {
     int cnt = 0;
     node* gp = nullptr;
     bool gp_left = false;
@@ -231,7 +231,7 @@ struct Set {
   // TODO: check how many times the outer loop gets executed per update operation
   // TODO: optimize to fix more than one violation each traversal
   // correctness: in a single threaded executions, heights are always fixed before violations (sortof)
-  void fixToKey(node* root, K k) {
+  void fixToKey(node* root, const K& k) {
     node *p, *n;
     while(true) {
       p = root;
@@ -261,7 +261,7 @@ struct Set {
   
   // bool foundViolations = false;
 
-  bool insert(node* root, K k, V v) {
+  bool insert(node* root, const K& k, const V& v) {
     // std::cout << "insert " << k << std::endl;
     return verlib::with_epoch([=] {
       int cnt = 0;
@@ -292,7 +292,7 @@ struct Set {
     // if(foundViolations) abort();
   }
 
-  bool remove(node* root, K k) {
+  bool remove(node* root, const K& k) {
     return verlib::with_epoch([=] {
        int cnt = 0;
        while (true) {
@@ -320,7 +320,7 @@ struct Set {
        }}); 
   }
 
-  std::optional<V> find_(node* root, K k) {
+  std::optional<V> find_(node* root, const K& k) {
     node* l = (root->left).load();
     while (!l->is_leaf)
       l = less(k, l->key) ? (l->left).load() : (l->right).load();
@@ -329,7 +329,7 @@ struct Set {
     else return {};
   }
 
-  std::optional<V> find(node* root, K k) {
+  std::optional<V> find(node* root, const K& k) {
     return verlib::with_epoch([&] { return find_(root, k);});
   }
 

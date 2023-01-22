@@ -27,7 +27,7 @@ struct Set {
 
   verlib::memory_pool<node> node_pool;
 
-  auto find_location(node* root, K k) {
+  auto find_location(node* root, const K& k) {
     node* cur = root;
     node* nxt = (cur->next).load();
     while (true) {
@@ -42,7 +42,7 @@ struct Set {
   static constexpr int init_delay = 200;
   static constexpr int max_delay = 2000;
 
-  bool insert(node* root, K k, V v) {
+  bool insert(node* root, const K& k, const V& v) {
     return verlib::with_epoch([=] {
       int delay = init_delay;
       while (true) {
@@ -60,7 +60,7 @@ struct Set {
       }});
   }
 
-  bool remove(node* root, K k) {
+  bool remove(node* root, const K& k) {
     return verlib::with_epoch([=] {
       int delay = init_delay;
       while (true) {
@@ -93,19 +93,19 @@ struct Set {
     });
   }
 
-  std::optional<V> find_(node* root, K k) {
+  std::optional<V> find_(node* root, const K& k) {
     auto [cur, nxt] = find_location(root, k);
     //(cur->next).validate();
     if (!nxt->is_end && !less(k, nxt->key)) return nxt->value;
     else return {};
   }
 
-  std::optional<V> find(node* root, K k) {
+  std::optional<V> find(node* root, const K& k) {
     return verlib::with_epoch([&] {return find_(root, k);});
   }
 
   template<typename AddF>
-  void range_(node* root, AddF& add, K start, K end) {
+  void range_(node* root, AddF& add, const K& start, const K& end) {
     node* nxt = (root->next).load();
     while (true) {
       node* nxt_nxt = (nxt->next).load(); // prefetch
@@ -148,7 +148,7 @@ struct Set {
   long check(node* p) {
     node* ptr = (p->next).load();
     if (ptr->is_end) return 0;
-    K k = ptr->key;
+    K& k = ptr->key;
     ptr = (ptr->next).load();
     long i = 1;
     while (!ptr->is_end) {

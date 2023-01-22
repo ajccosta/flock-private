@@ -24,7 +24,7 @@ struct Set {
 
   verlib::memory_pool<node> node_pool;
 
-  auto find_location(node* root, K k) {
+  auto find_location(node* root, const K& k) {
     node* nxt = (root->next).load();
     while (true) {
       node* nxt_nxt = (nxt->next).load(); // prefetch
@@ -34,12 +34,10 @@ struct Set {
     return nxt;
   }
 
-  
-
   static constexpr int init_delay=200;
   static constexpr int max_delay=2000;
 
-  bool insert(node* root, K k, V v) {
+  bool insert(node* root, const K& k, const V& v) {
     return verlib::with_epoch([&] {
       int delay = init_delay;
       while (true) {
@@ -62,7 +60,7 @@ struct Set {
     });
   }
 
-  bool remove(node* root, K k) {
+  bool remove(node* root, const K& k) {
     return verlib::with_epoch([&] {
       int delay = init_delay;
       while (true) {
@@ -87,13 +85,13 @@ struct Set {
     });
   }
   
-  std::optional<V> find_(node* root, K k) {
+  std::optional<V> find_(node* root, const K& k) {
     node* loc = find_location(root, k);
     if (!loc->is_end && !less(k, loc->key)) return loc->value; 
     else return {};
   }
 
-  std::optional<V> find(node* root, K k) {
+  std::optional<V> find(node* root, const K& k) {
     return verlib::with_epoch([&] { return find_(root, k);});
   }
 

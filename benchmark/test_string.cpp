@@ -25,7 +25,9 @@ int main(int argc, char* argv[]) {
   commandLine P(argc,argv,"");
 #ifdef RADIX
   Set<K,V,RadixString<K>> lst;
-#else
+#elif HASH
+  Set<K,V,parlay::hash<K>> lst;
+#else // Comparison
   Set<K,V> lst;
 #endif
   size_t default_size = 100000;

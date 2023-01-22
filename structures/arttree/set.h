@@ -5,8 +5,8 @@
 
 template <typename K>
 struct int_string {
-  static int length(K s) { return sizeof(K);}
-  static int get_byte(K key, int pos) {
+  static int length(const K& key) { return sizeof(K);}
+  static int get_byte(const K& key, int pos) {
     return (key >> (8*(sizeof(K)-1-pos))) & 255;
   }
 };
@@ -40,7 +40,7 @@ struct Set {
 
     bool is_full() {return false;}
 
-    node_ptr* get_child(K k) {
+    node_ptr* get_child(const K& k) {
       auto b = String::get_byte(k, header::byte_num);
       return &children[b];}
 
@@ -68,20 +68,20 @@ struct Set {
 
     bool is_full() {return num_used.load() == 64;}
     
-    node_ptr* get_child(K k) {
+    node_ptr* get_child(const K& k) {
       int i = idx[String::get_byte(k, header::byte_num)].load();
       if (i == -1) return nullptr;
       else return &ptr[i];}
 
     // Requires that node is not full (i.e. num_used < 64)
-    void add_child(K k, node* v) {
+    void add_child(const K& k, node* v) {
       int i = num_used.load();
       idx[String::get_byte(k, header::byte_num)] = i;
       ptr[i] = v;
       num_used = i+1;
     }
 
-    void init_child(K k, node* c) {
+    void init_child(const K& k, node* c) {
       int i = num_used.load()-1;
       idx[String::get_byte(k, header::byte_num)] = i;
       ptr[i].init(c);
@@ -104,7 +104,7 @@ struct Set {
 
     bool is_full() {return num_used == 16;}
 
-    node_ptr* get_child(K k) {
+    node_ptr* get_child(const K& k) {
       __builtin_prefetch (((char*) ptr) + 64);
       int kb = String::get_byte(k, header::byte_num);
       for (int i=0; i < num_used; i++) 
@@ -112,14 +112,14 @@ struct Set {
       return nullptr;
     }
 
-    void init_child(K k, node* c) {
+    void init_child(const K& k, node* c) {
       int kb = String::get_byte(k, header::byte_num);
       keys[num_used-1] = kb;
       ptr[num_used-1].init(c);
     }
 
     // constructor for a new sparse node with two children
-    sparse_node(int byte_num, node* v1, K k1, node* v2, K k2)
+    sparse_node(int byte_num, node* v1, const K& k1, node* v2, const K& k2)
       : header(k1, Sparse, byte_num), num_used(2) {
       if (k1 == k2) {
 	std::cout << "new sparse: " << k1 << ", " << k2 << ", " << byte_num << std::endl;
@@ -148,7 +148,7 @@ struct Set {
 
   // dispatch based on node type
   // A returned nullptr means no child matching the key
-  inline node_ptr* get_child(node* x, K k) {
+  inline node_ptr* get_child(node* x, const K& k) {
     switch (x->nt) {
     case Full : return ((full_node*) x)->get_child(k);
     case Indirect : return ((indirect_node*) x)->get_child(k);
@@ -175,7 +175,7 @@ struct Set {
   // If p is copied, then gp is updated to point to the new one
   // This should never be called on a full node.
   // Returns false if it fails.
-  bool add_child(node* gp, node* p, K k, V v) {
+  bool add_child(node* gp, node* p, const K& k, const V& v) {
     if (p->nt == Indirect && !is_full(p)) {
       // If non-full indirect node try to add a child pointer
       return p->try_lock([=] {
@@ -263,7 +263,7 @@ struct Set {
     } // end else
   }
 
-  auto find_location(node* root, K k) {
+  auto find_location(node* root, const K& k) {
     int byte_pos = 0;
     node* gp = nullptr;
     node* p = root;
@@ -286,7 +286,7 @@ struct Set {
     }
   }
 
-  bool insert(node* root, K k, V v) {
+  bool insert(node* root, const K& k, const V& v) {
     return verlib::with_epoch([=] {
       while (true) {		 
 	auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
@@ -338,7 +338,7 @@ struct Set {
   // currently a "lazy" remove that only removes
   //   1) the leaf
   //   2) its parent if it is sparse with just two children
-  bool remove(node* root, K k) {
+  bool remove(node* root, const K& k) {
     return verlib::with_epoch([=] {
       while (true) {
 	auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
@@ -372,7 +372,7 @@ struct Set {
     });
   }
 
-  std::optional<V> find_(node* root, K k) {
+  std::optional<V> find_(node* root, const K& k) {
     auto [gp, p, cptr, l, pos] = find_location(root, k);
     if (cptr != nullptr) cptr->validate();
     auto ll = (leaf*) l;
@@ -380,7 +380,7 @@ struct Set {
     else return {};
   }
 
-  std::optional<V> find(node* root, K k) {
+  std::optional<V> find(node* root, const K& k) {
     return verlib::with_epoch([&] {return find_(root, k);});
   }
 
@@ -436,7 +436,7 @@ struct Set {
   }		       
 
   template<typename AddF>
-  void range_(node* root, AddF& add, K start, K end) {
+  void range_(node* root, AddF& add, const K& start, const K& end) {
     range_internal(root, add,
 		   std::optional<K>(start), std::optional<K>(end), 0);
   }

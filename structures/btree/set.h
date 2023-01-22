@@ -49,7 +49,7 @@ struct Set {
     verlib::versioned_ptr<node> children[node_block_size];
     flck::lock lck;
     
-    int find(K k, uint i=0) {
+    int find(const K& k, uint i=0) {
       //while (i < header::size-1 && !less(k, keys[i])) i++;
       //return i;
       if (header::size == 1) return 0;
@@ -135,7 +135,7 @@ struct Set {
   }
 
   // rebalances two nodes into two new nodes
-  std::tuple<node*,K,node*> rebalance(node* c1, K k, node* c2) {
+  std::tuple<node*,K,node*> rebalance(node* c1, const K& k, node* c2) {
     auto get_key = [=] (int i) {
 		     if (i < c1->size-1) return c1->keys[i];
 		     else if (i == c1->size-1) return k;
@@ -148,7 +148,7 @@ struct Set {
   }
 
   // joins two nodes into one
-  node* join(node* c1, K k, node* c2) {
+  node* join(node* c1, const K& k, node* c2) {
     int size = c1->size + c2->size;
     auto get_key = [=] (int i) {
 		     if (i < c1->size-1) return c1->keys[i];
@@ -222,7 +222,7 @@ struct Set {
   struct alignas(64) leaf : header {
     KV keyvals[leaf_block_size];
     
-    std::optional<V> find(K k) {
+    std::optional<V> find(const K& k) {
       uint i=0;
       // if (header::size == 0) return std::optional<V>();
       // uint mid = header::size/2;
@@ -237,7 +237,7 @@ struct Set {
       else return keyvals[i].value;
     }
 
-    int prev(K k, int i=0) {
+    int prev(const K& k, int i=0) {
       while (i < header::size && less(keyvals[i].key, k)) i++;
       return i;
     }
@@ -262,7 +262,7 @@ struct Set {
   // Insert a new key-value pair by copying into a new leaf.
   // Old is left intact (but retired).
   // The key k must not already be present in the leaf.
-  leaf* insert_leaf(leaf* l, K k, V v) {
+  leaf* insert_leaf(leaf* l, const K& k, const V& v) {
     int size = l->size;
     assert(size < leaf_block_size);
     leaf* new_l = leaf_pool.new_obj(size+1);
@@ -284,7 +284,7 @@ struct Set {
 
   // Remove a key-value pair from the leaf that matches the key k.
   // This copies the values into a new leaf.
-  leaf* remove_leaf(leaf* l, K k) {
+  leaf* remove_leaf(leaf* l, const K& k) {
     int size = l->size;
     assert(size > 0);
     leaf* new_l = leaf_pool.new_obj(size-1);
@@ -422,7 +422,7 @@ struct Set {
 	      leaf_pool.retire((leaf*) rc);
 	      return true;
 	    } else { // internal node
-	      K k = p->keys[li];
+	      K& k = p->keys[li];
 	      // need to lock the other child 
 	      return other_c->lck.try_lock([=] {
 		  other_c->removed = true;
@@ -493,7 +493,7 @@ struct Set {
   // This ensures that the returned leaf is not full, and that it is safe
   // to split a child along the way since its parent is not full and can
   // absorb an extra pointer
-  std::tuple<node*, int, leaf*> find_and_fix(node* root, K k) {
+  std::tuple<node*, int, leaf*> find_and_fix(node* root, const K& k) {
     int cnt = 0;
     while (true) {
       node* p = root;
@@ -531,7 +531,7 @@ struct Set {
   // deleted and the child has not changed.  If the try_lock fails it
   // tries again.
   // returns false and does no update if already in tree
-  bool insert(node* root, K k, V v) {
+  bool insert(node* root, const K& k, const V& v) {
     return verlib::with_epoch([=] {
       int delay = init_delay;
       while (true) {
@@ -554,7 +554,7 @@ struct Set {
   // check the parent has not been deleted and the child has not
   // changed.  If the try_lock fails it tries again.  Returns false if
   // not found.
-  bool remove(node* root, K k) {
+  bool remove(node* root, const K& k) {
     return verlib::with_epoch([=] {
       int delay = init_delay;
       while (true) {
@@ -573,7 +573,7 @@ struct Set {
   }
 
   template<typename AddF>
-  bool range_internal(node* a, AddF& add, K start, K end) {
+  bool range_internal(node* a, AddF& add, const K& start, const K& end) {
     while (true) {
       if (a->is_leaf) {
 	leaf* la = (leaf*) a;
@@ -601,12 +601,12 @@ struct Set {
   }
 
   template<typename AddF>
-  void range_(node* root, AddF& add, K start, K end) {
+  void range_(node* root, AddF& add, const K& start, const K& end) {
       range_internal(root, add, start, end);
   }
     
   // a wait-free version that does not split on way down
-  std::optional<V> find_(node* root, K k) {
+  std::optional<V> find_(node* root, const K& k) {
     node* c = root;
     verlib::versioned_ptr<node>* x;
     while (!c->is_leaf) {
@@ -619,7 +619,7 @@ struct Set {
     return ((leaf*) c)->find(k);
   }
 
-  std::optional<V> find(node* root, K k) {
+  std::optional<V> find(node* root, const K& k) {
     return verlib::with_epoch([&] {return find_(root, k);});
   }
 

@@ -52,7 +52,7 @@ struct Set {
     long size;
     KV keyvals[block_size+1];
     leaf() : size(0), head{true} {};
-    std::optional<V> find(K k) {
+    std::optional<V> find(const K& k) {
       for (int i=0; i < size; i++) 
 	if (!less(k, keyvals[i].key) && !less(keyvals[i].key, k))
 	  return keyvals[i].value;
@@ -68,7 +68,7 @@ struct Set {
 
   enum direction {left, right};
   
-  auto find_location(node* root, K k) {
+  auto find_location(node* root, const K& k) {
     node* gp = nullptr;
     bool gp_left = false;
     node* p = root;
@@ -91,7 +91,7 @@ struct Set {
   // via an atomic_ptr and the pool allocators, which are idempotent.
   // The other values are "immutable" (i.e. they are either written once
   // without being read, or just read).
-  bool insert(node* root, K k, V v) {
+  bool insert(node* root, const K& k, const V& v) {
     return verlib::with_epoch([=] {
       while (true) {
 	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
@@ -154,7 +154,7 @@ struct Set {
 
   // Removes a key from the leaf.  If the leaf will become empty by
   // removing it, then both the leaf and its parent need to be deleted.
-  bool remove(node* root, K k) {
+  bool remove(node* root, const K& k) {
     return verlib::with_epoch([=] {
       while (true) {
 	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
@@ -171,7 +171,7 @@ struct Set {
 		int i = 0;
 		for (;i < old_l->size && old_l->keyvals[i].key < k; i++)
 		  new_l->keyvals[i] = old_l->keyvals[i];
-		int offset = (old_l->keyvals[i].key == k) ? 1 : 0;
+		int offset = equal(old_l->keyvals[i].key, k) ? 1 : 0;
 		for (; i+offset < old_l->size ; i++ )
 		  new_l->keyvals[i] = old_l->keyvals[i+offset];
 		new_l->size = i;
@@ -212,7 +212,7 @@ struct Set {
     });
   }
 
-  std::optional<V> find_(node* root, K k) {
+  std::optional<V> find_(node* root, const K& k) {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     ((p_left) ? &(p->left) : &(p->right))->validate();
     leaf* ll = (leaf*) l;
@@ -221,7 +221,7 @@ struct Set {
     return {};
   }
 
-  std::optional<V> find(node* root, K k) {
+  std::optional<V> find(node* root, const K& k) {
     return verlib::with_epoch([&] { return find_(root, k);});
   }
 
