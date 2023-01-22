@@ -91,10 +91,11 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 
     parlay::parallel_for(0, m, [&] (size_t i) {
 	auto k = a[parlay::hash64(i) % m];
-	if(i%2==0) os.insert(tr, k, 123); 
+	//std::cout << "Inserting " << k << std::endl;
+	if(i%2==0) os.insert(tr, k, 123);
 	else os.remove(tr, k);
 			       }, 10, true);
-    
+
     size_t initial_size = os.check(tr);
 
     size_t mp = m/p;

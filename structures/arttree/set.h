@@ -1,6 +1,7 @@
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
 #define Range_Search 1
+#define RADIX 1
 
 template <typename K>
 struct int_string {
@@ -18,9 +19,9 @@ struct Set {
   enum node_type : char {Full, Indirect, Sparse, Leaf};
 
   struct header : verlib::versioned {
-    K key;
-    node_type nt;
+    const node_type nt;
     flck::atomic_write_once<bool> removed;
+    K key;
     // every node has a byte position in the key
     // e.g. the root has byte_num = 0
     short int byte_num; 
@@ -50,7 +51,8 @@ struct Set {
 
     // an empty "full" node
     full_node() : header(Full) {
-      //for (int i=0; i < 256; i++) children[i].init(nullptr);
+      // guy, can comment out below
+      for (int i=0; i < 256; i++) children[i].init(nullptr);
     }
   };
 
@@ -119,6 +121,10 @@ struct Set {
     // constructor for a new sparse node with two children
     sparse_node(int byte_num, node* v1, K k1, node* v2, K k2)
       : header(k1, Sparse, byte_num), num_used(2) {
+      if (k1 == k2) {
+	std::cout << "new sparse: " << k1 << ", " << k2 << ", " << byte_num << std::endl;
+	abort();
+      }
       keys[0] = String::get_byte(k1, byte_num);
       ptr[0].init(v1);
       keys[1] = String::get_byte(k2, byte_num);
@@ -127,6 +133,7 @@ struct Set {
 
     // an empty sparse node
     sparse_node() : header(Sparse), num_used(0) {}
+      //std::cout << "sparse" << std::endl;}
   };
 
   struct leaf : header {
@@ -182,6 +189,14 @@ struct Set {
       // otherwise we need to create a new node
       return gp->try_lock([=] {
 	  auto child_ptr = get_child(gp, p->key);
+	  if (child_ptr == nullptr && gp->nt == 2) {
+	    auto gps = (sparse_node*) gp;
+	    for (int i=0; i < gps->num_used; i++) 
+	      std::cout << gps->keys[i] << ", " ;
+	    std::cout << p->key << std::endl;
+	  }
+	  bool rm = gp->removed.load();
+	  bool pt = child_ptr->load() != p;
 	  if (gp->removed.load() || child_ptr->load() != p)
 	    return false;
 	  return p->try_lock([=] {
@@ -225,6 +240,8 @@ struct Set {
 	          });  
 		} else {
 
+		  //std::cout << "sparse to sparse: " << s_n->byte_num << ", " << s_n->num_used << std::endl;
+		  //print(gp);
 		  // copy sparse to sparse
 		  *child_ptr = (node*) sparse_pool.new_init([=] (sparse_node* s_c) {
   		    s_c->key = s_n->key;
@@ -289,6 +306,7 @@ struct Set {
 		// split an existing leaf into a sparse node with two child
 		// leaf nodes (one of them the original leaf)
 		else {
+		  //std::cout << "sparse new pair" << std::endl;
 		  *cptr = (node*) sparse_pool.new_obj(byte_pos, c, c->key,
 						      new_l, k);
 		}
@@ -426,7 +444,7 @@ struct Set {
   node* empty() {
     auto r = full_pool.new_obj();
     r->byte_num = 0;
-    r->key = 0;
+    //r->key = 0;
     return (node*) r;
   }
 

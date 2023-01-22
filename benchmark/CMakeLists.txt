@@ -81,7 +81,7 @@ function(add_string_benchmark NAME STRUCT_NAME DEFS)
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
 endfunction()
 
-set(STRING_BENCH "btree" "list" "leaftree" "blockleaftree")
+set(STRING_BENCH "btree" "list" "leaftree" "blockleaftree" "arttree")
 
 foreach(bench ${STRING_BENCH})
   add_string_benchmark(${bench}_string ${STRUCT_DIR}/${bench} "NoHelp")
