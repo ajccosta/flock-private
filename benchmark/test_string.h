@@ -58,7 +58,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
   int range_query_threads = P.getOptionIntValue("-rqthreads", 0); 
 
   auto str = parlay::chars_from_file(filename);
-  auto b = parlay::tokens(str, [] (char c) {return !isalnum(c);});
+  auto b = parlay::random_shuffle(parlay::tokens(str, [] (char c) {return !isalnum(c);}));
 #ifdef CHARS
   auto a = std::move(b);
 #else
@@ -68,7 +68,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
   long m = a.size();
   long nn = parlay::remove_duplicates(a).size();
   long n = nn/2;
-  std::cout << "total strings = " << m << " unique strings = " << n << std::endl;
+  std::cout << "total strings = " << m << ", unique strings = " << nn << std::endl;
 
   // initially set to all finds
   parlay::sequence<op_type> op_types(m, Find);
@@ -90,10 +90,8 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
     if (verbose) std::cout << "round " << i << std::endl;
 
     parlay::parallel_for(0, m, [&] (size_t i) {
-	auto k = a[parlay::hash64(i) % m];
-	//std::cout << "Inserting " << k << std::endl;
-	if(i%2==0) os.insert(tr, k, 123);
-	else os.remove(tr, k);
+	if(i%2==0) os.insert(tr, a[i], 123);
+	else os.remove(tr, a[i]);
 			       }, 10, true);
 
     size_t initial_size = os.check(tr);
@@ -202,6 +200,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 	std::cout << "warning out of samples, finished in "
 		  << duration << " seconds" << std::endl;
 
+      size_t final_cnt = os.check(tr);
       size_t num_ops = parlay::reduce(totals);
 
       if(range_query_threads == 0) {
@@ -211,7 +210,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 		  << range_percent << "%range,"
 		  << multifind_percent << "%mfind,"
 		  << "rs=" << range_size << ","
-		  << "n=" << n << ","
+		  << "n=" << initial_size << ","
 		  << "p=" << p << ","
 		  << num_ops / (duration * 1e6) << std::endl;
       } else {
@@ -221,7 +220,7 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 		  << range_percent << "%range,"
 		  << multifind_percent << "%mfind,"
 		  << "rs=" << range_size << ","
-		  << "n=" << n << ","
+		  << "n=" << initial_size << ","
 		  << "p=" << p << ","
 		  << "rq_threads=" << range_query_threads << ","
 		  << "rq_throughput=" << parlay::reduce(range_counts) / (duration * 1e6) << ","
@@ -229,7 +228,6 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
       }
 
       if (do_check) {
-	size_t final_cnt = os.check(tr);
 	long updates = parlay::reduce(addeds);
 	if (multifind_percent > 0) {
 	  long mfind_sum = parlay::reduce(mfind_counts);

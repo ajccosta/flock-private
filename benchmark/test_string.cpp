@@ -1,5 +1,6 @@
 #include <parlay/io.h>
 
+#define UseCAS // for hash_block
 #define CHARS
 
 #ifdef CHARS
