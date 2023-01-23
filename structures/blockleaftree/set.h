@@ -51,13 +51,15 @@ struct Set {
   struct leaf : head {
     long size;
     KV keyvals[block_size+1];
-    leaf() : size(0), head{true} {};
     std::optional<V> find(const K& k) {
       for (int i=0; i < size; i++) 
 	if (!less(k, keyvals[i].key) && !less(keyvals[i].key, k))
 	  return keyvals[i].value;
       return {};
     }
+    leaf() : size(0), head{true} {};
+    leaf(const KV& keyval) : size(1), head{true} {
+      keyvals[0] = keyval;}
   };
 
   verlib::memory_pool<node> node_pool;
@@ -102,43 +104,49 @@ struct Set {
 
 	      // if p has been removed, or l has changed, then exit
 	      if (p->removed.load() || ptr->load() != l) return false;
-	      leaf* new_l = leaf_pool.new_obj();
 	      // if the leaf is the left sentinal then create new node
 	      if (old_l->is_sentinal) {
-		new_l->size = 1;
-		new_l->keyvals[0] = KV(k,v);
+		leaf* new_l = leaf_pool.new_obj(KV(k,v));
 		(*ptr) = node_pool.new_obj(k, l, (node*) new_l);
 		return true;
 	      }
 
-	      // first insert into a new block
-	      int i=0;
-	      for (;i < old_l->size && less(old_l->keyvals[i].key, k); i++) {
-		new_l->keyvals[i] = old_l->keyvals[i];
-	      }
-	      int offset = 0;
-	      if (i == old_l->size || less(k, old_l->keyvals[i].key)) {
-		new_l->keyvals[i] = KV(k,v);
-		offset = 1;
-	      }
-	      if (offset == 0) {std::cout << "ouch" << std::endl; abort();}
-	      for (; i < old_l->size ; i++ )
-		new_l->keyvals[i+offset] = old_l->keyvals[i];
+	      leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
+		  // first insert into a new block
+		  int i=0;
+		  for (;i < old_l->size && less(old_l->keyvals[i].key, k); i++) {
+		    new_l->keyvals[i] = old_l->keyvals[i];
+		  }
+		  int offset = 0;
+		  if (i == old_l->size || less(k, old_l->keyvals[i].key)) {
+		    new_l->keyvals[i] = KV(k,v);
+		    offset = 1;
+		  }
+		  if (offset == 0) {std::cout << "ouch" << std::endl; abort();}
+		  for (; i < old_l->size ; i++ )
+		    new_l->keyvals[i+offset] = old_l->keyvals[i];
+		  new_l->size = old_l->size + offset;
+		});
 
-	      // if the block overlflows, split into another block and
+	      // if the block overlflows, split into two blocks and
 	      // create a parent
-	      if (old_l->size + offset > block_size) { 
-		leaf* new_ll = leaf_pool.new_obj();  // the other block
-		for (int i =0 ; i < block_size/2+1; i++)
-		  new_ll->keyvals[i] = new_l->keyvals[i+(block_size+1)/2];
-		new_l->size = (block_size+1)/2;
-		new_ll->size = block_size/2 + 1;
-		(*ptr) = node_pool.new_obj(new_ll->keyvals[0].key,
-					   (node*) new_l, (node*) new_ll);
-	      } else {
-		new_l->size = old_l->size + offset;
-		(*ptr) = (node*) new_l;
-	      }
+	      if (new_l->size > block_size) {
+		int size_l = new_l->size/2;
+		int size_r = new_l->size - size_l;
+		leaf* new_ll = leaf_pool.new_init([=] (leaf* new_ll) {
+		    for (int i =0 ; i < size_l; i++)
+		      new_ll->keyvals[i] = new_l->keyvals[i];
+		    new_ll->size = size_l;
+		  });
+		leaf* new_lr = leaf_pool.new_init([=] (leaf* new_lr) {
+		    for (int i =0 ; i < size_r; i++)
+		      new_lr->keyvals[i] = new_l->keyvals[i + size_l];
+		    new_lr->size = size_r;
+		  });
+		(*ptr) = node_pool.new_obj(new_l->keyvals[size_l].key,
+					   (node*) new_ll, (node*) new_lr);
+		leaf_pool.retire(new_l);
+	      } else (*ptr) = (node*) new_l;
 
 	      // retire the old block
 	      leaf_pool.retire(old_l);
@@ -165,16 +173,16 @@ struct Set {
 	  if (p->try_lock([=] {
 		auto ptr = p_left ? &(p->left) : &(p->right);
 		if (p->removed.load() || ptr->load() != l) return false;
-		leaf* new_l = leaf_pool.new_obj();
-	      
-		// copy into new node while deleting k, if there
-		int i = 0;
-		for (;i < old_l->size && old_l->keyvals[i].key < k; i++)
-		  new_l->keyvals[i] = old_l->keyvals[i];
-		int offset = equal(old_l->keyvals[i].key, k) ? 1 : 0;
-		for (; i+offset < old_l->size ; i++ )
-		  new_l->keyvals[i] = old_l->keyvals[i+offset];
-		new_l->size = i;
+		leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
+		    // copy into new node while deleting k, if there
+		    int i = 0;
+		    for (;i < old_l->size && old_l->keyvals[i].key < k; i++)
+		      new_l->keyvals[i] = old_l->keyvals[i];
+		    int offset = equal(old_l->keyvals[i].key, k) ? 1 : 0;
+		    for (; i+offset < old_l->size ; i++ )
+		      new_l->keyvals[i] = old_l->keyvals[i+offset];
+		    new_l->size = i;
+		  });
 
 		// update parent to point to new leaf, and retire old
 		(*ptr) = (node*) new_l;

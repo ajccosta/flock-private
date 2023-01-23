@@ -252,9 +252,9 @@ struct Set {
 
   leaf* copy_leaf(leaf* l) {
     int size = l->size;
-    leaf* new_l = leaf_pool.new_obj(size);
-    for (int i=0; i < size; i++)
-      new_l->keyvals[i] = l->keyvals[i];
+    leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
+	for (int i=0; i < size; i++)
+	  new_l->keyvals[i] = l->keyvals[i];}, size);
     leaf_pool.retire(l);
     return new_l;
   }
@@ -263,83 +263,86 @@ struct Set {
   // Old is left intact (but retired).
   // The key k must not already be present in the leaf.
   leaf* insert_leaf(leaf* l, const K& k, const V& v) {
-    int size = l->size;
-    assert(size < leaf_block_size);
-    leaf* new_l = leaf_pool.new_obj(size+1);
-    int i=0;
+    return leaf_pool.new_init([=] (leaf* new_l) {
+	int size = l->size;
+	assert(size < leaf_block_size);
+	int i=0;
 
-    // copy part before the new key
-    for (;i < size && less(l->keyvals[i].key, k); i++)
-      new_l->keyvals[i] = l->keyvals[i];
+	// copy part before the new key
+	for (;i < size && less(l->keyvals[i].key, k); i++)
+	  new_l->keyvals[i] = l->keyvals[i];
 
-    // copy in the new key and value
-    new_l->keyvals[i] = KV{k,v};
+	// copy in the new key and value
+	new_l->keyvals[i] = KV{k,v};
 
-    // copy the part after the new key
-    for (; i < size ; i++ )
-      new_l->keyvals[i+1] = l->keyvals[i];
-
-    return new_l;
+	// copy the part after the new key
+	for (; i < size ; i++ )
+	  new_l->keyvals[i+1] = l->keyvals[i];}, l->size + 1);
   }
 
   // Remove a key-value pair from the leaf that matches the key k.
   // This copies the values into a new leaf.
   leaf* remove_leaf(leaf* l, const K& k) {
-    int size = l->size;
-    assert(size > 0);
-    leaf* new_l = leaf_pool.new_obj(size-1);
-    int i=0;
+    return leaf_pool.new_init([=] (leaf* new_l) {
+	int size = l->size;
+	assert(size > 0);
+	int i=0;
 
-    // part before the key
-    for (;i < size && less(l->keyvals[i].key, k); i++)
-      new_l->keyvals[i] = l->keyvals[i];
+	// part before the key
+	for (;i < size && less(l->keyvals[i].key, k); i++)
+	  new_l->keyvals[i] = l->keyvals[i];
 
-    // part after the key, shifted left
-    for (; i < size-1 ; i++ )
-      new_l->keyvals[i] = l->keyvals[i+1];
-
-    return new_l;
+	// part after the key, shifted left
+	for (; i < size-1 ; i++ )
+	  new_l->keyvals[i] = l->keyvals[i+1];}, l->size - 1);
   }
 
   // helper function for split_leaf and rebalance_leaf
   template <typename KeyVal>
   std::tuple<node*,K,node*> split_mid_leaf(int size, KeyVal get_kv) {
 
-    // create left child and copy into it
-    int lsize = size/2;
-    leaf* new_l = leaf_pool.new_obj(lsize);
-    leaf* new_r = leaf_pool.new_obj(size-lsize);
     // hack to deal with broken g++-10 compiler
     if (true) {
-      K tmpK[leaf_block_size];
-      V tmpV[leaf_block_size];
+      int lsize = size/2;
+      leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
+	  K tmpK[leaf_block_size];
+	  V tmpV[leaf_block_size];
+	  for (int i = 0; i < lsize; i++) {
+	    auto [key,val] = get_kv(i);
+	    tmpK[i] = key;
+	    tmpV[i] = val;
+	  }
+	  for (int i = 0; i < lsize; i++) {
+	    new_l->keyvals[i].key = tmpK[i];
+	    new_l->keyvals[i].value = tmpV[i];
+	  }}, lsize);
 
-      for (int i = 0; i < lsize; i++) {
-        auto [key,val] = get_kv(i);
-        tmpK[i] = key;
-        tmpV[i] = val;
-      }
-      for (int i = 0; i < lsize; i++) {
-        new_l->keyvals[i].key = tmpK[i];
-        new_l->keyvals[i].value = tmpV[i];
-      }
-      for (int i = 0; i < size - lsize; i++) {
-        auto [key,val] = get_kv(i+lsize);      
-        tmpK[i] = key;
-        tmpV[i] = val;
-      }
-      for (int i = 0; i < size - lsize; i++) {
-        new_r->keyvals[i].key = tmpK[i];
-        new_r->keyvals[i].value = tmpV[i];
-      }
-    } else {
-      for (int i = 0; i < lsize; i++) new_l->keyvals[i] = get_kv(i);
-      for (int i = 0; i < size - lsize; i++) new_r->keyvals[i] = get_kv(i+lsize);
+      int rsize = size - lsize;
+      leaf* new_r = leaf_pool.new_init([=] (leaf* new_r) {
+	  K tmpK[leaf_block_size];
+	  V tmpV[leaf_block_size];
+	  for (int i = 0; i < rsize; i++) {
+	    auto [key,val] = get_kv(i+lsize);      
+	    tmpK[i] = key;
+	    tmpV[i] = val;
+	  }
+	  for (int i = 0; i < rsize; i++) {
+	    new_r->keyvals[i].key = tmpK[i];
+	    new_r->keyvals[i].value = tmpV[i];
+	  }}, rsize);
+      K mid = get_kv(lsize).key;
+      return std::make_tuple((node*) new_l, mid, (node*) new_r);
+    } else { // old simpler version, that does not copile correctly
+      int lsize = size/2;
+      int rsize = size - lsize;
+      leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
+	  for (int i = 0; i < lsize; i++) new_l->keyvals[i] = get_kv(i);}, lsize);
+      leaf* new_r = leaf_pool.new_init([=] (leaf* new_l) {
+	  for (int i = 0; i < rsize; i++) new_r->keyvals[i] = get_kv(i+lsize);}, rsize);
+      // separating key (first key in right child)
+      K mid = get_kv(lsize).key;
+      return std::make_tuple((node*) new_l, mid, (node*) new_r);
     }
-
-    // separating key (first key in right child)
-    K mid = get_kv(lsize).key;
-    return std::make_tuple((node*) new_l, mid, (node*) new_r);
   }
 
   // split a leaf into two leaves returning the new nodes
@@ -362,12 +365,11 @@ struct Set {
 
   node* join_leaf(node* l, node* r) {
     int size = l->size + r->size;
-    leaf* new_l = leaf_pool.new_obj(size);
-    for (int i=0; i < size; i++)
-      new_l->keyvals[i] = ((i < l->size) 
-			   ? ((leaf*) l)->keyvals[i] 
-			   : ((leaf*) r)->keyvals[i - l->size]);
-    return (node*) new_l;
+    return (node*) leaf_pool.new_init([=] (leaf* new_l) {
+	for (int i=0; i < l->size + r->size; i++)
+	  new_l->keyvals[i] = ((i < l->size) 
+			       ? ((leaf*) l)->keyvals[i] 
+			       : ((leaf*) r)->keyvals[i - l->size]);}, size);
   }
 
   // ***************************************
