@@ -33,7 +33,8 @@ using V = unsigned long;
 
 
 int main(int argc, char* argv[]) {
-  commandLine P(argc,argv,"");
+    commandLine P(argc,argv,"[-r <rounds>] [-threads <num threads>] [-u <update percent>] [-mfind <multifind percent>] [-rs <multifind size>] [-verbose] [-shuffle] [-stats] [-no_check] <filename>");
+
 #ifdef RADIX
   Set<K,V,RadixString<K>> os;
 #elif HASH
@@ -44,7 +45,12 @@ int main(int argc, char* argv[]) {
 
   auto filename = P.getArgument(0);
   
-  auto str = parlay::chars_from_file(filename);
+  auto str = parlay::file_map(filename);
+  if (str.size() == 0) {
+    std::cout << "bad filename: " << filename << std::endl;
+    return 1;
+  }
+  
   auto b = parlay::random_shuffle(parlay::tokens(str, [] (char c) {return !isalnum(c);}));
 #ifdef CHARS
   auto a = std::move(b);
