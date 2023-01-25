@@ -20,22 +20,26 @@ struct Set {
   struct leaf;
   enum Status : char { isOver, isUnder, OK};
 
-  struct header : verlib::versioned {
+    struct header : verlib::versioned {
     bool is_leaf;
     Status status;
+    flck::atomic_write_once<bool> removed;
     int size;
     header(bool is_leaf, Status status, int size)
-      : is_leaf(is_leaf), status(status), size(size) {}
+      : is_leaf(is_leaf), status(status), size(size), removed(false) {}
   };
 
-  static constexpr int block_bytes = 64 * 7;
-  static constexpr int kv_bytes = block_bytes - sizeof(header) - 16 + sizeof(K);
+  static constexpr int leaf_block_bytes = 64 * 8;
+  static constexpr int kv_bytes = leaf_block_bytes - sizeof(header);
   static constexpr int leaf_block_size = kv_bytes/sizeof(KV);
   static constexpr int leaf_min_size = leaf_block_size/5;
   static constexpr int leaf_join_cutoff = leaf_min_size * 4;
-  static constexpr int node_block_size = leaf_block_size;
-  static constexpr int node_min_size = leaf_min_size;
-  static constexpr int node_join_cutoff = leaf_join_cutoff;
+
+  static constexpr int node_block_bytes = 64 * 6;
+  static constexpr int entry_bytes = node_block_bytes - sizeof(header) - sizeof(flck::lock) + sizeof(K);
+  static constexpr int node_block_size = entry_bytes/(sizeof(K) + 8);
+  static constexpr int node_min_size = node_block_size/5;
+  static constexpr int node_join_cutoff = node_min_size * 4;
 
   // Internal Node
   // Has node_block_size children, and one fewer keys to divide them
@@ -44,7 +48,7 @@ struct Set {
   // being removed.
   // A node needs to be copied to add, remove, or rebalance children.
   struct alignas(64) node : header {
-    flck::atomic_write_once<bool> removed;
+    //flck::atomic_write_once<bool> removed;
     K keys[node_block_size-1];
     verlib::versioned_ptr<node> children[node_block_size];
     flck::lock lck;
@@ -69,16 +73,15 @@ struct Set {
 	(size == node_min_size
 	 ? isUnder
 	 : (size == node_block_size ? isOver : OK)),
-	size},
-      removed(false) {}
+	  size} {} 
 
     // create with a single child (just the pointer to the root)
-    node(leaf* l) : header{false, OK, 1}, removed(false) {
+    node(leaf* l) : header{false, OK, 1} {
       children[0].init((node*) l);
     }
 
     // create with two children separated by a key (a new root node)
-    node(std::tuple<node*,K,node*> nec) : header{false, OK, 2}, removed(false) {
+    node(std::tuple<node*,K,node*> nec) : header{false, OK, 2} {
 	auto [left,k,right] = nec;
 	keys[0] = k;
 	children[0].init(left);

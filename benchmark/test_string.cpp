@@ -1,4 +1,15 @@
+#include <string>
+#include <iostream>
+#include <ctype.h>
+
+#include <parlay/primitives.h>
+#include <parlay/random.h>
 #include <parlay/io.h>
+
+#include <verlib/verlib.h>
+
+#include "parse_command_line.h"
+#include "timer_loops.h"
 
 #define UseCAS // for hash_block
 #define CHARS
@@ -18,19 +29,32 @@ struct RadixString {
 
 using V = unsigned long;
 
-#include <verlib/verlib.h>
 #include "set.h"
-#include "test_string.h"
+
 
 int main(int argc, char* argv[]) {
   commandLine P(argc,argv,"");
 #ifdef RADIX
-  Set<K,V,RadixString<K>> lst;
+  Set<K,V,RadixString<K>> os;
 #elif HASH
-  Set<K,V,parlay::hash<K>> lst;
+  Set<K,V,parlay::hash<K>> os;
 #else // Comparison
-  Set<K,V> lst;
+  Set<K,V> os;
 #endif
-  size_t default_size = 100000;
-  test_sets(lst, default_size, P);
+
+  auto filename = P.getArgument(0);
+  
+  auto str = parlay::chars_from_file(filename);
+  auto b = parlay::random_shuffle(parlay::tokens(str, [] (char c) {return !isalnum(c);}));
+#ifdef CHARS
+  auto a = std::move(b);
+#else
+  auto a = parlay::map(std::move(b), [] (const parlay::chars& x) {
+			    return std::string(x.begin(), x.end());});
+#endif
+  auto unique = parlay::random_shuffle(parlay::remove_duplicates(a));
+  std::cout << "total strings = " << a.size()
+	    << ", unique strings = " << unique.size() << std::endl;
+
+  run_mixed_operations(os, a, unique, 0.0, P);
 }
