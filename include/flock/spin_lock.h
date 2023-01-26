@@ -65,11 +65,11 @@ public:
     if (!current.is_locked()) { // unlocked
       lock_entry newl = current.take_lock();
       if (lck.compare_exchange_strong(current, newl)) {
-	RT result = f();
-	lck = newl.release_lock();  // release lock
-	return std::optional<RT>(result); 
-      } else {
-	return std::optional<RT>(); // fail
+        RT result = f();
+        lck = newl.release_lock();  // release lock
+        return std::optional<RT>(result); 
+          } else {
+        return std::optional<RT>(); // fail
       }
     } else if (current.is_self_locked()) {// reentry
       return std::optional<RT>(f());
@@ -83,27 +83,17 @@ public:
     auto result = try_lock_result(f);
     return result.has_value() && result.value();
   }
-    
+
   template <typename Thunk>
   auto with_lock(Thunk f) {
-    using RT = decltype(f());
-    lock_entry current = lck.load();
-    if (current.is_self_locked()) {
-      std::cout << "self lock using with_lock not supported" << std::endl;
-      abort();
-    }
     const int init_delay = 100;
     const int max_delay = 2000;
     int delay = init_delay;
-
-    while (true) {
-      lock_entry newl = current.take_lock();
-      if (!current.is_locked() &&
-	  lck.compare_exchange_strong(current, newl)) {
-	RT result = f();
-	lck = newl.release_lock();
-	return result;
-      }
+    // int retrys = 0;
+    while(true) {
+      auto result = try_lock_result(f);
+      if(result.has_value()) return result.value();
+      // retrys++;
       for (volatile int i=0; i < delay; i++);
       delay = std::min(2*delay, max_delay);
     }
