@@ -148,7 +148,7 @@ struct Set {
   long check(node* p) {
     node* ptr = (p->next).load();
     if (ptr->is_end) return 0;
-    K& k = ptr->key;
+    K k = ptr->key;
     ptr = (ptr->next).load();
     long i = 1;
     while (!ptr->is_end) {
