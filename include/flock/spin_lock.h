@@ -18,6 +18,7 @@ namespace flck {
     
 // used for reentrant locks
 static thread_local size_t current_id = parlay::worker_id();
+thread_local bool norelease = false;
 
 // This lock keeps track of how many times it was taken and who has it
 struct lock {
@@ -65,8 +66,15 @@ public:
     if (!current.is_locked()) { // unlocked
       lock_entry newl = current.take_lock();
       if (lck.compare_exchange_strong(current, newl)) {
+#ifdef Transactional
+	if (verlib::in_transaction) 
+	  verlib::lock_log[verlib::lock_log_len++] = this;  // trans
+#endif
         RT result = f();
-        lck = newl.release_lock();  // release lock
+#ifdef Transactional
+	if (!verlib::in_transaction)  // trans
+#endif
+	  lck = newl.release_lock();  // release lock
         return std::optional<RT>(result); 
           } else {
         return std::optional<RT>(); // fail
@@ -78,6 +86,10 @@ public:
     }
   }
 
+  void unlock() {
+    lck = lck.load().release_lock();
+  }
+  
   template <typename Thunk>
   auto try_lock(Thunk f) {
     auto result = try_lock_result(f);

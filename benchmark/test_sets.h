@@ -108,8 +108,9 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
   // clear the memory pool between rounds
   //bool clear = P.getOption("-clear");
 
-  // number of samples 
-  long m = P.getOptionIntValue("-m", fixed_time ? 10 * n : n);
+  // number of samples
+  int range_size = P.getOptionIntValue("-rs",16);
+  long m = P.getOptionIntValue("-m", fixed_time ? 10 * n + 1000 * p : n);
     
   // check consistency, on by default
   bool do_check = ! P.getOption("-no_check");

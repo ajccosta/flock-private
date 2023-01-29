@@ -39,6 +39,7 @@ void run_mixed_operations(SetType& os,
   int range_size = P.getOptionIntValue("-rs",16);
   int range_percent = P.getOptionIntValue("-range",0);
   int multifind_percent = P.getOptionIntValue("-mfind",0);
+  int trans_percent = P.getOptionIntValue("-trans",0);
 
   // mix of threads
   int range_query_threads = P.getOptionIntValue("-rqthreads", 0);
@@ -73,7 +74,7 @@ void run_mixed_operations(SetType& os,
   // clear the memory pool between rounds
   bool clear = P.getOption("-clear");
 
-  enum op_type : char {Find, Insert, Remove, Range, MultiFind};
+  enum op_type : char {Find, Insert, Remove, Range, MultiFind, Trans};
  
   // initially set to all finds
   parlay::sequence<op_type> op_types(m, Find);
@@ -82,9 +83,11 @@ void run_mixed_operations(SetType& os,
       auto h = parlay::hash64(m+i)%200;
       if (h < update_percent) return Insert; 
       else if (h < 2*update_percent) return Remove;
-      else if (h < 2*update_percent + 2*range_percent) return Range;
-      else if (h < 2*update_percent + 2*range_percent + 2*multifind_percent)
+      else if (h < 2*(update_percent + range_percent)) return Range;
+      else if (h < 2*(update_percent + range_percent + multifind_percent))
 	return MultiFind;
+      else if (h < 2*(update_percent + range_percent + multifind_percent + trans_percent))
+	return Trans;
       else return Find; });
     
   parlay::internal::timer t;
@@ -180,15 +183,32 @@ void run_mixed_operations(SetType& os,
 	    query_count++;
 	    auto val = os.find(tr, all[j]);
 	    if(val.has_value()) keysum += val.value();
-	  }
-	  else if (op_types[j] == Insert) {
+	  } else if (op_types[j] == Insert) {
 	    update_count++;
-	    if (os.insert(tr, all[j], 123)) added++;}
+	    if (os.insert(tr, all[j], 123)) added++;
+	  }
 	  else if (op_types[j] == Remove) {
 	    update_count++;
-	    if (os.remove(tr, all[j])) added--;}
-	  else if (op_types[j] == Range) {
+	    if (os.remove(tr, all[j])) added--;
+	  }
+#ifdef Transactional
+	  else if (op_types[j] == Trans) {
+	    if (j < (i+1)*mp -2) {
+	      update_count += 2;
+	      added += verlib::with_transaction([&] {
+			  bool in = os.insert_(tr, std::min(all[j],all[j+1]), 123);
+			  bool de = os.remove_(tr, std::max(all[j],all[j+1]));
+			  return std::optional<int>(in - de);});
+	      j += 2;
+	      if (j >= (i+1)*mp) j -= mp;
+	      cnt += 2;
+	      total += 2;
+	    }
+	    continue;
+	  }
+#endif
 #ifdef Range_Search
+	  else if (op_types[j] == Range) {
 	    K end = ((all[j] > max_key - range_gap)
 		     ? max_key : all[j] + range_gap);
 	    range_count++;
@@ -204,8 +224,9 @@ void run_mixed_operations(SetType& os,
                 if (verlib::aborted) {retry_count++;}
 #endif
                 return cnt;}, use_speculative);
+	  }
 #endif
-	  } else { // multifind
+	  else { // multifind
 	    mfind_count++;
 	    keysum += verlib::with_snapshot([&] {
                 long tmp_sum = 0;
