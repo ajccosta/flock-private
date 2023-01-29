@@ -1,3 +1,5 @@
+#pragma once
+
 // The flock library.
 
 // Public interface for lock:
@@ -46,6 +48,7 @@
 //    reserve()
 //    clear()
 
+
 #ifdef NoHelp  // use regular locks
 #include "spin_lock.h"
 #include "lock_types.h"
@@ -84,4 +87,17 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
  using lock = internal::lock;
 #endif
 
+  template <typename F>
+  auto try_loop(const F& f) {
+    const int init_delay = 200;
+    const int max_delay = 2000;
+    int delay = init_delay;
+    while (true)  {
+      auto r = f();
+      if (r.has_value()) return *r;
+      for (volatile int i=0; i < delay; i++);
+      delay = std::min(2*delay, max_delay);
+    }
+  }
+    
 } // namespace flck

@@ -42,64 +42,62 @@ struct Set {
   static constexpr int init_delay = 200;
   static constexpr int max_delay = 2000;
 
-  bool insert_(node* root, const K& k, const V& v) {
-    int delay = init_delay;
-    while (true) {
-      auto [cur, nxt] = find_location(root, k);
-      if (!nxt->is_end && !less(k, nxt->key)) return false; //already there
-      if (cur->lck.try_lock([=] {
-        if (!cur->removed.load() && (cur->next).load() == nxt) {
-          node* new_node = node_pool.new_obj(k, v, nxt);
-          cur->next = new_node; // splice in
-          return true;
-        } else return false;}))
-        return true;
-      for (volatile int i=0; i < delay; i++);
-      delay = std::min(2*delay, max_delay);
-    }
+  std::optional<bool> try_insert(node* root, const K& k, const V& v) {
+    auto [cur, nxt] = find_location(root, k);
+    if (!nxt->is_end && !less(k, nxt->key)) return false; //already there
+    if (cur->lck.try_lock([=] {
+      if (!cur->removed.load() && (cur->next).load() == nxt) {
+	node* new_node = node_pool.new_obj(k, v, nxt);
+	cur->next = new_node; // splice in
+	return true;
+      } else return false;})) return true;
+    else return {}; // failed
   }
 
+  bool insert_(node* root, const K& k, const V& v) {
+    return flck::try_loop([&] {return try_insert(root, k, v);});}
+  
   bool insert(node* root, const K& k, const V& v) {
-    return verlib::with_epoch([=] {return insert_(root, k, v);});
+    return verlib::with_epoch([=] {return insert_(root, k, v);}); }
+
+  std::optional<bool> try_remove(node* root, const K& k) {
+    auto [cur, nxt] = find_location(root, k);
+    if (nxt->is_end || less(k, nxt->key)) return false; // not found
+    if (cur->lck.try_lock([=] {
+      if (cur->removed.load() || (cur->next).load() != nxt) return false;
+      return nxt->lck.try_lock([=] {
+        node* nxtnxt = (nxt->next).load();
+#ifdef Recorded_Once
+	// if recoreded once then need to copy nxtnxt and point to it
+	return nxtnxt->lck.try_lock([=] {
+          nxt->removed = true;
+	  nxtnxt->removed = true;
+	  cur->next = node_pool.new_obj(nxtnxt); // copy nxt->next
+	  node_pool.retire(nxt);
+	  node_pool.retire(nxtnxt); 
+	  return true;});
+#else
+	nxt->removed = true;
+	cur->next = nxtnxt; // shortcut
+	node_pool.retire(nxt);
+	return true;
+#endif
+        });}))
+      return true;
+    else return {};
   }
 
   bool remove_(node* root, const K& k) {
-    int delay = init_delay;
-    while (true) {
-      auto [cur, nxt] = find_location(root, k);
-      if (nxt->is_end || less(k, nxt->key)) return false; // not found
-      if (cur->lck.try_lock([=] {
-        if (cur->removed.load() || (cur->next).load() != nxt) return false;
-        return nxt->lck.try_lock([=] {
-          node* nxtnxt = (nxt->next).load();
-#ifdef Recorded_Once
-          // if recoreded once then need to copy nxtnxt and point to it
-	  return nxtnxt->lck.try_lock([=] {
-            nxt->removed = true;
-	    nxtnxt->removed = true;
-	    cur->next = node_pool.new_obj(nxtnxt); // copy nxt->next
-	    node_pool.retire(nxt);
-	    node_pool.retire(nxtnxt); 
-	    return true;});
-#else
-	  nxt->removed = true;
-	  cur->next = nxtnxt; // shortcut
-	  node_pool.retire(nxt);
-	  return true;
-#endif
-	});}))
-	return true;
-      for (volatile int i=0; i < delay; i++);
-      delay = std::min(2*delay, max_delay);
-    }
-  }
-
+    return flck::try_loop([&] {return try_remove(root, k);});}
+  
   bool remove(node* root, const K& k) {
     return verlib::with_epoch([=] { return remove_(root, k);});}
 
+  std::optional<V> find_locked(node* root, const K& k) {
+    return find_(root, k); }
+  
   std::optional<V> find_(node* root, const K& k) {
     auto [cur, nxt] = find_location(root, k);
-    //(cur->next).validate();
     if (!nxt->is_end && !less(k, nxt->key)) return nxt->value;
     else return {};
   }

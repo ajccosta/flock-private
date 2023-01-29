@@ -39,7 +39,8 @@ void run_mixed_operations(SetType& os,
   int range_size = P.getOptionIntValue("-rs",16);
   int range_percent = P.getOptionIntValue("-range",0);
   int multifind_percent = P.getOptionIntValue("-mfind",0);
-  int trans_percent = P.getOptionIntValue("-trans",0);
+  int trans_size = P.getOptionIntValue("-trans", 0);
+  int trans_percent = P.getOptionIntValue("-tp", 0);
 
   // mix of threads
   int range_query_threads = P.getOptionIntValue("-rqthreads", 0);
@@ -142,7 +143,7 @@ void run_mixed_operations(SetType& os,
     auto start = std::chrono::system_clock::now();
     std::atomic<bool> finish = false;
     auto range_buffers = parlay::tabulate(p, [&] (size_t i) {
-	return std::vector<K>(100ul + 2*range_size);});
+	   return std::vector<K>(100ul + 2*std::max(range_size, trans_size));});
 					     
     parlay::parallel_for(0, p, [&] (size_t i) {
 	int cnt = 0;
@@ -179,6 +180,47 @@ void run_mixed_operations(SetType& os,
 	  // check that no overflow
 	  if (j >= (i+1)*mp) abort();
 
+#ifdef Transactional
+	  if (trans_size > 0) {
+	    long tsize = std::min(j + trans_size, (i+1)*mp) - j;
+	    for (int k=0; k < tsize; k++) range_keys[k] = all[j+k];
+	    std::sort(range_keys.begin(), range_keys.end() + tsize);
+	    added += verlib::with_transaction([&] {
+	       //bool in = os.insert_(tr, std::min(all[j],all[j+1]), 123);
+	       //bool de = os.remove_(tr, std::max(all[j],all[j+1]));
+	       //return std::optional<int>(in - de);
+               int loc_added = 0;
+	       for (int k=0; k < tsize; k++) {
+		 if (op_types[j+k] == Find) {
+		   auto val = os.find_locked(tr, range_keys[k]);
+		   keysum += val.has_value();
+		 } else if (k & 1 == 0) { //op_types[j+k] == Insert) {
+		   if (os.insert_(tr, range_keys[k], 123)) loc_added++;
+		 } else { // if (op_types[j+k] == Remove) {
+		   if (os.remove_(tr, range_keys[k])) loc_added--;
+		 }
+	       }
+	       return std::optional<int>(loc_added);});
+	    j += tsize;
+	    if (j >= (i+1)*mp) j -= mp;
+	    cnt += tsize;
+	    total += tsize;
+	    continue;
+	  } else if (op_types[j] == Trans) {
+	    if (j < (i+1)*mp -2) {
+	      update_count += 2;
+	      added += verlib::with_transaction([&] {
+			  bool de = os.remove_(tr, std::min(all[j],all[j+1]));
+			  bool in = os.insert_(tr, std::max(all[j],all[j+1]), 123);
+			  return std::optional<int>(in - de);});
+	      cnt += 2;
+	      total += 2;
+	    }
+	    j += 2;
+	    if (j >= (i+1)*mp) j -= mp;
+	    continue;
+	  } else
+#endif
 	  if (op_types[j] == Find) {
 	    query_count++;
 	    auto val = os.find(tr, all[j]);
@@ -191,22 +233,6 @@ void run_mixed_operations(SetType& os,
 	    update_count++;
 	    if (os.remove(tr, all[j])) added--;
 	  }
-#ifdef Transactional
-	  else if (op_types[j] == Trans) {
-	    if (j < (i+1)*mp -2) {
-	      update_count += 2;
-	      added += verlib::with_transaction([&] {
-			  bool in = os.insert_(tr, std::min(all[j],all[j+1]), 123);
-			  bool de = os.remove_(tr, std::max(all[j],all[j+1]));
-			  return std::optional<int>(in - de);});
-	      j += 2;
-	      if (j >= (i+1)*mp) j -= mp;
-	      cnt += 2;
-	      total += 2;
-	    }
-	    continue;
-	  }
-#endif
 #ifdef Range_Search
 	  else if (op_types[j] == Range) {
 	    K end = ((all[j] > max_key - range_gap)

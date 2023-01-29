@@ -536,22 +536,23 @@ struct Set {
   // deleted and the child has not changed.  If the try_lock fails it
   // tries again.
   // returns false and does no update if already in tree
+  bool insert_(node* root, const K& k, const V& v) {
+    return flck::try_loop([&] {return try_insert(root, k, v);});}
+  
   bool insert(node* root, const K& k, const V& v) {
-    return verlib::with_epoch([=] {
-      int delay = init_delay;
-      while (true) {
+    return verlib::with_epoch([=] {return insert_(root, k, v);}); }
+
+  std::optional<bool> try_insert(node* root, const K& k, const V& v) {
     auto [p, cidx, l] = find_and_fix(root, k);
     if (l->find(k).has_value()) return false; // already there
     if (p->lck.try_lock([=] {
-          if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
+      if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
           p->children[cidx] = (node*) insert_leaf(l, k, v);
           leaf_pool.retire(l);
           return true;
         })) return true;
-    for (volatile int i=0; i < delay; i++);
-    delay = std::min(2*delay, max_delay);
-      }});
+    else return {};
   }
 
   // Deletes by finding the leaf containing the key, and removing from
@@ -559,11 +560,14 @@ struct Set {
   // check the parent has not been deleted and the child has not
   // changed.  If the try_lock fails it tries again.  Returns false if
   // not found.
+  bool remove_(node* root, const K& k) {
+    return flck::try_loop([&] {return try_remove(root, k);});}
+
   bool remove(node* root, const K& k) {
-    return verlib::with_epoch([=] {
-      int delay = init_delay;
-      while (true) {
-        auto [p, cidx, l] = find_and_fix(root, k);
+    return verlib::with_epoch([=] { return remove_(root, k);});}
+
+  std::optional<bool> try_remove(node* root, const K& k) {
+    auto [p, cidx, l] = find_and_fix(root, k);
     if (!l->find(k).has_value()) return false; // not there
     if (p->lck.try_lock([=] {
           if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
@@ -572,9 +576,7 @@ struct Set {
           leaf_pool.retire(l);
           return true;
         })) return true;
-    for (volatile int i=0; i < delay; i++);
-    delay = std::min(2*delay, max_delay);
-      }});
+    else return {};
   }
 
   template<typename AddF>
@@ -609,7 +611,11 @@ struct Set {
   void range_(node* root, AddF& add, const K& start, const K& end) {
       range_internal(root, add, start, end);
   }
-    
+
+  std::optional<V> find_locked(node* root, const K& k) {
+    return find_(root, k);
+  }
+      
   // a wait-free version that does not split on way down
   std::optional<V> find_(node* root, const K& k) {
     node* c = root;

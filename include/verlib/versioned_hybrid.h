@@ -3,13 +3,23 @@
 #include "flock/flock.h"
 #include "timestamps.h"
 
+
 namespace verlib {
+
+  //thread_local unsigned long remove_key, insert_key;
 
 struct versioned {
   flck::atomic_write_once<TS> time_stamp;
   versioned* next_version;
+#ifdef Transactional
+  int owner; // trans
+  versioned() : time_stamp(tbd), owner(flck::internal::current_id) {}
+  versioned(versioned* next) : time_stamp(tbd), next_version(next),
+			       owner(flck::internal::current_id) {}
+#else
   versioned() : time_stamp(tbd) {}
   versioned(versioned* next) : time_stamp(tbd), next_version(next) {}
+#endif
 };
 
 struct ver_link : versioned {
@@ -32,7 +42,7 @@ private:
   static bool is_indirect(versioned* ptr) {
     return (size_t) ptr & 1;}
 
-  void shortcut(versioned* ptr) {
+  static void shortcut(versioned* ptr) {
 #ifndef NoShortcut
     ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
     if (ptr_->time_stamp.load_ni() <= done_stamp) {
@@ -47,19 +57,40 @@ private:
 #endif
   }
 
-  V* get_ptr(versioned* ptr) {
+  static V* get_ptr(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
     if (!is_indirect(ptr)) return (V*) ptr_;
     return (V*) ((ver_link*) ptr_)->value;
   }
 
-  V* get_ptr_shortcut(versioned* ptr) {
+  static V* get_ptr_shortcut(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
     if (!is_indirect(ptr)) return (V*) ptr_;
     shortcut(ptr);
     return (V*) ((ver_link*) ptr_)->value;
   }
 
+#ifdef Transactional
+  static versioned* set_stamp(versioned* ptr) {
+    versioned* ptr_ = strip_indirect(ptr);
+    const int init_delay = 100;
+    const int max_delay = 2000;
+    int delay = init_delay;
+    int cnt = 0;
+    if (ptr != nullptr && ptr_->owner != flck::internal::current_id) {
+      while (ptr_->time_stamp.load() == tbd) {
+	if (cnt++ == 5000) {
+	  //std::cout << "Stuck waiting on: " << get_ptr(ptr)->key << ", "
+	  //<< " with " << write_log_len << " locks" << std::endl;
+	  std::cout << "Stuck waiting with " << write_log_len << " locks" << std::endl;
+	}
+	for (volatile int i=0; i < delay; i++);
+	delay = std::min(2*delay, max_delay);
+      }
+    }
+    return ptr;
+  }
+#else
   static versioned* set_stamp(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
     if (ptr != nullptr && ptr_->time_stamp.load_ni() == tbd) {
@@ -69,7 +100,8 @@ private:
     }
     return ptr;
   }
-
+#endif
+  
   static versioned* set_zero_stamp(V* ptr) {
     if (ptr != nullptr && ptr->time_stamp.load_ni() == tbd)
       ptr->time_stamp = zero_stamp;
@@ -161,7 +193,14 @@ public:
       else v.cam(val, new_v);
     }
 #endif
-    set_stamp(new_v);
+#ifdef Transactional
+     if (in_transaction) {
+       write_log[write_log_len++] = strip_indirect(new_v);  // trans
+     } else
+      strip_indirect(new_v)->time_stamp = global_stamp.get_write_stamp();
+#else
+      set_stamp(new_v);
+#endif
     if (use_indirect) shortcut(new_v);
   }
 #endif

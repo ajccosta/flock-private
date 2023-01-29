@@ -56,55 +56,61 @@ struct Set {
     return std::make_tuple(gp, gp_left, p, p_left, (leaf*) l);
   }
 
-  bool insert(internal* root, const K& k, const V& v, bool upsert=false) {
-    return verlib::with_epoch([=] {
-      leaf* prev_leaf = nullptr;
-      while (true) {
-	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-	if (!l->is_sentinal &&
-	    ((!upsert && equal(l->key, k)) ||
-	     (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
-	      l != prev_leaf)))
-	  return false;
-	prev_leaf = l;
-	auto r = p->try_lock([=] {
-	      auto ptr = p_left ? &(p->left) : &(p->right);
-	      auto l_new = ptr->load();
-	      if (p->removed.load() || l_new != l) return false;
-	      node* new_l = leaf_pool.new_obj(k, v);
-	      if (equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
-	      else *ptr = ((l->is_sentinal || less(l->key, k) ?
-			    internal_pool.new_obj(k, l, new_l) :
-			    internal_pool.new_obj(l->key, new_l, l)));
-	      return true;});
-	if (r) return !equal(k, l->key);
-      }});
+  bool insert_(internal* root, const K& k, const V& v) {
+    return flck::try_loop([&] {return try_insert(root, k, v);});}
+  
+  bool insert(internal* root, const K& k, const V& v) {
+    return verlib::with_epoch([=] {return insert_(root, k, v);}); }
+      
+  std::optional<bool> try_insert(internal* root, const K& k, const V& v, bool upsert=false) {
+    auto [gp, gp_left, p, p_left, l] = find_location(root, k);
+    if (!l->is_sentinal &&
+	((!upsert && equal(l->key, k))))
+      // || (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
+      // l != prev_leaf)))
+      return false;
+    //prev_leaf = l;
+    auto r = p->try_lock([=] {
+	auto ptr = p_left ? &(p->left) : &(p->right);
+	auto l_new = ptr->load();
+	if (p->removed.load() || l_new != l) return false;
+	node* new_l = leaf_pool.new_obj(k, v);
+	if (equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
+	else *ptr = ((l->is_sentinal || less(l->key, k) ?
+		      internal_pool.new_obj(k, l, new_l) :
+		      internal_pool.new_obj(l->key, new_l, l)));
+	return true;});
+    if (r) return !equal(k, l->key);
+    else return {};
   }
 
+  bool remove_(internal* root, const K& k) {
+    return flck::try_loop([&] {return try_remove(root, k);});}
+
   bool remove(internal* root, const K& k) {
-    return verlib::with_epoch([=] {
-      leaf* prev_leaf = nullptr;
-       while (true) {
-	 auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-	 if (l->is_sentinal || !equal(k, l->key) ||
-	     (prev_leaf != nullptr && prev_leaf != l))
-	   return false;
-	 prev_leaf = l;
-	 if (gp->try_lock([=] {
-	       return p->try_lock([=] {
-		   auto ptr = gp_left ? &(gp->left) : &(gp->right);
-		   if (gp->removed.load() || ptr->load() != p) return false;
-		   node* ll = (p->left).load();
-		   node* lr = (p->right).load();
-		   if (p_left) std::swap(ll,lr);
-		   if (lr != l) return false;
-		   p->removed = true;
-		   (*ptr) = ll; // shortcut
-		   internal_pool.retire(p);
-		   leaf_pool.retire(l);
-		   return true; });}))
-	   return true;
-       }}); 
+    return verlib::with_epoch([=] { return remove_(root, k);});}
+
+  std::optional<bool> try_remove(internal* root, const K& k) {
+    auto [gp, gp_left, p, p_left, l] = find_location(root, k);
+    if (l->is_sentinal || !equal(k, l->key))
+	// || (prev_leaf != nullptr && prev_leaf != l))
+      return false;
+    // prev_leaf = l;
+    if (gp->try_lock([=] {
+      return p->try_lock([=] {
+	  auto ptr = gp_left ? &(gp->left) : &(gp->right);
+	  if (gp->removed.load() || ptr->load() != p) return false;
+	  node* ll = (p->left).load();
+	  node* lr = (p->right).load();
+	  if (p_left) std::swap(ll,lr);
+	  if (lr != l) return false;
+	  p->removed = true;
+	  (*ptr) = ll; // shortcut
+	  internal_pool.retire(p);
+	  leaf_pool.retire(l);
+	  return true; });}))
+      return true;
+    else return {};
   }
 
   std::optional<V> find_(internal* root, const K& k) {
@@ -115,7 +121,6 @@ struct Set {
       auto ptr = less(k, p->key) ? &(p->left) : &(p->right);
       l = ptr->read();
     }
-    ptr->validate();
     auto ll = (leaf*) l;
     if (!ll->is_sentinal && equal(ll->key, k)) return ll->value; 
     else return {};
@@ -125,6 +130,23 @@ struct Set {
     return verlib::with_epoch([&] { return find_(root, k);});
   }
 
+  std::optional<V> find_locked(internal* root, const K& k) {
+    using ot = std::optional<std::optional<V>>;
+    return flck::try_loop([&] {
+	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
+	if (p->try_lock([=] {
+	      auto ptr = p_left ? &(p->left) : &(p->right);
+	      auto l_new = ptr->load();
+	      if (p->removed.load() || l_new != l) return false;
+	      else return true;}))
+	  return ot(!l->is_sentinal && equal(l->key, k) ?
+		    std::optional<V>(l->value) :
+		    std::optional<V>());
+	return ot();
+      });
+  }
+
+  
   internal* empty() {
       return internal_pool.new_obj(leaf_pool.new_obj());
   }
