@@ -67,12 +67,17 @@ public:
       lock_entry newl = current.take_lock();
       if (lck.compare_exchange_strong(current, newl)) {
 #ifdef Transactional
-	if (verlib::in_transaction) 
-	  verlib::lock_log[verlib::lock_log_len++] = this;  // trans
+	if (verlib::current_transaction != nullptr) {
+	  if (verlib::lock_log_cnt == verlib::lock_log_len) {
+	    std::cout << "lock log overflow" << std::endl;
+	    abort();
+	  }
+	  verlib::lock_log[verlib::lock_log_cnt++] = this;  // trans
+	}
 #endif
         RT result = f();
 #ifdef Transactional
-	if (!verlib::in_transaction)  // trans
+	if (verlib::current_transaction == nullptr)  // trans
 #endif
 	  lck = newl.release_lock();  // release lock
         return std::optional<RT>(result); 

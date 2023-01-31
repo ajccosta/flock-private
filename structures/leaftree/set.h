@@ -85,7 +85,7 @@ struct Set {
   }
 
   bool remove_(internal* root, const K& k) {
-    return flck::try_loop([&] {return try_remove(root, k);});}
+    return flck::try_loop([&] {	return try_remove(root, k); });}
 
   bool remove(internal* root, const K& k) {
     return verlib::with_epoch([=] { return remove_(root, k);});}
@@ -109,7 +109,7 @@ struct Set {
 	  internal_pool.retire(p);
 	  leaf_pool.retire(l);
 	  return true; });}))
-      return true;
+      return std::optional<bool>(true);
     else return {};
   }
 

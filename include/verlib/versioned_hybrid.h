@@ -3,24 +3,50 @@
 #include "flock/flock.h"
 #include "timestamps.h"
 
-
 namespace verlib {
 
-  //thread_local unsigned long remove_key, insert_key;
-
+#ifdef Transactional
+  // for storing transaction descriptor on a time stamp
+  constexpr unsigned long descriptor_mask = (1ul << 62);
+  TS set_descriptor(trans_descriptor* td) {
+    return ((TS) td) | descriptor_mask;}
+  bool is_descriptor(TS ts) {
+    return (ts & descriptor_mask) != 0;}
+  trans_descriptor* get_descriptor(TS ts) {
+    return (trans_descriptor*) (~descriptor_mask & ts);}
+#endif
+  
 struct versioned {
   flck::atomic_write_once<TS> time_stamp;
   versioned* next_version;
 #ifdef Transactional
-  int owner; // trans
-  versioned() : time_stamp(tbd), owner(flck::internal::current_id) {}
-  versioned(versioned* next) : time_stamp(tbd), next_version(next),
-			       owner(flck::internal::current_id) {}
+  // With transactions the timestamp either holds a timestamp, tbd, or
+  // a pointer to a transaction descriptor.  Whether a timestamp or
+  // transaction descriptor is marked with the 62nd bit.  If in a
+  // transaction then the timestamp is initiated with a trasaction
+  // descriptor indicating the value is not ready.  It is later
+  // changed to a real timestamp if the transaction is successful.  If
+  // not in a transaction then initialized to tbd and later set.
+  static TS initial_stamp() {
+    if (current_transaction == nullptr) return tbd;
+    else return set_descriptor(current_transaction);}
+  bool is_unset() {
+    TS t = time_stamp.load();
+    return t == tbd || is_descriptor(t);}
+  //int owner; // FIX: REMOVE
+  versioned() : time_stamp(initial_stamp()) {} //, owner(flck::internal::current_id) {}
+  versioned(versioned* next) : time_stamp(initial_stamp()), next_version(next) {}
+  //owner(flck::internal::current_id) {}
 #else
+  bool is_unset() {return time_stamp.load() == tbd;}
   versioned() : time_stamp(tbd) {}
   versioned(versioned* next) : time_stamp(tbd), next_version(next) {}
 #endif
 };
+
+#ifdef Transactional
+  #include "transactions.h"
+#endif
 
 struct ver_link : versioned {
   versioned* value;
@@ -73,19 +99,21 @@ private:
 #ifdef Transactional
   static versioned* set_stamp(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
-    const int init_delay = 100;
-    const int max_delay = 2000;
-    int delay = init_delay;
-    int cnt = 0;
-    if (ptr != nullptr && ptr_->owner != flck::internal::current_id) {
-      while (ptr_->time_stamp.load() == tbd) {
-	if (cnt++ == 5000) {
-	  //std::cout << "Stuck waiting on: " << get_ptr(ptr)->key << ", "
-	  //<< " with " << write_log_len << " locks" << std::endl;
-	  std::cout << "Stuck waiting with " << write_log_len << " locks" << std::endl;
+    if (ptr_ != nullptr) {
+      TS t = ptr_->time_stamp.load();
+      if (t == tbd) {
+	TS new_t = global_stamp.get_write_stamp();
+	if (ptr_->time_stamp.load() == tbd)
+	  ptr_->time_stamp.cas_ni(tbd, new_t);
+      } else if (is_descriptor(t)) {
+	trans_descriptor* desc = get_descriptor(t);
+	if (desc->owner != flck::internal::current_id) {
+	  if (desc->time_stamp.load() == tbd)
+	    return ptr_->next_version;
+	  else if (desc->time_stamp.load() == tbs)
+	    //while (desc->time_stamp.load() == tbs);
+	    set_transaction_stamp(desc);
 	}
-	for (volatile int i=0; i < delay; i++);
-	delay = std::min(2*delay, max_delay);
       }
     }
     return ptr;
@@ -103,7 +131,7 @@ private:
 #endif
   
   static versioned* set_zero_stamp(V* ptr) {
-    if (ptr != nullptr && ptr->time_stamp.load_ni() == tbd)
+    if (ptr != nullptr && ptr->is_unset())
       ptr->time_stamp = zero_stamp;
     return ptr;
   }
@@ -114,7 +142,7 @@ private:
 #else
     v.cam(old_v, new_v);
     return (v.load() == new_v ||
-	    strip_indirect(new_v)->time_stamp.load() != tbd);
+	    strip_indirect(new_v)->time_stamp.load() != tbd); // FIX
 #endif
   }
 
@@ -173,8 +201,8 @@ public:
   void store(V* ptr) {
     versioned* old_v = v.load();
     versioned* new_v = ptr;
-    bool use_indirect = (ptr == nullptr || ptr->time_stamp.load() != tbd);
-
+    //bool use_indirect = (ptr == nullptr || ptr->time_stamp.load() != tbd);
+    bool use_indirect = (ptr == nullptr || !ptr->is_unset());
     if (use_indirect) 
       new_v = add_indirect(link_pool.new_obj(old_v, new_v));
     else ptr->next_version = old_v;
@@ -194,8 +222,12 @@ public:
     }
 #endif
 #ifdef Transactional
-     if (in_transaction) {
-       write_log[write_log_len++] = strip_indirect(new_v);  // trans
+     if (current_transaction != nullptr) {
+       if (write_log_cnt == write_log_len) {
+	 std::cout << "write log overflow: " << std::endl;
+	 abort();
+       }
+       write_log[write_log_cnt++] = &v;  // trans
      } else
       strip_indirect(new_v)->time_stamp = global_stamp.get_write_stamp();
 #else

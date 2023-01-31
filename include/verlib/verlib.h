@@ -7,18 +7,19 @@
 // indirection, but pointers to objects (ptr_type) must be "recorded
 // once" as described in the paper.
 #pragma once
+#include <parlay/parallel.h>
 
 #ifdef Transactional
+// some definitions needed by flock locks (blocking or lock free) when
+// using transactions, so must be defined before including flock.
 #include <array>
-namespace flck {  namespace internal {  struct lock; } }
-
+namespace flck { namespace internal {  struct lock; }}
 namespace verlib { // trans
-  struct versioned;
-  thread_local std::array<flck::internal::lock*,100> lock_log;
-  thread_local int lock_log_len;
-  thread_local std::array<versioned*,100> write_log;
-  thread_local int write_log_len;
-  thread_local bool in_transaction;
+  struct trans_descriptor;
+  constexpr int lock_log_len = 100;
+  thread_local std::array<flck::internal::lock*,lock_log_len> lock_log;
+  thread_local int lock_log_cnt = 0;
+  thread_local trans_descriptor* current_transaction = nullptr;
 }
 #endif
 
@@ -55,31 +56,4 @@ namespace verlib {
 namespace verlib {
   using flck::with_epoch;
   using flck::memory_pool;
-
-#ifdef Transactional
-  template <typename F>
-  auto with_transaction(F f) { //, bool retry=true) {
-    in_transaction = true;
-    auto r = flck::with_epoch([&] {
-	return flck::try_loop ([&] {
-	  lock_log_len = 0;
-	  write_log_len = 0;
-	  auto x = f();
-	  if (x.has_value()) {
-	    TS t = global_stamp.get_stamp();
-	    global_stamp.inc_read_stamp(t);
-	    for (int i=0; i < write_log_len; i++)
-	      write_log[i]->time_stamp = t;
-	  } else abort(); // not yet implemented
-	  for (int i=0; i < lock_log_len; i++)
-	    lock_log[i]->unlock();
-	  //if (!retry || x.has_value()) return x;
-	  return x;});});
-    in_transaction = false;
-    return r;
-  }
-
-#endif
 }
-
-

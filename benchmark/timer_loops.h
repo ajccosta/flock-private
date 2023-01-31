@@ -20,7 +20,7 @@
 //
 template<typename K, typename SetType>
 void run_mixed_operations(SetType& os,
-			  const parlay::sequence<K>& all,
+			  parlay::sequence<K>& all,
 			  const parlay::sequence<K>& unique,
 			  float zipfian_param,
 			  commandLine P) {
@@ -156,6 +156,7 @@ void run_mixed_operations(SetType& os,
 	long retry_count = 0;
 	long update_count = 0;
 	long query_count = 0;
+	bool i_or_d = false;
 	volatile long keysum = 0;
 	std::vector<K>& range_keys = range_buffers[i];
 	while (true) {
@@ -183,24 +184,26 @@ void run_mixed_operations(SetType& os,
 #ifdef Transactional
 	  if (trans_size > 0) {
 	    long tsize = std::min(j + trans_size, (i+1)*mp) - j;
+	    if (tsize > range_keys.size()) {
+	      std::cout << "transaction size too large" << std::endl;
+	      abort();
+	    }
 	    for (int k=0; k < tsize; k++) range_keys[k] = all[j+k];
-	    std::sort(range_keys.begin(), range_keys.end() + tsize);
+	    std::sort(range_keys.begin(), range_keys.begin() + tsize);
 	    added += verlib::with_transaction([&] {
-	       //bool in = os.insert_(tr, std::min(all[j],all[j+1]), 123);
-	       //bool de = os.remove_(tr, std::max(all[j],all[j+1]));
-	       //return std::optional<int>(in - de);
                int loc_added = 0;
 	       for (int k=0; k < tsize; k++) {
 		 if (op_types[j+k] == Find) {
-		   auto val = os.find_locked(tr, range_keys[k]);
+		   auto val = os.find_locked(tr, range_keys[k]); 
 		   keysum += val.has_value();
-		 } else if (k & 1 == 0) { //op_types[j+k] == Insert) {
+		 } else if (op_types[j+k] == Insert) {
 		   if (os.insert_(tr, range_keys[k], 123)) loc_added++;
-		 } else { // if (op_types[j+k] == Remove) {
+		 } else if (op_types[j+k] == Remove) {
 		   if (os.remove_(tr, range_keys[k])) loc_added--;
 		 }
 	       }
 	       return std::optional<int>(loc_added);});
+	    i_or_d = !i_or_d;
 	    j += tsize;
 	    if (j >= (i+1)*mp) j -= mp;
 	    cnt += tsize;
@@ -354,7 +357,8 @@ void run_mixed_operations(SetType& os,
       //   os.stats();
       // }
     }
-    parlay::parallel_for(0, nn, [&] (size_t i) { os.remove(tr, unique[i]); });
+    parlay::parallel_for(0, nn, [&] (size_t i) {
+	  os.remove(tr, unique[i]); });
     os.retire(tr);
     if (clear) os.clear();
   }
