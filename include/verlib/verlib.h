@@ -12,14 +12,24 @@
 #ifdef Transactional
 // some definitions needed by flock locks (blocking or lock free) when
 // using transactions, so must be defined before including flock.
+#define Trans_Undo 1
 #include <array>
 namespace flck { namespace internal {  struct lock; }}
 namespace verlib { // trans
   struct trans_descriptor;
+  thread_local trans_descriptor* current_transaction = nullptr;
+
   constexpr int lock_log_len = 100;
   thread_local std::array<flck::internal::lock*,lock_log_len> lock_log;
   thread_local int lock_log_cnt = 0;
-  thread_local trans_descriptor* current_transaction = nullptr;
+
+  constexpr int retired_log_len = 100;
+  thread_local std::array<bool*,retired_log_len> retired_log;
+  thread_local int retired_log_cnt = 0;
+
+  constexpr int allocated_log_len = 100;
+  thread_local std::array<bool*,allocated_log_len> allocated_log;
+  thread_local int allocated_log_cnt = 0;
 }
 #endif
 

@@ -638,16 +638,8 @@ struct Set {
       
   // a wait-free version that does not split on way down
   std::optional<V> find_(node* root, const K& k) {
-    node* c = root;
-    verlib::versioned_ptr<node>* x;
-    while (!c->is_leaf) {
-      __builtin_prefetch (((char*) c) + 64); 
-      __builtin_prefetch (((char*) c) + 128);
-      x = &c->children[c->find(k)];
-      c = x->load();
-    }
-    x->validate();
-    return ((leaf*) c)->find(k);
+    auto [p, cidx, l] = find_no_fix(root, k);
+    return ((leaf*) l)->find(k);
   }
 
   std::optional<V> find(node* root, const K& k) {

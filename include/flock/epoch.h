@@ -94,6 +94,9 @@ epoch_s epoch;
 struct Link {
   Link* next;
   void* value;
+#ifdef Trans_Undo
+  bool skip;
+#endif
 };
 
 using list_allocator = parlay::type_allocator<Link>;
@@ -126,8 +129,13 @@ private:
     while (ptr != nullptr) {
       Link* tmp = ptr;
       ptr = ptr->next;
-      destruct((T*) tmp->value);
-      list_allocator::free(tmp);
+#ifdef Trans_Undo
+      if (!tmp->skip)
+#endif
+      {
+	destruct((T*) tmp->value);
+	list_allocator::free(tmp);
+      }
     }
   }
 
@@ -170,6 +178,10 @@ public:
   T* new_obj(Args... args) {
     T* newv = Allocator::alloc();
     new (newv) T(args...);
+#ifdef Trans_Undo
+    if (verlib::current_transaction != nullptr)
+      verlib::allocated_log[verlib::allocated_log_cnt++] = retire(newv,false);
+#endif
     return newv;
   }
 
@@ -182,7 +194,7 @@ public:
   }
 
   // destruction and freeing is delayed until a future epoch
-  void retire(T* p) {
+  bool* retire(T* p, bool add_to_log=true) {
     auto i = parlay::worker_id();
     auto &pid = pools[i];
     if (pid.epoch < epoch.get_current()) {
@@ -204,6 +216,14 @@ public:
     lnk->next = pid.current;
     lnk->value = (void*) p;
     pid.current = lnk;
+#ifdef Trans_Undo
+    lnk->skip = false;
+    if (verlib::current_transaction != nullptr && add_to_log) 
+      verlib::retired_log[verlib::retired_log_cnt++] = &lnk->skip;
+    return &lnk->skip;
+#else
+    return nullptr;
+#endif
   }
 
   // clears all the lists and terminates the underlying allocator
