@@ -384,10 +384,10 @@ struct Set {
   // copies the parent p to replace with new children and
   // updates the grandparent gp to point to the new copied parent.
   void overfull_node(node* gp, int pidx, node* p, int cidx, node* c) {
-    gp->lck.try_lock([=] {
+    gp->lck.try_lock_no_delay([=] {
     // check that gp has not been removed, and p has not changed
     if (gp->removed.load() || gp->children[pidx].load() != p) return false;
-    return p->lck.try_lock([=] {
+    return p->lck.try_lock_no_delay([=] {
         // check that c has not changed
         if (p->children[cidx].load() != c) return false;
         if (c->is_leaf) {
@@ -408,10 +408,10 @@ struct Set {
   // Copies the parent p to replace with new child or children.
   // Updates the grandparent gp to point to the new copied parent.
   void underfull_node(node* gp, int pidx, node* p, int cidx, node* c) {
-    gp->lck.try_lock([=] {
+    gp->lck.try_lock_no_delay([=] {
     // check that gp has not been removed, and p has not changed
     if (gp->removed.load() || gp->children[pidx].load() != p) return false;
-    return p->lck.try_lock([=] {
+    return p->lck.try_lock_no_delay([=] {
         // join with next if first in block, otherwise with previous
         node* other_c = p->children[(cidx == 0 ? cidx + 1 : cidx - 1)].load();
         auto [li, lc, rc] = ((cidx == 0) ?
@@ -429,7 +429,7 @@ struct Set {
         } else { // internal node
           K& k = p->keys[li];
           // need to lock the other child 
-          return other_c->lck.try_lock([=] {
+          return other_c->lck.try_lock_no_delay([=] {
           other_c->removed = true;
           if (lc->size + rc->size < node_join_cutoff)   // join
             gp->children[pidx] = join_children(p, join(lc, k, rc), li);
@@ -462,7 +462,7 @@ struct Set {
   // In both cases it updates the root to point to the new internal node
   // it takes a lock on the root
   void fix_root(node* root, node* c) {
-      root->lck.try_lock([=] {
+      root->lck.try_lock_no_delay([=] {
     // check that c has not changed
     if (root->children[0].load() != c) return false;
     if (c->status == isOver) {
@@ -477,7 +477,7 @@ struct Set {
     } else { // c has degree 1 and not a leaf
 #ifdef Recorded_Once
       // if recorded once then child of c needs to be copied
-      return c->lck.try_lock([=] {
+      return c->lck.try_lock_no_delay([=] {
           root->children[0] = copy_node_or_leaf(c->children[0].load());
           node_pool.retire(c);
           return true;});
@@ -526,6 +526,20 @@ struct Set {
     }
   }
 
+  std::tuple<node*, int, leaf*> find_no_fix(node* root, const K& k) {
+    node* p = root;
+    int cidx = 0;
+    node* c = p->children[cidx].load();
+    while (!c->is_leaf) {
+      __builtin_prefetch (((char*) c) + 64); 
+      __builtin_prefetch (((char*) c) + 128);
+      cidx = c->find(k);
+      p = c;
+      c = c->children[cidx].load();
+    }
+    return std::tuple(p, cidx, (leaf*) c);
+  }
+
   static constexpr int init_delay=200;
   static constexpr int max_delay=2000;
 
@@ -548,10 +562,10 @@ struct Set {
     if (p->lck.try_lock([=] {
       if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
-          p->children[cidx] = (node*) insert_leaf(l, k, v);
-          leaf_pool.retire(l);
-          return true;
-        })) return true;
+      p->children[cidx] = (node*) insert_leaf(l, k, v);
+      leaf_pool.retire(l);
+      return true;
+    })) return true;
     else return {};
   }
 
@@ -613,7 +627,13 @@ struct Set {
   }
 
   std::optional<V> find_locked(node* root, const K& k) {
-    return find_(root, k);
+    using ot = std::optional<std::optional<V>>;
+    return flck::try_loop([&] {
+      auto [p, cidx, l] = find_no_fix(root, k);
+      if (p->lck.try_lock([=] {
+	  return (!p->removed.load() && (leaf*) p->children[cidx].load() == l);}))
+	return ot(l->find(k));
+      else return ot();  });
   }
       
   // a wait-free version that does not split on way down

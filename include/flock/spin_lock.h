@@ -66,6 +66,7 @@ public:
     if (!current.is_locked()) { // unlocked
       lock_entry newl = current.take_lock();
       if (lck.compare_exchange_strong(current, newl)) {
+        RT result = f();
 #ifdef Transactional
 	if (verlib::current_transaction != nullptr) {
 	  if (verlib::lock_log_cnt == verlib::lock_log_len) {
@@ -73,11 +74,7 @@ public:
 	    abort();
 	  }
 	  verlib::lock_log[verlib::lock_log_cnt++] = this;  // trans
-	}
-#endif
-        RT result = f();
-#ifdef Transactional
-	if (verlib::current_transaction == nullptr)  // trans
+	} else
 #endif
 	  lck = newl.release_lock();  // release lock
         return std::optional<RT>(result); 
@@ -101,6 +98,23 @@ public:
     return result.has_value() && result.value();
   }
 
+#ifdef Transactional
+  template <typename Thunk>
+  auto try_lock_no_delay(Thunk f) {
+    verlib::trans_descriptor* tmp = verlib::current_transaction;
+    verlib::current_transaction = nullptr;
+    auto result = try_lock_result(f);
+    verlib::current_transaction = tmp;
+    return result.has_value() && result.value();
+  }
+#else
+  template <typename Thunk>
+  auto try_lock_no_delay(Thunk f) {
+    auto result = try_lock_result(f);
+    return result.has_value() && result.value();
+  }
+#endif
+  
   template <typename Thunk>
   auto with_lock(Thunk f) {
     const int init_delay = 100;
