@@ -193,14 +193,29 @@ void run_mixed_operations(SetType& os,
 	    added += verlib::with_transaction([&] {
                int loc_added = 0;
 	       for (int k=0; k < tsize; k++) {
+#ifdef TransUndo
 		 if (op_types[j+k] == Find) {
-		   auto val = os.find_locked(tr, range_keys[k]); 
-		   keysum += val.has_value();
+		   auto x = os.try_find(tr, range_keys[k]);
+		   if (!x.has_value()) return std::optional<int>();
+		   keysum += (*x).has_value();
+		 } else if (op_types[j+k] == Insert) {
+		   auto x = os.try_insert(tr, range_keys[k], 123);
+		   if (!x.has_value()) return std::optional<int>();
+		   if (*x) loc_added++;
+		 } else if (op_types[j+k] == Remove) {
+		   auto x = os.try_remove(tr, range_keys[k]);
+		   if (!x.has_value()) return std::optional<int>();
+		   if (*x) loc_added--;
+		 }
+#else
+		 if (op_types[j+k] == Find) {
+		   keysum += os.find_locked(tr, range_keys[k]).has_value();
 		 } else if (op_types[j+k] == Insert) {
 		   if (os.insert_(tr, range_keys[k], 123)) loc_added++;
 		 } else if (op_types[j+k] == Remove) {
 		   if (os.remove_(tr, range_keys[k])) loc_added--;
 		 }
+#endif
 	       }
 	       return std::optional<int>(loc_added);});
 	    i_or_d = !i_or_d;

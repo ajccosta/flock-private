@@ -69,11 +69,7 @@ public:
         RT result = f();
 #ifdef Transactional
 	if (verlib::current_transaction != nullptr) {
-	  if (verlib::lock_log_cnt == verlib::lock_log_len) {
-	    std::cout << "lock log overflow" << std::endl;
-	    abort();
-	  }
-	  verlib::lock_log[verlib::lock_log_cnt++] = this;  // trans
+	  verlib::lock_log.add(this);
 	} else
 #endif
 	  lck = newl.release_lock();  // release lock

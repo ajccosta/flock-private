@@ -94,7 +94,7 @@ epoch_s epoch;
 struct Link {
   Link* next;
   void* value;
-#ifdef Trans_Undo
+#ifdef TransUndo
   bool skip;
 #endif
 };
@@ -129,7 +129,7 @@ private:
     while (ptr != nullptr) {
       Link* tmp = ptr;
       ptr = ptr->next;
-#ifdef Trans_Undo
+#ifdef TransUndo
       if (!tmp->skip)
 #endif
       {
@@ -178,9 +178,9 @@ public:
   T* new_obj(Args... args) {
     T* newv = Allocator::alloc();
     new (newv) T(args...);
-#ifdef Trans_Undo
+#ifdef TransUndo
     if (verlib::current_transaction != nullptr)
-      verlib::allocated_log[verlib::allocated_log_cnt++] = retire(newv,false);
+      verlib::allocated_log.add(retire(newv,false));
 #endif
     return newv;
   }
@@ -216,10 +216,10 @@ public:
     lnk->next = pid.current;
     lnk->value = (void*) p;
     pid.current = lnk;
-#ifdef Trans_Undo
+#ifdef TransUndo
     lnk->skip = false;
     if (verlib::current_transaction != nullptr && add_to_log) 
-      verlib::retired_log[verlib::retired_log_cnt++] = &lnk->skip;
+      verlib::retired_log.add(&lnk->skip);
     return &lnk->skip;
 #else
     return nullptr;

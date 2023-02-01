@@ -127,26 +127,25 @@ struct Set {
   }
 
   std::optional<V> find(internal* root, const K& k) {
-    return verlib::with_epoch([&] { return find_(root, k);});
-  }
+    return verlib::with_epoch([&] { return find_(root, k);});}
 
   std::optional<V> find_locked(internal* root, const K& k) {
+    return flck::try_loop([&] {return try_find(root, k);});}
+
+  std::optional<std::optional<V>> try_find(internal* root, const K& k) {
     using ot = std::optional<std::optional<V>>;
-    return flck::try_loop([&] {
-	auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-	if (p->try_lock([=] {
-	      auto ptr = p_left ? &(p->left) : &(p->right);
-	      auto l_new = ptr->load();
-	      if (p->removed.load() || l_new != l) return false;
-	      else return true;}))
-	  return ot(!l->is_sentinal && equal(l->key, k) ?
-		    std::optional<V>(l->value) :
-		    std::optional<V>());
-	return ot();
-      });
+    auto [gp, gp_left, p, p_left, l] = find_location(root, k);
+    if (p->try_lock([=] {
+        auto ptr = p_left ? &(p->left) : &(p->right);
+	auto l_new = ptr->load();
+	if (p->removed.load() || l_new != l) return false;
+	else return true;}))
+      return ot(!l->is_sentinal && equal(l->key, k) ?
+		std::optional<V>(l->value) :
+		std::optional<V>());
+    return ot();
   }
 
-  
   internal* empty() {
       return internal_pool.new_obj(leaf_pool.new_obj());
   }

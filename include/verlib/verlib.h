@@ -12,24 +12,38 @@
 #ifdef Transactional
 // some definitions needed by flock locks (blocking or lock free) when
 // using transactions, so must be defined before including flock.
-#define Trans_Undo 1
 #include <array>
-namespace flck { namespace internal {  struct lock; }}
+namespace flck {
+  template <typename T> struct atomic;
+  namespace internal {  struct lock; }}
+
+constexpr int log_len = 100;
+
+template <typename T>
+struct transaction_log {
+  std::array<T,log_len> vals;
+  int cnt;
+  void add(T v) {
+    if (cnt == log_len) {
+      std::cout << "overfull log" << std::endl;
+      abort();}
+    vals[cnt++] = v;
+  }
+  void clear() { cnt = 0;}
+  transaction_log() : cnt(0) {}
+};
+
 namespace verlib { // trans
   struct trans_descriptor;
+  struct versioned;
   thread_local trans_descriptor* current_transaction = nullptr;
 
-  constexpr int lock_log_len = 100;
-  thread_local std::array<flck::internal::lock*,lock_log_len> lock_log;
-  thread_local int lock_log_cnt = 0;
-
-  constexpr int retired_log_len = 100;
-  thread_local std::array<bool*,retired_log_len> retired_log;
-  thread_local int retired_log_cnt = 0;
-
-  constexpr int allocated_log_len = 100;
-  thread_local std::array<bool*,allocated_log_len> allocated_log;
-  thread_local int allocated_log_cnt = 0;
+  thread_local transaction_log<flck::internal::lock*> lock_log;
+  thread_local transaction_log<flck::atomic<versioned*>*> write_log;
+#ifdef TransUndo
+  thread_local transaction_log<bool*> retired_log;
+  thread_local transaction_log<bool*> allocated_log;
+#endif
 }
 #endif
 

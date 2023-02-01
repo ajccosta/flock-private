@@ -627,15 +627,18 @@ struct Set {
   }
 
   std::optional<V> find_locked(node* root, const K& k) {
-    using ot = std::optional<std::optional<V>>;
-    return flck::try_loop([&] {
-      auto [p, cidx, l] = find_no_fix(root, k);
-      if (p->lck.try_lock([=] {
-	  return (!p->removed.load() && (leaf*) p->children[cidx].load() == l);}))
-	return ot(l->find(k));
-      else return ot();  });
+    return flck::try_loop([&] {return try_find(root, k);});
   }
-      
+
+  std::optional<std::optional<V>> try_find(node* root, const K& k) {
+    using ot = std::optional<std::optional<V>>;
+    auto [p, cidx, l] = find_no_fix(root, k);
+    if (p->lck.try_lock([=] {
+	 return (!p->removed.load() && (leaf*) p->children[cidx].load() == l);}))
+      return ot(l->find(k));
+    else return ot();
+  }
+
   // a wait-free version that does not split on way down
   std::optional<V> find_(node* root, const K& k) {
     auto [p, cidx, l] = find_no_fix(root, k);

@@ -5,6 +5,13 @@
 
 namespace verlib {
 
+void check_pointer(void* ptr, std::string str) {
+  if (((size_t) ptr) >> 48 != 0) {
+    std::cout << "bad pointer in " << str << ": " << ptr << std::endl;
+    abort();
+  }
+}
+
 #ifdef Transactional
   // for storing transaction descriptor on a time stamp
   constexpr unsigned long descriptor_mask = (1ul << 62);
@@ -35,7 +42,9 @@ struct versioned {
     return t == tbd || is_descriptor(t);}
   //int owner; // FIX: REMOVE
   versioned() : time_stamp(initial_stamp()) {} //, owner(flck::internal::current_id) {}
-  versioned(versioned* next) : time_stamp(initial_stamp()), next_version(next) {}
+  versioned(versioned* next) : time_stamp(initial_stamp()), next_version(next) {
+    //check_pointer(next, "init versioned");
+  }
   //owner(flck::internal::current_id) {}
 #else
   bool is_unset() {return time_stamp.load() == tbd;}
@@ -43,6 +52,14 @@ struct versioned {
   versioned(versioned* next) : time_stamp(tbd), next_version(next) {}
 #endif
 };
+
+  // uses lowest bit of pointer to indicate whether indirect (1) or not (0)
+  versioned* add_indirect(versioned* ptr) {
+    return (versioned*) (1ul | (size_t) ptr);};
+  versioned* strip_indirect(versioned* ptr) {
+    return (versioned*) ((size_t) ptr & ~1ul);}
+  bool is_indirect(versioned* ptr) {
+    return (size_t) ptr & 1;}
 
 #ifdef Transactional
   #include "transactions.h"
@@ -59,14 +76,6 @@ template <typename V>
 struct versioned_ptr {
 private:
   flck::atomic<versioned*> v;
-
-  // uses lowest bit of pointer to indicate whether indirect (1) or not (0)
-  static versioned* add_indirect(versioned* ptr) {
-    return (versioned*) (1ul | (size_t) ptr);};
-  static versioned* strip_indirect(versioned* ptr) {
-    return (versioned*) ((size_t) ptr & ~1ul);}
-  static bool is_indirect(versioned* ptr) {
-    return (size_t) ptr & 1;}
 
   static void shortcut(versioned* ptr) {
 #ifndef NoShortcut
@@ -99,6 +108,7 @@ private:
 #ifdef Transactional
   static versioned* set_stamp(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
+    //check_pointer(ptr_, "set_stamp");
     if (ptr_ != nullptr) {
       TS t = ptr_->time_stamp.load();
       if (t == tbd) {
@@ -111,7 +121,6 @@ private:
 	  if (desc->time_stamp.load() == tbd)
 	    return ptr_->next_version;
 	  else if (desc->time_stamp.load() == tbs)
-	    //while (desc->time_stamp.load() == tbs);
 	    set_transaction_stamp(desc);
 	}
       }
@@ -147,7 +156,7 @@ private:
   }
 
 public:
-
+  
   versioned_ptr(): v(nullptr) {}
   versioned_ptr(V* ptr) : v(set_zero_stamp(ptr)) {}
 
@@ -181,7 +190,9 @@ public:
 
   V* load() {  // can be used anywhere
     if (local_stamp != -1) return read_snapshot();
-    else return get_ptr_shortcut(set_stamp(v.load()));
+    auto x = v.load();
+    //check_pointer(x, "load");
+    return get_ptr_shortcut(set_stamp(x));
   }
   
   V* read() {  // only safe on journey
@@ -201,14 +212,17 @@ public:
   void store(V* ptr) {
     versioned* old_v = v.load();
     versioned* new_v = ptr;
-    //bool use_indirect = (ptr == nullptr || ptr->time_stamp.load() != tbd);
     bool use_indirect = (ptr == nullptr || !ptr->is_unset());
     if (use_indirect) 
       new_v = add_indirect(link_pool.new_obj(old_v, new_v));
-    else ptr->next_version = old_v;
+    else {
+      //check_pointer(old_v, "set versioned");
+      ptr->next_version = old_v;
+    }
 
 #ifdef NoShortcut
     v = new_v;
+    //check_pointer(new_v, "store");
     if (is_indirect(old_v))
       link_pool.retire((ver_link*) strip_indirect(old_v));
 #else
@@ -222,14 +236,12 @@ public:
     }
 #endif
 #ifdef Transactional
-     if (current_transaction != nullptr) {
-       if (write_log_cnt == write_log_len) {
-	 std::cout << "write log overflow: " << std::endl;
-	 abort();
-       }
-       write_log[write_log_cnt++] = &v;  // trans
-     } else
-      strip_indirect(new_v)->time_stamp = global_stamp.get_write_stamp();
+     if (current_transaction != nullptr) write_log.add(&v);
+     else {
+       versioned* ptr_ = strip_indirect(new_v);
+       TS t = global_stamp.get_write_stamp();
+       ptr_->time_stamp.cas_ni(tbd, t);
+     }
 #else
       set_stamp(new_v);
 #endif
@@ -247,7 +259,7 @@ public:
       set_stamp(old_v);
       if(old != exp) return false;
       if (exp == ptr) return true;
-      bool use_indirect = (ptr == nullptr || ptr->time_stamp.load() != tbd);
+      bool use_indirect = (ptr == nullptr || !ptr->is_unset());
 
       if(use_indirect)
 	new_v = add_indirect(link_pool.new_obj(old_v, new_v));

@@ -92,7 +92,10 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
     const int init_delay = 200;
     const int max_delay = 2000;
     int delay = init_delay;
+    int cnt =0;
     while (true)  {
+      if (cnt++ == 100000) 
+	std::cout << "problably in an infinite retry loop" << std::endl;
       auto r = f();
       if (r.has_value()) return *r;
       for (volatile int i=0; i < delay; i++);
