@@ -14,6 +14,7 @@
 #include<optional>
 
 namespace flck {
+  bool deadlock = false;
   namespace internal {
     
 // used for reentrant locks

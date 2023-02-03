@@ -64,8 +64,9 @@ struct Set {
     auto [cur, nxt] = find_location(root, k);
     if (nxt->is_end || less(k, nxt->key)) return false; // not found
     if (cur->lck.try_lock([=] {
-      if (cur->removed.load() || (cur->next).load() != nxt) return false;
-      return nxt->lck.try_lock([=] {
+        if (cur->removed.load() || (cur->next).load() != nxt)
+	  return false;
+	return nxt->lck.try_lock([=] {
         node* nxtnxt = (nxt->next).load();
 #ifdef Recorded_Once
 	// if recoreded once then need to copy nxtnxt and point to it
@@ -94,8 +95,18 @@ struct Set {
     return verlib::with_epoch([=] { return remove_(root, k);});}
 
   std::optional<V> find_locked(node* root, const K& k) {
-    return find_(root, k); }
-  
+    return flck::try_loop([&] {return try_find(root, k);});
+  }
+
+  std::optional<std::optional<V>> try_find(node* root, const K& k) {
+    using ot = std::optional<std::optional<V>>;
+    auto [cur, nxt] = find_location(root, k);
+    if (cur->lck.try_lock([=] {
+        return (!cur->removed.load() && cur->next.load() == nxt);}))
+      return ot(nxt->value);
+    else return ot();
+  }
+
   std::optional<V> find_(node* root, const K& k) {
     auto [cur, nxt] = find_location(root, k);
     if (!nxt->is_end && !less(k, nxt->key)) return nxt->value;
