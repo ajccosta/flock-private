@@ -45,6 +45,9 @@ namespace verlib { // trans
   thread_local transaction_log<bool*> retired_log;
   thread_local transaction_log<bool*> allocated_log;
 #endif
+#ifdef Validate
+  thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*,std::atomic<bool>*>> validate_log;
+#endif
 }
 #endif
 

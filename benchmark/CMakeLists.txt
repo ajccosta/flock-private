@@ -41,6 +41,7 @@ foreach(bench ${OTHER_LIST_BENCH})
 endforeach()
 
 foreach(bench ${FLOCK_BENCH})
+add_benchmark(${bench}_validate ${STRUCT_DIR}/${bench} "NoHelp;Validate;Transactional;TransUndo;Versioned;NoShortcut;WriteStamp")
 add_benchmark(${bench}_trans ${STRUCT_DIR}/${bench} "NoHelp;Transactional;TransUndo;Versioned;NoShortcut;WriteStamp")
 add_benchmark(${bench}_noundo ${STRUCT_DIR}/${bench} "NoHelp;Transactional;Versioned;NoShortcut;WriteStamp")
 add_benchmark(${bench} ${STRUCT_DIR}/${bench} "NoHelp;Versioned;NoShortcut;WriteStamp")

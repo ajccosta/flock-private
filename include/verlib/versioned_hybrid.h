@@ -5,6 +5,9 @@
 
 namespace verlib {
 
+  thread_local long unsigned int* hold_a;
+  thread_local int count_a;
+  
 void check_pointer(void* ptr, std::string str) {
   if (((size_t) ptr) >> 48 != 0) {
     std::cout << "bad pointer in " << str << ": " << ptr << std::endl;
@@ -12,7 +15,19 @@ void check_pointer(void* ptr, std::string str) {
   }
 }
 
-#ifdef Transactional
+  #ifdef Transactional
+struct trans_descriptor {
+  size_t pad;
+  int owner;
+  std::atomic<TS> time_stamp;
+  ~trans_descriptor() {
+    pad = -1000;
+  }
+  trans_descriptor() : pad(0), time_stamp(tbd), owner(flck::internal::current_id) {}
+};
+
+flck::memory_pool<trans_descriptor> trans_descriptor_pool;
+
   // for storing transaction descriptor on a time stamp
   constexpr unsigned long descriptor_mask = (1ul << 62);
   TS set_descriptor(trans_descriptor* td) {
@@ -21,8 +36,8 @@ void check_pointer(void* ptr, std::string str) {
     return (ts & descriptor_mask) != 0;}
   trans_descriptor* get_descriptor(TS ts) {
     return (trans_descriptor*) (~descriptor_mask & ts);}
-#endif
-  
+  #endif
+
 struct versioned {
   flck::atomic_write_once<TS> time_stamp;
   versioned* next_version;
@@ -40,12 +55,8 @@ struct versioned {
   bool is_unset() {
     TS t = time_stamp.load();
     return t == tbd || is_descriptor(t);}
-  //int owner; // FIX: REMOVE
-  versioned() : time_stamp(initial_stamp()) {} //, owner(flck::internal::current_id) {}
-  versioned(versioned* next) : time_stamp(initial_stamp()), next_version(next) {
-    //check_pointer(next, "init versioned");
-  }
-  //owner(flck::internal::current_id) {}
+  versioned() : time_stamp(initial_stamp()) {} 
+  versioned(versioned* next) : time_stamp(initial_stamp()), next_version(next) {}
 #else
   bool is_unset() {return time_stamp.load() == tbd;}
   versioned() : time_stamp(tbd) {}
@@ -61,16 +72,42 @@ struct versioned {
   bool is_indirect(versioned* ptr) {
     return (size_t) ptr & 1;}
 
-#ifdef Transactional
-  #include "transactions.h"
-#endif
-
 struct ver_link : versioned {
   versioned* value;
   ver_link(versioned* next, versioned* value) : versioned{next}, value(value) {}  
 };
 
 flck::memory_pool<ver_link> link_pool;
+
+  #ifdef Transactional
+  void undo_versioned_write(flck::atomic<versioned*>* loc, bool flag=false) {
+    //std::cout << ".";
+    versioned* ptr = loc->load();
+    versioned* ptr_ = strip_indirect(ptr);
+    // the following check is for safety
+    TS ts = ptr_->time_stamp.load();
+    if (!is_descriptor(ts)) {
+      std::cout << "not desc: " << ts << ", " << flag << std::endl;
+      abort();
+    } else if (get_descriptor(ts)->pad != 0) {
+      std::cout << "corrupted descriptor: " << (void*) get_descriptor(ts)->pad << ", " << flag << std::endl;
+      for (int i=0; i < count_a; i++)
+	std::cout << hold_a[i] << ", ";
+      std::cout << std::endl;
+      abort();
+    } else if (get_descriptor(ts)->owner != flck::internal::current_id) {
+      auto des = get_descriptor(ts);
+      std::cout << "bad undo: " << is_descriptor(ts) << ", " << des->owner << ", " << flck::internal::current_id << ", " << flag << ", " << des->time_stamp << std::endl;
+      abort();
+    }
+    *loc = ptr_->next_version;
+    //if (is_indirect(ptr)) link_pool.retire((ver_link*) ptr);
+  }
+
+  #include "transactions.h"
+#endif
+
+
 
 template <typename V>
 struct versioned_ptr {
@@ -120,8 +157,16 @@ private:
 	if (desc->owner != flck::internal::current_id) {
 	  if (desc->time_stamp.load() == tbd)
 	    return ptr_->next_version;
-	  else if (desc->time_stamp.load() == tbs)
-	    set_transaction_stamp(desc);
+	  else {
+#ifdef Validate
+	    while (desc->time_stamp.load() == tbs);
+	    if (desc->time_stamp.load() == failed)
+	      return ptr_->next_version;
+#else
+	    if (desc->time_stamp.load() == tbs)
+	      set_transaction_stamp(desc);
+#endif
+	  }
 	}
       }
     }
@@ -168,6 +213,19 @@ public:
 
   void init(V* ptr) {v = set_zero_stamp(ptr);}
 
+#ifdef Validate
+  bool validate(V* expected, flck::atomic_write_once<bool>* deleted) {
+    versioned* ptr = v.load();
+    versioned* ptr_ = strip_indirect(ptr);
+    V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) ptr_)->value : ptr);
+    if (cur != expected) return false;
+    validate_log.add(std::tuple(&v, ptr, &(deleted->v)));
+    return true;
+  }
+  #else
+  
+#endif
+  
   V* read_snapshot() {
     TS ls = local_stamp;
     versioned* head = set_stamp(v.read());
@@ -203,14 +261,25 @@ public:
     set_stamp(v.load());     // ensure time stamp is set
   }
 
+
 #ifdef SlowStore
   void store(V* newv) {
     V* oldv = load();
     cas(oldv, newv);
   }
-#else  
+#else
   void store(V* ptr) {
     versioned* old_v = v.load();
+#ifdef Transactional
+    if (current_transaction != nullptr) {
+      if (old_v != nullptr &&
+	  is_descriptor(strip_indirect(old_v)->time_stamp.load())) {
+	//std::cout << get_descriptor(strip_indirect(old_v)->time_stamp.load())->owner << std::endl;
+	undo_versioned_write(&v, true);
+	//std::cout << this << std::endl;
+      }
+    }
+#endif
     versioned* new_v = ptr;
     bool use_indirect = (ptr == nullptr || !ptr->is_unset());
     if (use_indirect) 
@@ -236,14 +305,13 @@ public:
     }
 #endif
 #ifdef Transactional
-     if (current_transaction != nullptr) write_log.add(&v);
-     else {
-       versioned* ptr_ = strip_indirect(new_v);
-       TS t = global_stamp.get_write_stamp();
-       ptr_->time_stamp.cas_ni(tbd, t);
-     }
+    if (current_transaction == nullptr) {
+      versioned* ptr_ = strip_indirect(new_v);
+      TS t = global_stamp.get_write_stamp();
+      ptr_->time_stamp.cas_ni(tbd, t);
+    } else write_log.add(&v);
 #else
-      set_stamp(new_v);
+    set_stamp(new_v);
 #endif
     if (use_indirect) shortcut(new_v);
   }
@@ -285,4 +353,20 @@ public:
 
   V* operator=(V* b) {store(b); return b; }
 };
+
+template <typename T>
+bool validate(flck::lock& lck, versioned_ptr<T>* ptr, T* expected,
+	      flck::atomic_write_once<bool>* deleted) {
+#ifdef TransUndo
+#ifdef Validate
+  return ptr->validate(expected, deleted);
+#else
+  return lck.try_lock([=] {
+    return (!deleted->load() && ptr->load() == expected);});
+#endif
+#else
+  return true;
+#endif
+}
+
 } // namespace verlib

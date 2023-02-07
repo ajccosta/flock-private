@@ -633,8 +633,7 @@ struct Set {
   std::optional<std::optional<V>> try_find(node* root, const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [p, cidx, l] = find_no_fix(root, k);
-    if (p->lck.try_lock([=] {
-	 return (!p->removed.load() && (leaf*) p->children[cidx].load() == l);}))
+    if (verlib::validate(p->lck, &p->children[cidx], (node*) l, &p->removed))
       return ot(l->find(k));
     else return ot();
   }

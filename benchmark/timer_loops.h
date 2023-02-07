@@ -190,6 +190,8 @@ void run_mixed_operations(SetType& os,
 	    }
 	    for (int k=0; k < tsize; k++) range_keys[k] = all[j+k];
 	    std::sort(range_keys.begin(), range_keys.begin() + tsize);
+	    verlib::hold_a = &range_keys[0];
+	    verlib::count_a = tsize;
 	    added += verlib::with_transaction([&] {
                int loc_added = 0;
 	       for (int k=0; k < tsize; k++) {
