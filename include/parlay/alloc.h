@@ -308,7 +308,8 @@ extern inline void p_free(void* ptr) {
 // Uses block allocator, and is headerless
 // ****************************************
 
-template <typename T>
+ #ifndef PARLAY_USE_STD_ALLOC
+  template <typename T>
 class type_allocator {
 
   static block_allocator& get_allocator() {
@@ -346,7 +347,33 @@ public:
   static size_t num_used_bytes() { return num_used_blocks() * block_size(); }
   static void print_stats() { get_allocator().print_stats(); }
 };
+#else
+  inline void c_free(void* ptr) {free(ptr);}
+  
+template <typename T>
+  class type_allocator {
+public:
 
+  static T* alloc() { return static_cast<T*>(malloc(sizeof(T)));}
+  static void free(T* ptr) { c_free(ptr);}
+
+  template <typename ... Args>
+  static T* allocate(Args... args) {
+    T* r = alloc();
+    new (r) T(args...);
+    return r;
+  }
+
+  static void retire(T* ptr) {
+    ptr->~T();
+    free(ptr);
+  }
+
+  static void finish() {}
+  static void print_stats() {}
+
+ };
+#endif 
 
 }  // namespace parlay
 

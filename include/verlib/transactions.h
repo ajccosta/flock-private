@@ -9,15 +9,11 @@ TS set_transaction_stamp(trans_descriptor* desc) {
     desc->time_stamp.compare_exchange_strong(old, t);
   return desc->time_stamp.load();
 }
-    
+
 // wrapper for a transaction
 template <typename F>
 auto with_transaction(F f) { //, bool retry=true) {
   auto x = trans_descriptor_pool.new_obj();
-  if (x->owner > 144 || x->owner < 0) {
-    std::cout << "oops" << std::endl;
-    abort();
-  }
   auto r = flck::with_epoch([&] {
       current_transaction = x;
       auto r = flck::try_loop ([&] {
@@ -35,10 +31,10 @@ auto with_transaction(F f) { //, bool retry=true) {
 	    current_transaction->time_stamp = tbs;
 	    ts = set_transaction_stamp(current_transaction);
 	    // set stamps on logged writes
-	    for (int i=0; i < write_log.cnt; i++)
-	      if (is_descriptor(strip_indirect(write_log.vals[i]->load())->time_stamp.load()))
-		strip_indirect(write_log.vals[i]->load())->time_stamp = ts;
-		//write_log.vals[i]->load()->time_stamp = ts;
+	    for (int i=0; i < write_log.cnt; i++) {
+	      versioned* ver = strip_indirect(write_log.vals[i]->load());
+	      ver->clear_current_trans(ts);
+	    }
 #ifdef TransUndo
 	    // undo the retires on the logged allocates
 	    for (int i=0; i < allocated_log.cnt; i++)
@@ -66,7 +62,6 @@ auto with_transaction(F f) { //, bool retry=true) {
 	    lock_log.vals[i]->unlock();
 	  }
 	  using RT = decltype(x);
-	  //return x;
 	  if (passed) return x;
 	  else return RT();});
 	trans_descriptor* tmp = current_transaction;
