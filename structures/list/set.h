@@ -101,9 +101,10 @@ struct Set {
   std::optional<std::optional<V>> try_find(node* root, const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [cur, nxt] = find_location(root, k);
-    if (cur->lck.try_lock([=] {
-        return (!cur->removed.load() && cur->next.load() == nxt);}))
-      return ot(nxt->value);
+    if (verlib::validate(cur->lck, &cur->next, nxt, &cur->removed))
+      return ot(!nxt->is_end && !less(k, nxt->key) ?
+		std::optional<V>(nxt->value) :
+		std::optional<V>());
     else return ot();
   }
 

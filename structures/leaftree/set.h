@@ -22,7 +22,8 @@ struct Set {
   };
 
   // internal node
-  struct internal : node, flck::lock {
+  struct internal : node {
+    flck::lock lck;
     verlib::versioned_ptr<node> left;
     verlib::versioned_ptr<node> right;
     internal(K k, node* left, node* right)
@@ -70,7 +71,7 @@ struct Set {
       // l != prev_leaf)))
       return false;
     //prev_leaf = l;
-    auto r = p->try_lock([=] {
+    auto r = p->lck.try_lock([=] {
 	auto ptr = p_left ? &(p->left) : &(p->right);
 	auto l_new = ptr->load();
 	if (p->removed.load() || l_new != l) return false;
@@ -96,8 +97,8 @@ struct Set {
 	// || (prev_leaf != nullptr && prev_leaf != l))
       return false;
     // prev_leaf = l;
-    if (gp->try_lock([=] {
-      return p->try_lock([=] {
+    if (gp->lck.try_lock([=] {
+      return p->lck.try_lock([=] {
 	  auto ptr = gp_left ? &(gp->left) : &(gp->right);
 	  if (gp->removed.load() || ptr->load() != p) return false;
 	  node* ll = (p->left).load();
@@ -135,11 +136,8 @@ struct Set {
   std::optional<std::optional<V>> try_find(internal* root, const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-    if (p->try_lock([=] {
-        auto ptr = p_left ? &(p->left) : &(p->right);
-	auto l_new = ptr->load();
-	if (p->removed.load() || l_new != l) return false;
-	else return true;}))
+    auto ptr = p_left ? &(p->left) : &(p->right);
+    if (verlib::validate(p->lck, ptr, (node*) l, &p->removed))
       return ot(!l->is_sentinal && equal(l->key, k) ?
 		std::optional<V>(l->value) :
 		std::optional<V>());

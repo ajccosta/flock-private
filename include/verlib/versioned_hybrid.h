@@ -8,18 +8,14 @@ namespace verlib {
   thread_local long unsigned int* hold_a;
   thread_local int count_a;
   thread_local int type_a;
-  
-void check_pointer(void* ptr, std::string str) {
-  if (((size_t) ptr) >> 48 != 0) {
-    std::cout << "bad pointer in " << str << ": " << ptr << std::endl;
-    abort();
-  }
-}
 
-  #ifdef Transactional
+#ifdef Transactional
 struct trans_descriptor {
   int owner;
   std::atomic<TS> time_stamp;
+#ifdef Validate
+  //thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*,std::atomic<bool>*>> validate_log;
+#endif
   trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {}
 };
 
@@ -81,13 +77,8 @@ flck::memory_pool<ver_link> link_pool;
     versioned* ptr = loc->load();
     versioned* ptr_ = strip_indirect(ptr);
     trans_descriptor* td = ptr_->get_descriptor();
-    if (td == nullptr || td->owner != flck::internal::current_id) {
-      std::cout << "bad undo:" << std::endl;
-      std::cout << "owner = " << td->owner << ", proc_id = " << flck::internal::current_id << ", in store = " << flag << ", time_stamp = " << td->time_stamp << std::endl;
-      abort();
-    }
+    assert(td != nullptr && td->owner == flck::internal::current_id);
     *loc = ptr_->next_version;
-    //if (is_indirect(ptr)) link_pool.retire((ver_link*) ptr_);
   }
 
   #include "transactions.h"
@@ -173,12 +164,8 @@ private:
     if (ptr != nullptr) {
 #ifdef TransUndo
       trans_descriptor* td = ptr->get_descriptor();
-      if (td != nullptr) {
-	if (td->owner != flck::internal::current_id) {
-	  std::cout << "set_zero error: " << td->owner << ", " << flck::internal::current_id << std::endl;
-	  abort();
-	}
-      }
+      if (td != nullptr)
+	assert(td->owner == flck::internal::current_id);
 #endif
       if (ptr->time_stamp.load() == tbd) 
 	ptr->time_stamp = zero_stamp;
@@ -218,8 +205,6 @@ public:
     validate_log.add(std::tuple(&v, ptr, &(deleted->v)));
     return true;
   }
-#else
-
 #endif
   
   V* read_snapshot() {
@@ -366,12 +351,18 @@ template <typename T>
 bool validate(flck::lock& lck, versioned_ptr<T>* ptr, T* expected,
 	      flck::atomic_write_once<bool>* deleted) {
 #ifdef TransUndo
+  if (current_transaction != nullptr) {
 #ifdef Validate
-  return ptr->validate(expected, deleted);
+    if (try_count < 1)
+      return ptr->validate(expected, deleted);
+    else // if too many tries give up on validation and take locks
+      return lck.try_lock([=] {
+        return (!deleted->load() && ptr->load() == expected);});
 #else
   return lck.try_lock([=] {
     return (!deleted->load() && ptr->load() == expected);});
 #endif
+  } else return true;
 #else
   return true;
 #endif

@@ -56,25 +56,22 @@ else :
     lists = ["list"]
     lists_ro = []
     list_sizes = [100,1000]
-    trees = [] # "hash_block_lf", "arttree"]
+    trees = ["leaftree"] # "hash_block_lf", "arttree"]
     trees_ro = [] # ["btree"]
-    tree_sizes = [100000,10000000]
+    tree_sizes = [1000,10000000]
     zipfians = [0, .99]
-    mix_percents = [[5,0,0,0]] # , [5,25,0,4], [5,25,0,16], [5,0,95,48], [50,0,0,0]]
-    suffixes_all = ["_trans"] # ","_nohelp","_indirect_ls","_noshortcut_ls","_ver_ls","_ver_rs","_ver_ws","_ver_ns","_ver_hw", "_ver_nohelp_ls","_ver_ls_ss"]
-    suffixes_ro = suffixes_all # + ["_ver_ro_ls","_ver_ro_rs","_ver_ro_ls_ss","_ver_ro_rs_ss"]
+    trans_sizes = [2, 16]
+    mix_percents = [[5,0,0,0]]
+    suffixes_all = ["", "_noundo", "_trans", "_validate"]
 
 if all :
     lists = lists + ["list_onelock"];
     trees = trees + ["hash", "leaftree", "blockleaftree", "avltree"]
     
 if test_only :
-    time = .1
+    time = 1
     rounds = 1
-    mix_percents = [[25,25,0,16]]
-    list_sizes = [100]
-    tree_sizes = [1000000]
-    zipfians = [.99]
+    zipfians = [0]
     
 today = date.today().strftime("%m_%d_%y")
 hostname = socket.gethostname()
@@ -94,7 +91,7 @@ def detectCPUs():
      """
     # Linux, Unix and MacOS:
     if hasattr(os, "sysconf"):
-       if os.sysconf_names.has_key("SC_NPROCESSORS_ONLN"):
+       if "SC_NPROCESSORS_ONLN" in os.sysconf_names :
            # Linux & Unix:
            ncpus = os.sysconf("SC_NPROCESSORS_ONLN")
            if isinstance(ncpus, int) and ncpus > 0:
@@ -131,19 +128,20 @@ def runstring(op) :
         os.system("echo Failed")
         runstring("echo Failed")
     
-def runtest(test,procs,n,z,mix) :
+def runtest(test,procs,n,z,mix,ts) :
     num_threads = maxcpus-1
     str_mix = "-u " + str(mix[0]) + " -mfind " + str(mix[1]) + " -range " + str(mix[2]) + " "
     str_rs = "-rs " + str(mix[3]) + " "
     str_zipfians = "-z " + str(z) + " "
     str_rounds = "-r " + str(rounds) + " "
+    str_trans_size = "-trans " + str(ts) + " "
     str_time = "-tt " + str(time) + " "
     str_n = "-n " + str(n) + " "
     if (test[0:12] == "./hash_block") : str_dense = "-dense "
     else : str_dense = ""
     if shuffle : str_other = "-shuffle "
     else : str_other = ""
-    runstring("PARLAY_NUM_THREADS=" + str(num_threads) + " numactl -i all ./" + test + " " + str_time + str_rounds + str_n + str_mix + str_rs + str_zipfians + str_dense + str_other)
+    runstring("PARLAY_NUM_THREADS=" + str(num_threads) + " numactl -i all ./" + test + " " + str_time + str_rounds + str_n + str_mix + str_rs + str_zipfians + str_trans_size + str_dense + str_other)
 
 def run_tests(tests,suffixes,sizes) :
     zipf = zipfians
@@ -151,8 +149,9 @@ def run_tests(tests,suffixes,sizes) :
         for n in sizes :
             for mix in mix_percents :
                 for suffix in suffixes:
-                    for z in zipf :
-                       runtest(test + suffix, maxcpus, n, z, mix)
+                    for ts in trans_sizes :
+                        for z in zipf :
+                            runtest(test + suffix, maxcpus, n, z, mix, ts)
                 with open(filename, "a") as f:
                     f.write("...\n")
 
@@ -161,10 +160,7 @@ try :
     os.system("pushd ..; make -j")
     runstring("git rev-parse --short HEAD")
     run_tests(trees,suffixes_all,tree_sizes)
-    run_tests(trees_ro,suffixes_ro,tree_sizes)
     run_tests(lists,suffixes_all,list_sizes)
-    run_tests(lists_ro,suffixes_ro,list_sizes)
             
-except NameError,v :
-  x, = v
-  print "TEST TERMINATED ABNORMALLY:\n"+x
+except(NameError) :
+  print("TEST TERMINATED ABNORMALLY:\n")

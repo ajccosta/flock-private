@@ -179,7 +179,7 @@ void run_mixed_operations(SetType& os,
 	    }
 	  }
 	  // check that no overflow
-	  if (j >= (i+1)*mp) abort();
+	  assert(j < (i+1)*mp);
 
 #ifdef Transactional
 	  if (trans_size > 0) {
@@ -190,9 +190,9 @@ void run_mixed_operations(SetType& os,
 	    }
 	    for (int k=0; k < tsize; k++) range_keys[k] = all[j+k];
 	    std::sort(range_keys.begin(), range_keys.begin() + tsize);
-	    verlib::hold_a = &range_keys[0];
-	    verlib::count_a = tsize;
-	    verlib::type_a = op_types[j] == Insert;
+	    //verlib::hold_a = &range_keys[0];
+	    //verlib::count_a = tsize;
+	    //verlib::type_a = op_types[j] == Insert;
 	    added += verlib::with_transaction([&] {
                int loc_added = 0;
 	       for (int k=0; k < tsize; k++) {
@@ -201,14 +201,11 @@ void run_mixed_operations(SetType& os,
 		   auto x = os.try_find(tr, range_keys[k]);
 		   if (!x.has_value()) return std::optional<int>();
 		   keysum += (*x).has_value();
-		   abort();
-		   //} else if (op_types[j+k] == Insert) {
-		 } else if (op_types[j] == Insert) {
+		 } else if (op_types[j+k] == Insert) {
 		   auto x = os.try_insert(tr, range_keys[k], 123);
 		   if (!x.has_value()) return std::optional<int>();
 		   if (*x) loc_added++;
-		 } else if (op_types[j] == Remove) {
-		   //} else if (op_types[j+k] == Remove) {
+		 } else if (op_types[j+k] == Remove) {
 		   auto x = os.try_remove(tr, range_keys[k]);
 		   if (!x.has_value()) return std::optional<int>();
 		   if (*x) loc_added--;
