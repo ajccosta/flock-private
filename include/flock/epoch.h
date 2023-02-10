@@ -132,10 +132,8 @@ private:
 #ifdef TransUndo
       if (!tmp->skip)
 #endif
-      {
 	destruct((T*) tmp->value);
-	list_allocator::free(tmp);
-      }
+      list_allocator::free(tmp);
     }
   }
 
@@ -154,6 +152,7 @@ public:
   }
 
   mem_pool(const mem_pool&) = delete;
+  ~mem_pool() { clear(); }
 
   // noop since epoch announce is used for the whole operation
   void acquire(T* p) { }

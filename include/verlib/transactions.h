@@ -1,15 +1,6 @@
 // Code for transactions
 // One allocated for every transaction
 
-// set the stamp on the transaction descriptor
-TS set_transaction_stamp(trans_descriptor* desc) {
-  TS t = global_stamp.get_write_stamp();
-  TS old = tbs;
-  if (desc->time_stamp.load() == tbs)
-    desc->time_stamp.compare_exchange_strong(old, t);
-  return desc->time_stamp.load();
-}
-
 thread_local int try_count;
 
 // wrapper for a transaction
@@ -39,7 +30,7 @@ auto with_transaction(F f) {
 	    ts = global_stamp.get_write_stamp();
 	    for (int i=0; i < validate_log.cnt; i++) {
 	      auto [loc, expected, removed] = validate_log.vals[i];
-	      passed = (loc->load() == expected) && !removed->load();
+	      passed = (set_stamp(loc->load(), true) == expected) && !removed->load();
 	    }
 	  } else passed = false;
 	  if (passed) {

@@ -303,7 +303,8 @@ void run_mixed_operations(SetType& os,
 	}
       }, 1);
     double duration = t.stop();
-    std::cout << "duration: " << duration << std::endl;
+    if (duration > 1.1 * trial_time)
+      std::cout << "duration: " << duration << std::endl;
 
     if (i != 0) { // don't report zeroth round -- warmup
       if (finish && (duration < trial_time/4))
@@ -319,6 +320,7 @@ void run_mixed_operations(SetType& os,
 		  << range_percent << "%range,"
 		  << multifind_percent << "%mfind,"
 		  << "rs=" << range_size << ","
+		  << "trans=" << trans_size << ","
 		  << "n=" << n << ","
 		  << "p=" << p << ","
 		  << "z=" << zipfian_param << ","
@@ -330,6 +332,7 @@ void run_mixed_operations(SetType& os,
 		  << range_percent << "%range,"
 		  << multifind_percent << "%mfind,"
 		  << "rs=" << range_size << ","
+		  << "trans=" << trans_size << ","
 		  << "n=" << n << ","
 		  << "p=" << p << ","
 		  << "rq_threads=" << range_query_threads << ","

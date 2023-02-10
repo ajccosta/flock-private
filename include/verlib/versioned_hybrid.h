@@ -80,10 +80,62 @@ flck::memory_pool<ver_link> link_pool;
     assert(td != nullptr && td->owner == flck::internal::current_id);
     *loc = ptr_->next_version;
   }
-
-  #include "transactions.h"
 #endif
 
+#ifdef Transactional
+// set the stamp on the transaction descriptor
+TS set_transaction_stamp(trans_descriptor* desc) {
+  TS t = global_stamp.get_write_stamp();
+  TS old = tbs;
+  if (desc->time_stamp.load() == tbs)
+    desc->time_stamp.compare_exchange_strong(old, t);
+  return desc->time_stamp.load();
+}
+
+  versioned* set_stamp(versioned* ptr, bool no_validate=false) {
+    versioned* ptr_ = strip_indirect(ptr);
+    if (ptr_ != nullptr) {
+      TS t = ptr_->get_stamp();
+      trans_descriptor* td = ptr_->get_descriptor();
+      if (t == tbd && td == nullptr) {
+	TS new_t = global_stamp.get_write_stamp();
+	if (ptr_->time_stamp.load() == tbd)
+	  ptr_->time_stamp.cas_ni(tbd, new_t);
+      } else if (td != nullptr) {
+	if (td->owner != flck::internal::current_id) {
+	  if (td->time_stamp.load() == tbd)
+	    return ptr_->next_version;
+	  else {
+#ifdef Validate
+	    if (no_validate && td->time_stamp.load() == tbs)
+	      return ptr;
+	    while (td->time_stamp.load() == tbs);
+	    if (td->time_stamp.load() == failed)
+	      return ptr_->next_version;
+#else
+	    if (td->time_stamp.load() == tbs)
+	      set_transaction_stamp(td);
+#endif
+	  }
+	}
+      }
+    }
+    return ptr;
+  }
+
+  #include "transactions.h"
+
+#else
+  versioned* set_stamp(versioned* ptr) {
+    versioned* ptr_ = strip_indirect(ptr);
+    if (ptr != nullptr && ptr_->time_stamp.load_ni() == tbd) {
+      TS t = global_stamp.get_write_stamp();
+      if(ptr_->time_stamp.load_ni() == tbd)
+        ptr_->time_stamp.cas_ni(tbd, t);
+    }
+    return ptr;
+  }
+#endif
 
 
 template <typename V>
@@ -119,46 +171,6 @@ private:
     return (V*) ((ver_link*) ptr_)->value;
   }
 
-#ifdef Transactional
-  static versioned* set_stamp(versioned* ptr) {
-    versioned* ptr_ = strip_indirect(ptr);
-    if (ptr_ != nullptr) {
-      TS t = ptr_->get_stamp();
-      trans_descriptor* td = ptr_->get_descriptor();
-      if (t == tbd && td == nullptr) {
-	TS new_t = global_stamp.get_write_stamp();
-	if (ptr_->time_stamp.load() == tbd)
-	  ptr_->time_stamp.cas_ni(tbd, new_t);
-      } else if (td != nullptr) {
-	if (td->owner != flck::internal::current_id) {
-	  if (td->time_stamp.load() == tbd)
-	    return ptr_->next_version;
-	  else {
-#ifdef Validate
-	    while (td->time_stamp.load() == tbs);
-	    if (td->time_stamp.load() == failed)
-	      return ptr_->next_version;
-#else
-	    if (td->time_stamp.load() == tbs)
-	      set_transaction_stamp(td);
-#endif
-	  }
-	}
-      }
-    }
-    return ptr;
-  }
-#else
-  static versioned* set_stamp(versioned* ptr) {
-    versioned* ptr_ = strip_indirect(ptr);
-    if (ptr != nullptr && ptr_->time_stamp.load_ni() == tbd) {
-      TS t = global_stamp.get_write_stamp();
-      if(ptr_->time_stamp.load_ni() == tbd)
-        ptr_->time_stamp.cas_ni(tbd, t);
-    }
-    return ptr;
-  }
-#endif
   
   static versioned* set_zero_stamp(V* ptr) {
     if (ptr != nullptr) {
@@ -198,7 +210,7 @@ public:
 
 #ifdef Validate
   bool validate(V* expected, flck::atomic_write_once<bool>* deleted) {
-    versioned* ptr = v.load();
+    versioned* ptr = set_stamp(v.load());
     versioned* ptr_ = strip_indirect(ptr);
     V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) ptr_)->value : ptr);
     if (cur != expected) return false;
@@ -353,7 +365,7 @@ bool validate(flck::lock& lck, versioned_ptr<T>* ptr, T* expected,
 #ifdef TransUndo
   if (current_transaction != nullptr) {
 #ifdef Validate
-    if (try_count < 1)
+    if (try_count < 100)
       return ptr->validate(expected, deleted);
     else // if too many tries give up on validation and take locks
       return lck.try_lock([=] {
