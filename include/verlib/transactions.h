@@ -30,8 +30,15 @@ auto with_transaction(F f) {
 	    ts = global_stamp.get_write_stamp();
 	    for (int i=0; i < validate_log.cnt; i++) {
 	      auto [loc, expected, removed] = validate_log.vals[i];
-	      passed = (set_stamp(loc->load(), true) == expected) && !removed->load();
+	      if (set_stamp(loc->load(), true) != expected || !removed->load()) {
+		passed = false;
+		break;
+	      }
 	    }
+	    TS oldts = tbs;
+	    TS newts = passed ? ts : failed;
+	    current_transaction->time_stamp.compare_exchange_strong(oldts, newts);
+	    passed = current_transaction->time_stamp.load() != failed;
 	  } else passed = false;
 	  if (passed) {
 	    current_transaction->time_stamp = ts;

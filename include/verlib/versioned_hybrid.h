@@ -92,7 +92,7 @@ TS set_transaction_stamp(trans_descriptor* desc) {
   return desc->time_stamp.load();
 }
 
-  versioned* set_stamp(versioned* ptr, bool no_validate=false) {
+  versioned* set_stamp(versioned* ptr, bool validating=false) {
     versioned* ptr_ = strip_indirect(ptr);
     if (ptr_ != nullptr) {
       TS t = ptr_->get_stamp();
@@ -107,9 +107,13 @@ TS set_transaction_stamp(trans_descriptor* desc) {
 	    return ptr_->next_version;
 	  else {
 #ifdef Validate
-	    if (no_validate && td->time_stamp.load() == tbs)
-	      return ptr;
-	    while (td->time_stamp.load() == tbs);
+	    if (validating && td->time_stamp.load() == tbs &&
+		td->owner < flck::internal::current_id) {
+	      // kill other if they have lower id. prevents wait cycle
+	      TS old = tbs;
+	      td->time_stamp.compare_exchange_strong(old,failed);
+	    } else //otherwise wait until other is done (could also help)
+	      while (td->time_stamp.load() == tbs);
 	    if (td->time_stamp.load() == failed)
 	      return ptr_->next_version;
 #else
