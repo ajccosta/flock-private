@@ -50,6 +50,7 @@ auto with_transaction(F f) {
 	    // set stamps on logged writes
 	    for (int i=0; i < write_log.cnt; i++) {
 	      versioned* ver = strip_indirect(write_log.vals[i]->load());
+	      assert(ver != nullptr);
 	      ver->clear_current_trans(ts);
 	    }
 #ifdef TransUndo

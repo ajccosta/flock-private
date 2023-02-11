@@ -112,7 +112,7 @@ void run_mixed_operations(SetType& os,
     // insert n distinct elements
     parlay::parallel_for(0, n, [&] (size_t i) {
 	os.insert(tr, unique[i], 123); }, 10, true);
-
+    
     // insert and delete for a while
     parlay::parallel_for(0, 4*n, [&] (size_t i) {
 	auto k = unique[parlay::hash64(i + i) % nn];
@@ -193,6 +193,7 @@ void run_mixed_operations(SetType& os,
 	    //verlib::hold_a = &range_keys[0];
 	    //verlib::count_a = tsize;
 	    //verlib::type_a = op_types[j] == Insert;
+	    //os.check_tags(tr);
 	    added += verlib::with_transaction([&] {
                int loc_added = 0;
 	       for (int k=0; k < tsize; k++) {

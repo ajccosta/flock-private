@@ -20,16 +20,7 @@ struct trans_descriptor {
 };
 
 flck::memory_pool<trans_descriptor> trans_descriptor_pool;
-
-  // for storing transaction descriptor on a time stamp
-  // constexpr unsigned long descriptor_mask = (1ul << 62);
-  // TS set_descriptor(trans_descriptor* td) {
-  //   return ((TS) td) | descriptor_mask;}
-  // bool is_descriptor(TS ts) {
-  //   return (ts & descriptor_mask) != 0;}
-  // trans_descriptor* get_descriptor(TS ts) {
-  //   return (trans_descriptor*) (~descriptor_mask & ts);}
-  #endif
+#endif // Transactional
 
 struct versioned {
   flck::atomic_write_once<TS> time_stamp;
@@ -72,17 +63,16 @@ struct ver_link : versioned {
 
 flck::memory_pool<ver_link> link_pool;
 
-  #ifdef Transactional
+#ifdef Transactional
   void undo_versioned_write(flck::atomic<versioned*>* loc, bool flag=false) {
     versioned* ptr = loc->load();
     versioned* ptr_ = strip_indirect(ptr);
+    assert(ptr_ != nullptr);
     trans_descriptor* td = ptr_->get_descriptor();
     assert(td != nullptr && td->owner == flck::internal::current_id);
     *loc = ptr_->next_version;
   }
-#endif
 
-#ifdef Transactional
 // set the stamp on the transaction descriptor
 TS set_transaction_stamp(trans_descriptor* desc) {
   TS t = global_stamp.get_write_stamp();
@@ -128,7 +118,7 @@ TS set_transaction_stamp(trans_descriptor* desc) {
 
   #include "transactions.h"
 
-#else
+#else // Not transactional
   versioned* set_stamp(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
     if (ptr != nullptr && ptr_->time_stamp.load_ni() == tbd) {
@@ -143,7 +133,7 @@ TS set_transaction_stamp(trans_descriptor* desc) {
 
 template <typename V>
 struct versioned_ptr {
-private:
+  //private:
   flck::atomic<versioned*> v;
 
   static void shortcut(versioned* ptr) {
@@ -244,7 +234,6 @@ public:
   V* load() {  // can be used anywhere
     if (local_stamp != -1) return read_snapshot();
     auto x = v.load();
-    //check_pointer(x, "load");
     return get_ptr_shortcut(set_stamp(x));
   }
   
@@ -274,18 +263,13 @@ public:
 	if (td != nullptr) { // second write by same transaction
 	  //std::cout << ".";
 	  next = old_v_->next_version;
+	  // if (td->owner != flck::internal::current_id || td->pad != 11) {
+	  //   std::cout << "oops: " << (void*) td->pad << ", " << td->owner << ", " << td->time_stamp.load() << ", " << td->check_val << "," << flck::internal::current_id << std::endl;
+	  //   abort();
+	  // }
 	  assert(td->owner == flck::internal::current_id);
-	  // if (td->owner != flck::internal::current_id) {
-	  //   std::cout << "oops: " << td->owner << ", " << flck::internal::current_id << ", " << td->time_stamp << ", " << ptr->key << ", " << get_ptr(old_v)->key <<
-	  //     std::endl;
-	  //   abort();}
-	  //undo_versioned_write(&v, true);
-	  //old_v = old_v_->next_version;
-	  //old_v = v.load(); // should do the same as commented line above
-	} else {
-	  write_log.add(&v);
-	}
-      } 
+	} else write_log.add(&v);
+      } else write_log.add(&v); 
     }
 #endif
     versioned* new_v = ptr;
@@ -373,8 +357,7 @@ bool validate(flck::lock& lck, versioned_ptr<T>* ptr, T* expected,
       return lck.try_lock([=] {
         return (!deleted->load() && ptr->load() == expected);});
 #else
-  return lck.try_lock([=] {
-    return (!deleted->load() && ptr->load() == expected);});
+  return lck.try_lock([=] {return (!deleted->load() && ptr->load() == expected);});
 #endif
   } else return true;
 #else

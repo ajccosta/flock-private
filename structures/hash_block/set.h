@@ -4,6 +4,8 @@
 #define Dense_Keys 1
 #define HASH 1
 
+flck::atomic_write_once<bool> removed_hack = false;
+
 template <typename K,
 	  typename V,
 	  class Hash = std::hash<K>,
@@ -42,10 +44,10 @@ struct Set {
   };
   using node = Node<0>;
 
+struct slot {
 #ifdef UseCAS
-  struct slot {
 #else
-  struct slot : flck::lock {
+  flck::lock lck;
 #endif
     verlib::versioned_ptr<node> ptr;
     slot() : ptr(nullptr) {}
@@ -63,7 +65,16 @@ struct Set {
       table = parlay::sequence<slot>(2*size);
     }
   };
-  
+
+  // void check_tags(Table& t) {
+  //   for (int i=0; i < t.table.size(); i++) {
+  //     verlib::versioned* foo = t.table[i].ptr.v.load();
+  //     if (foo != nullptr)
+  // 	if (verlib::strip_indirect(foo)->trans != nullptr)
+  // 	  std::cout << "trash at loc " << i << ": " << foo << ", " << foo->trans <<std::endl;
+  //   }
+  // }
+
   verlib::memory_pool<Node<1>> node_pool_1;
   verlib::memory_pool<Node<3>> node_pool_3;
   verlib::memory_pool<Node<7>> node_pool_7;
@@ -96,63 +107,83 @@ struct Set {
 
   // should not require gcc attribute, but compiler screws up otherwise
   __attribute__((always_inline))
-  std::optional<V> find_at(slot* s, const K& k) {
-    node* x = s->ptr.load();
-    if (x == nullptr) return {};
+  std::optional<V> find_at(node* x, const K& k) {
     if (KeyEqual{}(x->entries[0].key, k))
       return x->entries[0].value;
     int i = x->find(k);
     if (i == -1) return {};
     else return x->entries[i].value;
   }
-  
+
   std::optional<V> find_(Table& table, const K& k) {
     slot* s = table.get_slot(k);
-    return find_at(s, k);
+    node* x = s->ptr.load();
+    if (x == nullptr) return {};
+    return find_at(x, k);
+  }
+
+  std::optional<V> find_locked(Table& table, const K& k) {
+    return flck::try_loop([&] {return try_find(table, k);});
+  }
+
+  std::optional<std::optional<V>> try_find(Table& table, const K& k) {
+    using ot = std::optional<std::optional<V>>;
+    slot* s = table.get_slot(k);
+    node* x = s->ptr.load();
+    if (x == nullptr) return ot(std::optional<V>());
+    if (verlib::validate(s->lck, &s->ptr, x, &removed_hack))
+      return ot(find_at(x, k));
+    return ot();
   }
 
   std::optional<V> find(Table& table, const K& k) {
     slot* s = table.get_slot(k);
     __builtin_prefetch (s);
-    auto x = verlib::with_epoch([&] { return find_at(s, k);});
-    return x;
+    return verlib::with_epoch([&] {
+      node* x = s->ptr.load();
+      if (x == nullptr) return std::optional<V>();
+      return find_at(x, k);});
   }
 
   static constexpr int init_delay=200;
   static constexpr int max_delay=2000;
 
-  bool insert_at(slot* s, const K& k, const V& v) {
-    int delay = init_delay;
-    while (true) {
-      node* x = s->ptr.load();
-      if (x != nullptr && x->find(k) != -1) return false;
+  std::optional<bool> try_insert_at(slot* s, const K& k, const V& v) {
+    node* x = s->ptr.load();
+    if (x != nullptr && x->find(k) != -1) return false;
 #ifdef UseCAS
-      node* new_node = insert_to_node(x, k, v);
-      if(s->ptr.cas(x, new_node)) {
-        retire_node(x);
-        return true;
-      } else retire_node(new_node); // TODO: could be destruct
+    node* new_node = insert_to_node(x, k, v);
+    if(s->ptr.cas(x, new_node)) {
+      retire_node(x);
+      return true;
+    } else retire_node(new_node); // TODO: could be destruct
 #else  // use try_lock
-      if (s->try_lock([=] {
-	    if (s->ptr.load() != x) return false;
-	    s->ptr = insert_to_node(x, k, v);
-	    retire_node(x);
-	    return true;}))
-	return true;
+    if (s->lck.try_lock([=] {
+        if (s->ptr.load() != x) return false;
+	s->ptr = insert_to_node(x, k, v);
+	retire_node(x);
+	return true;}))
+      return true;
 #endif
-      for (volatile int i=0; i < delay; i++);
-      delay = std::min(2*delay, max_delay);
-    }
+    return {}; // failed
+  }
+    
+  std::optional<bool> try_insert(Table& table, const K& k, const V& v) {
+    return try_insert_at(table.get_slot(k), k, v);
   }
 
   bool insert(Table& table, const K& k, const V& v) {
     slot* s = table.get_slot(k); 
-    return verlib::with_epoch([&] {return insert_at(s, k, v);});
+    return verlib::with_epoch([&] {
+      return flck::try_loop([&] {return try_insert_at(s, k, v);});});
+  }
+
+  bool insert_(Table& table, const K& k, const V& v) {
+    slot* s = table.get_slot(k); 
+    return flck::try_loop([&] {return try_insert_at(s, k, v);});
   }
   
-  bool remove_at(slot* s, const K& k) {
-    int delay = init_delay;
-    while (true) {
+  std::optional<bool> try_remove_at(slot* s, const K& k) {
       node* x = s->ptr.load();
       if (x == nullptr || x->find(k) == -1) return false;
 #ifdef UseCAS
@@ -162,21 +193,29 @@ struct Set {
         return true;
       } else retire_node(new_node); // TODO: could be destruct
 #else
-      if (s->try_lock([=] {
+      if (s->lck.try_lock([=] {
 	    if (s->ptr.load() != x) return false;
 	    s->ptr = remove_from_node(x, k);
 	    retire_node(x);
 	    return true;}))
 	return true;
 #endif      
-      for (volatile int i=0; i < delay; i++);
-      delay = std::min(2*delay, max_delay);
-    }
+      return {};
+  }
+
+  std::optional<bool> try_remove(Table& table, const K& k) {
+    return try_remove_at(table.get_slot(k), k);
   }
 
   bool remove(Table& table, const K& k) {
-    slot* s = table.get_slot(k);
-    return verlib::with_epoch([&] {return remove_at(s, k);});
+    slot* s = table.get_slot(k); 
+    return verlib::with_epoch([&] {
+      return flck::try_loop([&] {return try_remove_at(s, k);});});
+  }
+
+  bool remove_(Table& table, const K& k) {
+    slot* s = table.get_slot(k); 
+    return flck::try_loop([&] {return try_remove_at(s, k);});
   }
 
   template<typename AddF>
