@@ -107,8 +107,7 @@ TS set_transaction_stamp(trans_descriptor* desc) {
 	    return ptr_->next_version;
 	  else {
 #ifdef Validate
-	    if (validating && td->time_stamp.load() == tbs &&
-		td->owner < flck::internal::current_id) {
+	    if (validating && td->time_stamp.load() == tbs && td->owner < flck::internal::current_id) { 
 	      // kill other if they have lower id. prevents wait cycle
 	      TS old = tbs;
 	      td->time_stamp.compare_exchange_strong(old,failed);
@@ -215,9 +214,8 @@ public:
 #ifdef Validate
   bool validate(V* expected, flck::atomic_write_once<bool>* deleted) {
     versioned* ptr = set_stamp(v.load());
-    versioned* ptr_ = strip_indirect(ptr);
-    V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) ptr_)->value : ptr);
-    if (cur != expected) return false;
+    V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
+    if (cur != expected) return false; 
     validate_log.add(std::tuple(&v, ptr, &(deleted->v)));
     return true;
   }
@@ -369,7 +367,7 @@ bool validate(flck::lock& lck, versioned_ptr<T>* ptr, T* expected,
 #ifdef TransUndo
   if (current_transaction != nullptr) {
 #ifdef Validate
-    if (try_count < 100)
+    if (try_count < 20) // anywhere from 10-100 seems good
       return ptr->validate(expected, deleted);
     else // if too many tries give up on validation and take locks
       return lck.try_lock([=] {

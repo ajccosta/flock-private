@@ -30,7 +30,7 @@ auto with_transaction(F f) {
 	    ts = global_stamp.get_write_stamp();
 	    for (int i=0; i < validate_log.cnt; i++) {
 	      auto [loc, expected, removed] = validate_log.vals[i];
-	      if (set_stamp(loc->load(), true) != expected || !removed->load()) {
+ 	      if (set_stamp(loc->load(), true) != expected || removed->load()) {
 		passed = false;
 		break;
 	      }
