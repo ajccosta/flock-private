@@ -37,8 +37,8 @@ struct versioned {
 #ifdef Transactional
   trans_descriptor* trans;
   int op;
-  bool not_written() {
-    return time_stamp.load() == tbd || trans != nullptr;}
+  bool written() {
+    return time_stamp.load() != tbd || trans != nullptr;}
   trans_descriptor* get_descriptor() {return trans;}
   TS get_stamp() {return time_stamp.load();}
   void set_current_trans() {
@@ -51,7 +51,7 @@ struct versioned {
   versioned() : op(-1), time_stamp(tbd), trans(nullptr) {} 
   versioned(versioned* next) : op(-1), time_stamp(tbd), trans(nullptr), next_version(next) {}
 #else
-  bool not_written() {return time_stamp.load() == tbd;}
+  bool written() {return time_stamp.load() != tbd;}
   versioned() : time_stamp(tbd) {}
   versioned(versioned* next) : time_stamp(tbd), next_version(next) {}
 #endif
@@ -291,7 +291,7 @@ public:
     }
 #endif
     versioned* new_v = ptr;
-    bool use_indirect = (ptr == nullptr || !ptr->not_written());
+    bool use_indirect = (ptr == nullptr || ptr->written());
     if (use_indirect) 
       new_v = add_indirect(link_pool.new_obj(next, new_v)); 
     else ptr->next_version = next;

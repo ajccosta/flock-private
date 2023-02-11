@@ -60,7 +60,7 @@ else :
     tree_sizes = [1000,100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0, 2, 16]
-    mix_percents = [[5,0,0,0]]
+    mix_percents = [[5,0,0,0], [50,0,0,0]]
     suffixes_all = ["", "_noundo", "_trans", "_validate"]
 
 if all :
@@ -77,7 +77,7 @@ hostname = socket.gethostname()
 
 print(hostname)
 print(today)
-filename = "../../timings/" + hostname + "_trans" #+ "_" + today + file_suffix
+filename = "../../timings/" + hostname[0:5] + "_trans" + "_" + today
     
 if os.path.exists(filename) :
     os.remove(filename)
