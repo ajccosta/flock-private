@@ -46,16 +46,17 @@ struct atomic_write_once {
   V load_ni() {return v.load();}
   V read() {return v.load();}
   void init(V vv) { v = vv; }
-  void store(V vv) {
+  void store(V vv, bool undo=true) {
 #ifdef TransUndo
-    if constexpr (sizeof(V) == 1) {
-	if (verlib::current_transaction != nullptr)
-	  verlib::write_once_log.add(&v);
+    if (verlib::current_transaction != nullptr && undo) {
+      if constexpr (sizeof(V) == 1) 
+		     verlib::write_once_log.add(std::tuple((std::atomic<unsigned char>*) &v,
+							   (unsigned char) v.load()));
+      else {
+	std::cout << "write_once cannot undo: " << sizeof(V) << std::endl;
+	abort();
       }
-    //else {
-    //  if (verlib::current_transaction != nullptr)
-    //std::cout << "cannot undo: " << sizeof(V) << std::endl;
-    //}
+    }
 #endif
     v = vv; }
   bool cas_ni(V exp_v, V new_v) {return v.compare_exchange_strong(exp_v, new_v);}

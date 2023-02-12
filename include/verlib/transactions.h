@@ -71,8 +71,10 @@ auto with_transaction(F f) {
 	    for (int i=0; i < retired_log.cnt; i++)
 	      *retired_log.vals[i] = true;
 	    // undo logged writes
-	    for (int i=0; i < write_once_log.cnt; i++) 
-	      *write_once_log.vals[i] = false;
+	    for (int i=0; i < write_once_log.cnt; i++) {
+	      auto [ptr,val] = write_once_log.vals[i];
+	      *ptr = val;
+	    }
 	    for (int i=0; i < write_log.cnt; i++)
 	      undo_versioned_write(write_log.vals[i]);
 #else

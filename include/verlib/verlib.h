@@ -40,7 +40,7 @@ namespace verlib { // trans
 
   thread_local transaction_log<flck::internal::lock*> lock_log;
   thread_local transaction_log<flck::atomic<versioned*>*> write_log;
-  thread_local transaction_log<std::atomic<bool>*> write_once_log;
+  thread_local transaction_log<std::tuple<std::atomic<unsigned char>*, unsigned char>> write_once_log;
 #ifdef TransUndo
   thread_local transaction_log<bool*> retired_log;
   thread_local transaction_log<bool*> allocated_log;

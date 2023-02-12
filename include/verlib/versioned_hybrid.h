@@ -23,7 +23,7 @@ flck::memory_pool<trans_descriptor> trans_descriptor_pool;
 #endif // Transactional
 
 struct versioned {
-  flck::atomic_write_once<TS> time_stamp;
+  std::atomic<TS> time_stamp;
   versioned* next_version;
 #ifdef Transactional
   trans_descriptor* trans;
@@ -89,8 +89,10 @@ TS set_transaction_stamp(trans_descriptor* desc) {
       trans_descriptor* td = ptr_->get_descriptor();
       if (t == tbd && td == nullptr) {
 	TS new_t = global_stamp.get_write_stamp();
-	if (ptr_->time_stamp.load() == tbd)
-	  ptr_->time_stamp.cas_ni(tbd, new_t);
+	if (ptr_->time_stamp.load() == tbd) {
+	  TS old_t = tbd;
+	  ptr_->time_stamp.compare_exchange_strong(old_t, new_t);
+	}
       } else if (td != nullptr) {
 	if (td->owner != flck::internal::current_id) {
 	  if (td->time_stamp.load() == tbd)
@@ -121,10 +123,12 @@ TS set_transaction_stamp(trans_descriptor* desc) {
 #else // Not transactional
   versioned* set_stamp(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
-    if (ptr != nullptr && ptr_->time_stamp.load_ni() == tbd) {
+    if (ptr != nullptr && ptr_->time_stamp.load() == tbd) {
       TS t = global_stamp.get_write_stamp();
-      if(ptr_->time_stamp.load_ni() == tbd)
-        ptr_->time_stamp.cas_ni(tbd, t);
+      if(ptr_->time_stamp.load() == tbd) {
+	TS old_t = tbd;
+        ptr_->time_stamp.compare_exchange_strong(old_t, t);
+      }
     }
     return ptr;
   }
@@ -201,16 +205,6 @@ public:
 
   void init(V* ptr) {v = set_zero_stamp(ptr);}
 
-#ifdef Validate
-  bool validate(V* expected, flck::atomic_write_once<bool>* deleted) {
-    versioned* ptr = set_stamp(v.load());
-    V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
-    if (cur != expected) return false; 
-    validate_log.add(std::tuple(&v, ptr, &(deleted->v)));
-    return true;
-  }
-#endif
-  
   V* read_snapshot() {
     TS ls = local_stamp;
     versioned* head = set_stamp(v.read());
@@ -232,6 +226,7 @@ public:
   }
 
   V* load() {  // can be used anywhere
+    assert(this != nullptr);
     if (local_stamp != -1) return read_snapshot();
     auto x = v.load();
     return get_ptr_shortcut(set_stamp(x));
@@ -299,7 +294,8 @@ public:
     if (current_transaction == nullptr) {
       versioned* ptr_ = strip_indirect(new_v);
       TS t = global_stamp.get_write_stamp();
-      ptr_->time_stamp.cas_ni(tbd, t);
+      TS old_t = tbd;
+      ptr_->time_stamp.compare_exchange_strong(old_t, t);
     } 
 #else
     set_stamp(new_v);
@@ -343,26 +339,39 @@ public:
   }
 
   V* operator=(V* b) {store(b); return b; }
+  versioned* get_versioned() {return set_stamp(v.load());}
 };
 
-template <typename T>
-bool validate(flck::lock& lck, versioned_ptr<T>* ptr, T* expected,
-	      flck::atomic_write_once<bool>* deleted) {
+  bool validate_(flck::atomic_write_once<bool>* v, bool expected) {}
+
+#ifdef Validate
+  template <typename T>
+  bool validate(versioned_ptr<T>*, T*) {
+    versioned* ptr = set_stamp(v.load());
+    V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
+    if (cur != expected) return false; 
+    validate_log.add(std::tuple(&v, ptr, &(deleted->v)));
+    return true;
+  }
+#endif
+
+template <typename T, typename E>
+bool validate(flck::lock& lck, T* ptr, E& expected) {
 #ifdef TransUndo
   if (current_transaction != nullptr) {
 #ifdef Validate
     if (try_count < 20) // anywhere from 10-100 seems good
-      return ptr->validate(expected, deleted);
+      return validate_(ptr, expected);
     else // if too many tries give up on validation and take locks
-      return lck.try_lock([=] {
-        return (!deleted->load() && ptr->load() == expected);});
+      return lck.try_lock([=] {return (ptr->load() == expected);});
 #else
-  return lck.try_lock([=] {return (!deleted->load() && ptr->load() == expected);});
+  return lck.try_lock([=] {return (ptr->load() == expected));});
 #endif
   } else return true;
 #else
   return true;
 #endif
 }
+  
 
 } // namespace verlib
