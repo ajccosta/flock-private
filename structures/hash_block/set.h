@@ -131,7 +131,7 @@ struct slot {
     slot* s = table.get_slot(k);
     node* x = s->ptr.load();
     if (x == nullptr) return ot(std::optional<V>());
-    if (verlib::validate(s->lck, &s->ptr, x, &removed_hack))
+    if (verlib::validate(s->lck, &s->ptr, x))
       return ot(find_at(x, k));
     return ot();
   }

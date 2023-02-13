@@ -19,7 +19,8 @@ auto with_transaction(F f) {
 	  write_once_log.clear();
 #endif
 #ifdef Validate
-	  validate_log.clear();
+	  validate_ptr_log.clear();
+	  validate_val_log.clear();
 #endif	  
 	  auto x = f();
 	  TS ts;
@@ -28,13 +29,21 @@ auto with_transaction(F f) {
 	  if (x.has_value()) {
 	    current_transaction->time_stamp = tbs;
 	    ts = global_stamp.get_write_stamp();
-	    for (int i=0; i < validate_log.cnt; i++) {
-	      auto [loc, expected, removed] = validate_log.vals[i];
- 	      if (set_stamp(loc->load(), true) != expected || removed->load()) {
+	    for (int i=0; i < validate_ptr_log.cnt; i++) {
+	      auto [loc, expected] = validate_ptr_log.vals[i];
+ 	      if (set_stamp(loc->load(), true) != expected) {
 		passed = false;
 		break;
 	      }
 	    }
+	    if (passed)
+	      for (int i=0; i < validate_val_log.cnt; i++) {
+		auto [loc, expected] = validate_val_log.vals[i];
+		if (loc->load() != expected) {
+		  passed = false;
+		  break;
+		}
+	      }
 	    TS oldts = tbs;
 	    TS newts = passed ? ts : failed;
 	    current_transaction->time_stamp.compare_exchange_strong(oldts, newts);

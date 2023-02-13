@@ -15,6 +15,7 @@
 #include <array>
 namespace flck {
   template <typename T> struct atomic;
+  template <typename T> struct atomic_write_once;
   namespace internal {  struct lock; }}
 
 constexpr int log_len = 50;
@@ -46,7 +47,8 @@ namespace verlib { // trans
   thread_local transaction_log<bool*> allocated_log;
 #endif
 #ifdef Validate
-  thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*,std::atomic<bool>*>> validate_log;
+  thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
+  thread_local transaction_log<std::tuple<flck::atomic_write_once<bool>*,bool>> validate_val_log;
 #endif
 }
 #endif

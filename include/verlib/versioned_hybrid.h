@@ -13,9 +13,6 @@ namespace verlib {
 struct trans_descriptor {
   int owner;
   std::atomic<TS> time_stamp;
-#ifdef Validate
-  //thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*,std::atomic<bool>*>> validate_log;
-#endif
   trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {}
 };
 
@@ -339,24 +336,31 @@ public:
   }
 
   V* operator=(V* b) {store(b); return b; }
-  versioned* get_versioned() {return set_stamp(v.load());}
-};
-
-  bool validate_(flck::atomic_write_once<bool>* v, bool expected) {}
-
 #ifdef Validate
-  template <typename T>
-  bool validate(versioned_ptr<T>*, T*) {
+  bool validate(V* expected) {
     versioned* ptr = set_stamp(v.load());
     V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
     if (cur != expected) return false; 
-    validate_log.add(std::tuple(&v, ptr, &(deleted->v)));
+    validate_ptr_log.add(std::tuple(&v, ptr));
+    return true;
+  }
+#endif
+
+};
+
+#ifdef Validate
+  template <typename T>
+  bool validate_(versioned_ptr<T>* ptr, T* expected) {return ptr->validate(expected); }
+
+  bool validate_(flck::atomic_write_once<bool>* a, bool expected) {
+    if (a->load() != expected) return false;
+    validate_val_log.add(std::tuple(a, expected));
     return true;
   }
 #endif
 
 template <typename T, typename E>
-bool validate(flck::lock& lck, T* ptr, E& expected) {
+bool validate(flck::lock& lck, T* ptr, E expected) {
 #ifdef TransUndo
   if (current_transaction != nullptr) {
 #ifdef Validate
@@ -365,7 +369,7 @@ bool validate(flck::lock& lck, T* ptr, E& expected) {
     else // if too many tries give up on validation and take locks
       return lck.try_lock([=] {return (ptr->load() == expected);});
 #else
-  return lck.try_lock([=] {return (ptr->load() == expected));});
+    return lck.try_lock([=] {return (ptr->load() == expected);});
 #endif
   } else return true;
 #else

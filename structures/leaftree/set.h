@@ -137,7 +137,8 @@ struct Set {
     using ot = std::optional<std::optional<V>>;
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = p_left ? &(p->left) : &(p->right);
-    if (verlib::validate(p->lck, ptr, (node*) l, &p->removed))
+    if (verlib::validate(p->lck, ptr, (node*) l) &&
+	verlib::validate(p->lck, &p->removed, false))
       return ot(!l->is_sentinal && equal(l->key, k) ?
 		std::optional<V>(l->value) :
 		std::optional<V>());

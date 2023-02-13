@@ -351,7 +351,8 @@ struct Set {
   std::optional<std::optional<V>> try_find(node* root, const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [gp, p, cptr, l, pos] = find_location(root, k);
-    if (verlib::validate(p->lck, cptr, l, &p->removed))
+    if (verlib::validate(p->lck, cptr, l) &&
+	verlib::validate(p->lck, &p->removed, false))
       if (l == nullptr) return ot(std::optional<V>());
       else return ot(std::optional<V>(((leaf*) l)->value));
     else return ot();
