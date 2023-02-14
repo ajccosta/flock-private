@@ -19,25 +19,23 @@ struct trans_descriptor {
 flck::memory_pool<trans_descriptor> trans_descriptor_pool;
 #endif // Transactional
 
+#define init_ptr (((versioned*) nullptr) - 1)
+
 struct versioned {
   std::atomic<TS> time_stamp;
   versioned* next_version;
 #ifdef Transactional
   trans_descriptor* trans;
-  int op;
-  bool written() {
-    return time_stamp.load() != tbd || trans != nullptr;}
+  //int op;
+  bool written() {return next_version != init_ptr;}
   trans_descriptor* get_descriptor() {return trans;}
   TS get_stamp() {return time_stamp.load();}
-  void set_current_trans() {
-     trans = current_transaction;
-  }
   void clear_current_trans(TS ts) {
     time_stamp = ts;
     trans = nullptr;
   }
-  versioned() : op(-1), time_stamp(tbd), trans(nullptr) {} 
-  versioned(versioned* next) : op(-1), time_stamp(tbd), trans(nullptr), next_version(next) {}
+  versioned() : time_stamp(tbd), trans(current_transaction), next_version(init_ptr) {} 
+  versioned(versioned* next) : time_stamp(tbd), trans(current_transaction), next_version(next) {}
 #else
   bool written() {return time_stamp.load() != tbd;}
   versioned() : time_stamp(tbd) {}
@@ -173,8 +171,13 @@ struct versioned_ptr {
       if (td != nullptr)
 	assert(td->owner == flck::internal::current_id);
 #endif
-      if (ptr->time_stamp.load() == tbd) 
+      if (ptr->time_stamp.load() == tbd)  {
 	ptr->time_stamp = zero_stamp;
+#ifdef Transactional
+	ptr->trans = nullptr;
+	ptr->next_version = nullptr;
+#endif
+      }
     }
     return ptr;
   }
@@ -270,7 +273,11 @@ public:
       new_v = add_indirect(link_pool.new_obj(next, new_v)); 
     else ptr->next_version = next;
 #ifdef Transactional
-    strip_indirect(new_v)->set_current_trans();
+    // could allow this but then need indirect when not equal
+    if (strip_indirect(new_v)->get_descriptor() != current_transaction) {
+      std::cout << "bad descriptor: " << strip_indirect(new_v)->get_descriptor() << ", " <<  current_transaction << ", " << use_indirect << ", " << new_v->time_stamp << std::endl;
+    }
+    assert(strip_indirect(new_v)->get_descriptor() == current_transaction);
 #endif
       
 #ifdef NoShortcut

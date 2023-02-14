@@ -275,8 +275,12 @@ struct Set {
   
   std::optional<bool> try_insert(node* root, const K& k, const V& v) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
-    if (c != nullptr && c->nt == Leaf && c->byte_num == byte_pos)
-      return false; // already in the tree
+    if (c != nullptr && c->nt == Leaf && c->byte_num == byte_pos) // already in the tree
+      if (verlib::validate(p->lck, cptr, c) &&
+	  verlib::validate(p->lck, &p->removed, false))
+	return false;
+      else return {};
+
     if (cptr != nullptr) {// child pointer exists, always true for full node
       if (p->lck.try_lock([=] {
  	  // exit and retry if state has changed
@@ -326,8 +330,11 @@ struct Set {
   std::optional<bool> try_remove(node* root, const K& k) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
-    if (c == nullptr || !(c->nt == Leaf && c->byte_num == byte_pos))
-      return false;
+    if (c == nullptr || !(c->nt == Leaf && c->byte_num == byte_pos)) 
+      if (((cptr == nullptr) || verlib::validate(p->lck, cptr, c)) &&
+	  verlib::validate(p->lck, &p->removed, false))
+	return false;
+      else return {};
     if (p->lck.try_lock([=] {
         if (p->removed.load() || cptr->load() != c) return false;
 	node* other_child = single_other_child(p,c);

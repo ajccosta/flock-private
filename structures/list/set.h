@@ -48,7 +48,7 @@ struct Set {
       if (verlib::validate(cur->lck, &(cur->next), nxt) &&
 	  verlib::validate(cur->lck, &cur->removed, false))
 	return false;
-      else return {}
+      else return {};
     if (cur->lck.try_lock([=] {
       if (!cur->removed.load() && (cur->next).load() == nxt) {
 	node* new_node = node_pool.new_obj(k, v, nxt);
