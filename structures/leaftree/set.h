@@ -65,14 +65,17 @@ struct Set {
       
   std::optional<bool> try_insert(internal* root, const K& k, const V& v, bool upsert=false) {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
+    auto ptr = p_left ? &(p->left) : &(p->right);
     if (!l->is_sentinal &&
 	((!upsert && equal(l->key, k))))
       // || (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
       // l != prev_leaf)))
-      return false;
+      if (verlib::validate(p->lck, ptr, (node*) l) &&
+	  verlib::validate(p->lck, &p->removed, false))
+	return false;
+      else return {};
     //prev_leaf = l;
     auto r = p->lck.try_lock([=] {
-	auto ptr = p_left ? &(p->left) : &(p->right);
 	auto l_new = ptr->load();
 	if (p->removed.load() || l_new != l) return false;
 	node* new_l = leaf_pool.new_obj(k, v);
@@ -93,13 +96,18 @@ struct Set {
 
   std::optional<bool> try_remove(internal* root, const K& k) {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
+    auto ptr = gp_left ? &(gp->left) : &(gp->right);
     if (l->is_sentinal || !equal(k, l->key))
 	// || (prev_leaf != nullptr && prev_leaf != l))
+      // The following breaks the code for validate?? FIX!!
+      // if (verlib::validate(p->lck, ptr, (node*) l) &&
+      //  	  verlib::validate(p->lck, &p->removed, false))
+      //  	return false;
+      // else return {};
       return false;
     // prev_leaf = l;
     if (gp->lck.try_lock([=] {
       return p->lck.try_lock([=] {
-	  auto ptr = gp_left ? &(gp->left) : &(gp->right);
 	  if (gp->removed.load() || ptr->load() != p) return false;
 	  node* ll = (p->left).load();
 	  node* lr = (p->right).load();

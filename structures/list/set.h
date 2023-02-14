@@ -44,7 +44,11 @@ struct Set {
 
   std::optional<bool> try_insert(node* root, const K& k, const V& v) {
     auto [cur, nxt] = find_location(root, k);
-    if (!nxt->is_end && !less(k, nxt->key)) return false; //already there
+    if (!nxt->is_end && !less(k, nxt->key)) //already there
+      if (verlib::validate(cur->lck, &(cur->next), nxt) &&
+	  verlib::validate(cur->lck, &cur->removed, false))
+	return false;
+      else return {}
     if (cur->lck.try_lock([=] {
       if (!cur->removed.load() && (cur->next).load() == nxt) {
 	node* new_node = node_pool.new_obj(k, v, nxt);
@@ -62,7 +66,11 @@ struct Set {
 
   std::optional<bool> try_remove(node* root, const K& k) {
     auto [cur, nxt] = find_location(root, k);
-    if (nxt->is_end || less(k, nxt->key)) return false; // not found
+    if (nxt->is_end || less(k, nxt->key)) // not found
+      if (verlib::validate(cur->lck, &(cur->next), nxt) &&
+	  verlib::validate(cur->lck, &cur->removed, false))
+	return false;
+      else return {};
     if (cur->lck.try_lock([=] {
         if (cur->removed.load() || (cur->next).load() != nxt)
 	  return false;

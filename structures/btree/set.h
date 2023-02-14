@@ -558,14 +558,17 @@ struct Set {
 
   std::optional<bool> try_insert(node* root, const K& k, const V& v) {
     auto [p, cidx, l] = find_and_fix(root, k);
-    if (l->find(k).has_value()) return false; // already there
-    if (p->lck.try_lock([=] {
+    if (l->find(k).has_value()) // already there
+      if (verlib::validate(p->lck, &p->children[cidx], (node*) l) &&
+	  verlib::validate(p->lck, &p->removed, false))
+	return false;
+      else return {};
+    else if (p->lck.try_lock([=] {
       if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
       p->children[cidx] = (node*) insert_leaf(l, k, v);
       leaf_pool.retire(l);
-      return true;
-    })) return true;
+      return true;})) return true;
     else return {};
   }
 
@@ -582,14 +585,17 @@ struct Set {
 
   std::optional<bool> try_remove(node* root, const K& k) {
     auto [p, cidx, l] = find_and_fix(root, k);
-    if (!l->find(k).has_value()) return false; // not there
-    if (p->lck.try_lock([=] {
+    if (!l->find(k).has_value()) // not there
+      if (verlib::validate(p->lck, &p->children[cidx], (node*) l) &&
+	  verlib::validate(p->lck, &p->removed, false))
+	return false;
+      else return {};
+    else if (p->lck.try_lock([=] {
           if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
           p->children[cidx] = (node*) remove_leaf(l, k);
           leaf_pool.retire(l);
-          return true;
-        })) return true;
+          return true;})) return true;
     else return {};
   }
 
