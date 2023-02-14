@@ -56,7 +56,7 @@ else :
     lists = ["list"]
     lists_ro = []
     list_sizes = [100,1000]
-    trees = ["leaftree", "btree", "hash_block"] # "arttree"]
+    trees = ["leaftree", "btree", "hash_block", "arttree2"]
     tree_sizes = [1000,100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0, 2, 16]

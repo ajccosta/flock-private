@@ -59,7 +59,7 @@ struct Set {
     // an empty "full" node
     full_node() : node(Full) {
       // guy, can comment out below
-      for (int i=0; i < 256; i++) children[i].init(nullptr);
+      //for (int i=0; i < 256; i++) children[i].init(nullptr);
     }
   };
 
@@ -86,8 +86,8 @@ struct Set {
 
     // an empty indirect node
     indirect_node() : node(Indirect), num_used(0) {
-      for (int i=0; i < 256; i++) idx[i] = -1; //.init(-1);
-      for (int i=0; i < max_indirect_size; i++) ptr[i].init(nullptr);
+      //for (int i=0; i < 256; i++) idx[i] = -1; //.init(-1);
+      //for (int i=0; i < max_indirect_size; i++) ptr[i].init(nullptr);
     };
   };
 
@@ -206,7 +206,7 @@ struct Set {
 		  for (int i=0; i < 256; i++)
 		    i_c->idx[i] = i_n->idx[i];
 		  for (int i=0; i < i_n->num_used; i++) 
-		    i_c->ptr[i] = i_n->ptr[i].load();
+		    i_c->ptr[i].init(i_n->ptr[i].load());
 		  i_c->init_child(k, c);});
 		}
 		indirect_pool.retire(i_n);
@@ -218,7 +218,8 @@ struct Set {
 		  *child_ptr = (node*) indirect_pool.new_init([=] (indirect_node* i_n) {
   		    i_n->key = s_n->key;
 		    i_n->byte_num = s_n->byte_num;
-		    i_n->num_used = max_sparse_size + 1; 
+		    i_n->num_used = max_sparse_size + 1;
+		    for (int i=0; i < 256; i++) i_n->idx[i] = -1;
 		    for (int i=0; i < max_sparse_size; i++) {
 		      i_n->idx[s_n->keys[i]] = i; 
 		      i_n->ptr[i].init(s_n->ptr[i].load());
@@ -351,7 +352,7 @@ struct Set {
   std::optional<std::optional<V>> try_find(node* root, const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [gp, p, cptr, l, pos] = find_location(root, k);
-    if (verlib::validate(p->lck, cptr, l) &&
+    if (((cptr == nullptr) || verlib::validate(p->lck, cptr, l)) &&
 	verlib::validate(p->lck, &p->removed, false))
       if (l == nullptr) return ot(std::optional<V>());
       else return ot(std::optional<V>(((leaf*) l)->value));

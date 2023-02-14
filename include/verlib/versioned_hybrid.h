@@ -338,6 +338,7 @@ public:
   V* operator=(V* b) {store(b); return b; }
 #ifdef Validate
   bool validate(V* expected) {
+    assert(this != nullptr);
     versioned* ptr = set_stamp(v.load());
     V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
     if (cur != expected) return false; 
