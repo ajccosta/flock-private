@@ -6,11 +6,10 @@ thread_local int try_count;
 // wrapper for a transaction
 template <typename F>
 auto with_transaction(F f) { 
-  auto x = trans_descriptor_pool.new_obj();
-  auto r = flck::with_epoch([&] {
-      current_transaction = x;
-      try_count = 0;
-      auto r = flck::try_loop ([&] {
+  try_count = 0;
+  auto r = flck::try_loop ([&] {
+      return flck::with_epoch([&] {
+	  current_transaction = trans_descriptor_pool.new_obj();
  	  lock_log.clear();
 	  write_log.clear();
 #ifdef TransUndo
@@ -24,8 +23,8 @@ auto with_transaction(F f) {
 #endif	  
 	  auto x = f();
 	  TS ts;
-	  bool passed = true;
-	  #ifdef Validate
+	  bool passed = x.has_value();
+#ifdef Validate
 	  if (x.has_value()) {
 	    current_transaction->time_stamp = tbs;
 	    ts = global_stamp.get_write_stamp();
@@ -94,14 +93,12 @@ auto with_transaction(F f) {
 	  for (int i=0; i < lock_log.cnt; i++) {
 	    lock_log.vals[i]->unlock();
 	  }
+	  trans_descriptor* tmp = current_transaction;
+	  current_transaction = nullptr;
+	  trans_descriptor_pool.retire(tmp);
 	  using RT = decltype(x);
 	  if (passed) return x;
-	  else return RT();});
-	trans_descriptor* tmp = current_transaction;
-	current_transaction = nullptr;
-	trans_descriptor_pool.retire(tmp);
-      return r;
-    });
+	  else return RT();  }); });
   return r;
 }
 

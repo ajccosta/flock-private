@@ -29,13 +29,14 @@ struct versioned {
   //int op;
   bool written() {return next_version != init_ptr;}
   trans_descriptor* get_descriptor() {return trans;}
+  void set_descriptor() {trans = current_transaction;}
   TS get_stamp() {return time_stamp.load();}
   void clear_current_trans(TS ts) {
     time_stamp = ts;
     trans = nullptr;
   }
-  versioned() : time_stamp(tbd), trans(current_transaction), next_version(init_ptr) {} 
-  versioned(versioned* next) : time_stamp(tbd), trans(current_transaction), next_version(next) {}
+  versioned() : time_stamp(tbd), trans(nullptr), next_version(init_ptr) {} 
+  versioned(versioned* next) : time_stamp(tbd), trans(nullptr), next_version(next) {}
 #else
   bool written() {return time_stamp.load() != tbd;}
   versioned() : time_stamp(tbd) {}
@@ -64,6 +65,7 @@ flck::memory_pool<ver_link> link_pool;
     versioned* ptr_ = strip_indirect(ptr);
     assert(ptr_ != nullptr);
     trans_descriptor* td = ptr_->get_descriptor();
+    if (td == nullptr) std::cout << "undo null" << std::endl;
     assert(td != nullptr && td->owner == flck::internal::current_id);
     *loc = ptr_->next_version;
   }
@@ -100,11 +102,13 @@ TS set_transaction_stamp(trans_descriptor* desc) {
 	      td->time_stamp.compare_exchange_strong(old,failed);
 	    } else //otherwise wait until other is done (could also help)
 	      while (td->time_stamp.load() == tbs);
-	    if (td->time_stamp.load() == failed)
-	      return ptr_->next_version;
 #else
 	    if (td->time_stamp.load() == tbs)
 	      set_transaction_stamp(td);
+#endif
+#ifdef TransUndo
+	    if (td->time_stamp.load() == failed)
+	      return ptr_->next_version;
 #endif
 	  }
 	}
@@ -258,10 +262,6 @@ public:
 	if (td != nullptr) { // second write by same transaction
 	  //std::cout << ".";
 	  next = old_v_->next_version;
-	  // if (td->owner != flck::internal::current_id || td->pad != 11) {
-	  //   std::cout << "oops: " << (void*) td->pad << ", " << td->owner << ", " << td->time_stamp.load() << ", " << td->check_val << "," << flck::internal::current_id << std::endl;
-	  //   abort();
-	  // }
 	  assert(td->owner == flck::internal::current_id);
 	} else write_log.add(&v);
       } else write_log.add(&v); 
@@ -273,15 +273,20 @@ public:
       new_v = add_indirect(link_pool.new_obj(next, new_v)); 
     else ptr->next_version = next;
 #ifdef Transactional
-    // could allow this but then need indirect when not equal
-    if (strip_indirect(new_v)->get_descriptor() != current_transaction) {
-      std::cout << "bad descriptor: " << strip_indirect(new_v)->get_descriptor() << ", " <<  current_transaction << ", " << use_indirect << ", " << new_v->time_stamp << std::endl;
-    }
-    assert(strip_indirect(new_v)->get_descriptor() == current_transaction);
+    if (current_transaction != nullptr)
+      strip_indirect(new_v)->set_descriptor();
 #endif
       
 #ifdef NoShortcut
     v = new_v;
+#ifdef Transactional
+    if (current_transaction != nullptr)
+      for (int i=0; i < write_log.cnt; i++) {
+	auto des = strip_indirect(write_log.vals[i]->load())->get_descriptor();
+	if (des == nullptr) std::cout << "ouch: " << i << ", " << current_transaction << std::endl;
+      }
+#endif
+
     if (is_indirect(old_v))
       link_pool.retire((ver_link*) strip_indirect(old_v));
 #else
