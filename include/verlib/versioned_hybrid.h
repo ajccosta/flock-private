@@ -7,12 +7,13 @@ namespace verlib {
 
   thread_local long unsigned int* hold_a;
   thread_local int count_a;
-  thread_local int type_a;
+  thread_local char* type_a;
 
 #ifdef Transactional
 struct trans_descriptor {
-  int owner;
+  std::atomic<int> owner;
   std::atomic<TS> time_stamp;
+  //transaction_log<flck::atomic<versioned*>*> write_log;
   trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {}
 };
 
@@ -23,13 +24,13 @@ flck::memory_pool<trans_descriptor> trans_descriptor_pool;
 
 struct versioned {
   std::atomic<TS> time_stamp;
-  versioned* next_version;
+  std::atomic<versioned*> next_version;
 #ifdef Transactional
-  trans_descriptor* trans;
-  //int op;
-  bool written() {return next_version != init_ptr;}
+  std::atomic<trans_descriptor*> trans;
+  bool is_recorded() {return next_version != init_ptr;}
   trans_descriptor* get_descriptor() {return trans;}
-  void set_descriptor() {trans = current_transaction;}
+  void set_descriptor() {
+    trans = current_transaction;}
   TS get_stamp() {return time_stamp.load();}
   void clear_current_trans(TS ts) {
     time_stamp = ts;
@@ -38,7 +39,7 @@ struct versioned {
   versioned() : time_stamp(tbd), trans(nullptr), next_version(init_ptr) {} 
   versioned(versioned* next) : time_stamp(tbd), trans(nullptr), next_version(next) {}
 #else
-  bool written() {return time_stamp.load() != tbd;}
+  bool is_recorded() {return time_stamp.load() != tbd;}
   versioned() : time_stamp(tbd) {}
   versioned(versioned* next) : time_stamp(tbd), next_version(next) {}
 #endif
@@ -170,12 +171,7 @@ struct versioned_ptr {
   
   static versioned* set_zero_stamp(V* ptr) {
     if (ptr != nullptr) {
-#ifdef TransUndo
-      trans_descriptor* td = ptr->get_descriptor();
-      if (td != nullptr)
-	assert(td->owner == flck::internal::current_id);
-#endif
-      if (ptr->time_stamp.load() == tbd)  {
+      if (!ptr->is_recorded())  {
 	ptr->time_stamp = zero_stamp;
 #ifdef Transactional
 	ptr->trans = nullptr;
@@ -256,35 +252,45 @@ public:
     versioned* next = old_v;
 #ifdef Transactional
     if (current_transaction != nullptr) {
-      if (old_v != nullptr) {
-	versioned* old_v_ = strip_indirect(old_v);
-	trans_descriptor* td = old_v_->get_descriptor();
-	if (td != nullptr) { // second write by same transaction
-	  //std::cout << ".";
-	  next = old_v_->next_version;
-	  assert(td->owner == flck::internal::current_id);
-	} else write_log.add(&v);
-      } else write_log.add(&v); 
+      if (old_v != nullptr &&
+	  strip_indirect(old_v)->get_descriptor() != nullptr) {
+	next = strip_indirect(old_v)->next_version;
+      } else {
+	// if (write_log.cnt > 0 &
+	//     write_log.vals[write_log.cnt-1] == &v) {
+	//   std::cout << "adding repeat: " << old_v << ", " << strip_indirect(old_v)->get_descriptor() << "," << std::hex << (get_ptr(old_v)->key) << std::dec << ", " << (get_ptr(old_v)->nt) << ", " << (ptr->nt) << ", " << (get_ptr(old_v)->next_version) << std::endl;
+	//   for (int i=0; i < count_a; i++)
+	//     std::cout << std::hex << hold_a[i] << std::dec <<  ", " << (int) type_a[i] << std::endl;
+	// }
+	write_log.add(&v);
+      }
     }
 #endif
     versioned* new_v = ptr;
-    bool use_indirect = (ptr == nullptr || ptr->written());
+    assert(!is_indirect(ptr));
+    bool use_indirect = (ptr == nullptr || ptr->is_recorded());
     if (use_indirect) 
       new_v = add_indirect(link_pool.new_obj(next, new_v)); 
     else ptr->next_version = next;
 #ifdef Transactional
+    auto yy = current_transaction;
     if (current_transaction != nullptr)
       strip_indirect(new_v)->set_descriptor();
+    auto xx = strip_indirect(new_v)->get_descriptor();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif
       
 #ifdef NoShortcut
     v = new_v;
 #ifdef Transactional
-    if (current_transaction != nullptr)
-      for (int i=0; i < write_log.cnt; i++) {
-	auto des = strip_indirect(write_log.vals[i]->load())->get_descriptor();
-	if (des == nullptr) std::cout << "ouch: " << i << ", " << current_transaction << std::endl;
-      }
+    // if (current_transaction != nullptr)
+    //   for (int i=0; i < write_log.cnt; i++) {
+    // 	for (int j=0; j < i; j++)
+    // 	  if (write_log.vals[i] == write_log.vals[j]) std::cout << "repeat: " << i << "," << j << std::endl;
+    // 	auto des = strip_indirect(write_log.vals[i]->load())->get_descriptor();
+    // 	if (des == nullptr) std::cout << "ouch: " << i << ", " << write_log.cnt << ", " << current_transaction <<
+    // 			      ", " << strip_indirect(write_log.vals[i]->load()) << ", " << write_log.vals[i] << std::endl;
+    //   }
 #endif
 
     if (is_indirect(old_v))

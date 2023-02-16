@@ -71,11 +71,12 @@ public:
 #ifdef Transactional
 	if (verlib::current_transaction != nullptr) {
 	  verlib::lock_log.add(this);
-	} else
+	} else lck = newl.release_lock();  // release lock
+#else
+	lck = newl.release_lock();  // release lock
 #endif
-	  lck = newl.release_lock();  // release lock
         return std::optional<RT>(result); 
-          } else {
+      } else {
         return std::optional<RT>(); // fail
       }
     } else if (current.is_self_locked()) {// reentry
