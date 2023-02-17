@@ -45,27 +45,25 @@ auto with_transaction(F f) {
 		  break;
 		}
 	      }
-	    TS oldts = tbs;
-	    TS newts = passed ? ts : failed;
-	    current_transaction->time_stamp.compare_exchange_strong(oldts, newts);
+	    current_transaction->atomic_set_stamp(passed ? ts : failed);
 	    passed = current_transaction->time_stamp.load() != failed;
 #else
-	    ts = set_transaction_stamp(current_transaction);
+	    current_transaction->atomic_set_current_stamp();
+	    ts = current_transaction->time_stamp.load();
 #endif
 	  } 
 	  if (passed) {
 	    // set stamps on logged writes
-	    for (int i=0; i < write_log.cnt; i++) {
-	      versioned* ver = strip_indirect(write_log.vals[i]->load());
-	      assert(ver != nullptr);
-	      ver->clear_current_trans(ts);
-	    }
+	    for (int i=0; i < write_log.cnt; i++) 
+	      commit_versioned_store(write_log.vals[i], ts);
+
 #ifdef TransUndo
 	    // undo the retires on the logged allocates
 	    for (int i=0; i < allocated_log.cnt; i++)
 	      *allocated_log.vals[i] = true;
 #endif
 	  } else {
+	    //assert(false); // FIX!!
 #ifdef TransUndo
 	    current_transaction->time_stamp = failed;
 
@@ -84,7 +82,7 @@ auto with_transaction(F f) {
 
 	    // undo logged writes to versioned pointers
 	    for (int i=0; i < write_log.cnt; i++)
-	      undo_versioned_write(write_log.vals[i]);
+	      undo_versioned_store(write_log.vals[i]);
 #else
 	    std::cout << "error: undo requested, but turned off" << std::endl;
 	    abort(); 
@@ -98,7 +96,7 @@ auto with_transaction(F f) {
 	  // retire descripor
 	  trans_descriptor* tmp = current_transaction;
 	  current_transaction = nullptr;
-	  trans_descriptor_pool.retire(tmp);
+	  //trans_descriptor_pool.retire(tmp);
 
 	  // return optional value (empty if aborted)
 	  using RT = decltype(x);

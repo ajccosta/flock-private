@@ -79,12 +79,12 @@ struct Set {
 	auto l_new = ptr->load();
 	if (p->removed.load() || l_new != l) return false;
 	node* new_l = leaf_pool.new_obj(k, v);
-	if (equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
+	if (!l->is_sentinal && equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
 	else ptr->store((l->is_sentinal || less(l->key, k) ?
-		      internal_pool.new_obj(k, l, new_l) :
+			 internal_pool.new_obj(k, l, new_l) :
 			 internal_pool.new_obj(l->key, new_l, l)), 1);
 	return true;});
-    if (r) return !equal(k, l->key);
+    if (r) return (l->is_sentinal || !equal(k, l->key));
     else return {};
   }
 
@@ -124,11 +124,11 @@ struct Set {
 
   std::optional<V> find_(internal* root, const K& k) {
     auto ptr = &(root->left);
-    node* l = ptr->read();
+    node* l = ptr->load();
     while (!l->is_leaf) {
       internal* p = (internal*) l;
       auto ptr = less(k, p->key) ? &(p->left) : &(p->right);
-      l = ptr->read();
+      l = ptr->load();
     }
     auto ll = (leaf*) l;
     if (!ll->is_sentinal && equal(ll->key, k)) return ll->value; 
@@ -162,15 +162,18 @@ struct Set {
   void print(internal* p) {
     std::function<void(node*)> prec;
     prec = [&] (node* p) {
-	     if (p->is_leaf) std::cout << p->key << ", ";
+	     if (p->is_sentinal) std::cout << "[";
+	     else if (p->is_leaf) std::cout << p->key;
 	     else {
 	       internal* pp = (internal*) p;
 	       prec((pp->left).load());
+	       if (!(pp->left).load()->is_sentinal)
+		 std::cout << ", ";
 	       prec((pp->right).load());
 	     }
 	   };
     prec(p->left.load());
-    std::cout << std::endl;
+    std::cout << "]" << std::endl;
   }
 
   void retire(node* p) {
@@ -200,25 +203,38 @@ struct Set {
 
   long check(internal* p) {
     using rtup = std::tuple<K, K, long>;
-    std::function<rtup(node*)> crec;
-    crec = [&] (node* p) {
-	     if (p->is_sentinal) return rtup(p->key, p->key, 0);
-	     if (p->is_leaf) return rtup(p->key, p->key, 1);
+    std::function<rtup(node*,bool)> crec;
+    crec = [&] (node* p, bool leftmost) {
+	     if (p->is_leaf)
+	       if (leftmost) {
+		 if (p->is_sentinal) return rtup(p->key, p->key, 0);
+		 else {
+		   std::cout << "error, leftmost leaf is not a sentinal" << std::endl;
+		   abort();
+		 }
+	       } else if (p->is_sentinal) {
+		 std::cout << "error, not leftmost leaf is a sentinal" << std::endl;
+		 abort();
+	       } else return rtup(p->key, p->key, 1);
+	     if (p->is_sentinal) {
+	       std::cout << "error, interior node is a sentinal" << std::endl;
+	       abort();
+	     }
 	     internal* pp = (internal*) p;
 	     K lmin,lmax,rmin,rmax;
 	     long lsum, rsum;
-	     parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((pp->left).load());},
-			    [&] () { std::tie(rmin,rmax,rsum) = crec((pp->right).load());});
+	     parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((pp->left).load(), leftmost);},
+			    [&] () { std::tie(rmin,rmax,rsum) = crec((pp->right).load(), false);});
 	     if ((lsum !=0 && !less(lmax, pp->key)) || less(rmin, pp->key))
 	       std::cout << "out of order key: " << lmax << ", " << pp->key << ", " << rmin << std::endl;
 	     if (lsum == 0) return rtup(pp->key, rmax, rsum);
 	     else return rtup(lmin, rmax, lsum + rsum);
 	   };
-    auto [minv, maxv, cnt] = crec(p->left.load());
+    auto l = (p->left).load();
+    auto [minv, maxv, cnt] = crec(l, true);
     //std::cout << "average height = " << ((double) total_height(p) / cnt) << std::endl;
     return cnt;
   }
-
   void clear() {
     internal_pool.clear();
     leaf_pool.clear();

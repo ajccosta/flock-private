@@ -9,12 +9,35 @@ namespace verlib {
   thread_local int count_a;
   thread_local char* type_a;
 
+// Special timestamps
+const TS tbd = std::numeric_limits<TS>::max()/2;
+#ifdef Transactional
+const TS tbs = std::numeric_limits<TS>::max()/2 - 1;
+const TS failed = std::numeric_limits<TS>::max()/2 - 2;
+#endif  
+
 #ifdef Transactional
 struct trans_descriptor {
-  std::atomic<int> owner;
-  std::atomic<TS> time_stamp;
-  //transaction_log<flck::atomic<versioned*>*> write_log;
-  trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {}
+  // the thread id the descriptor belongs to
+  const int owner; 
+
+  // originally "tbd", then "tbs", then either a real timestamp or "failed"
+  std::atomic<TS> time_stamp;  
+
+  void atomic_set_stamp(TS ts) {
+    TS old = tbs;
+    assert(time_stamp.load() != tbd);
+    if (time_stamp.load() == tbs)
+      time_stamp.compare_exchange_strong(old, ts);
+  }
+
+  void atomic_set_current_stamp() {
+    atomic_set_stamp(global_stamp.get_write_stamp());
+  }
+
+  trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+  }
 };
 
 flck::memory_pool<trans_descriptor> trans_descriptor_pool;
@@ -23,26 +46,80 @@ flck::memory_pool<trans_descriptor> trans_descriptor_pool;
 #define init_ptr (((versioned*) nullptr) - 1)
 
 struct versioned {
-  std::atomic<TS> time_stamp;
+private:
+  std::atomic<TS> stamp_or_descriptor;
   std::atomic<versioned*> next_version;
+
 #ifdef Transactional
-  std::atomic<trans_descriptor*> trans;
-  bool is_recorded() {return next_version != init_ptr;}
-  trans_descriptor* get_descriptor() {return trans;}
-  void set_descriptor() {
-    trans = current_transaction;}
-  TS get_stamp() {return time_stamp.load();}
-  void clear_current_trans(TS ts) {
-    time_stamp = ts;
-    trans = nullptr;
+
+  // tags second highest bit to mark as descriptor
+  constexpr static int bit_num = 62;
+  static bool is_tagged(TS sd) {return (sd >> bit_num) & 1;}
+  static TS tag_descriptor(trans_descriptor* ptr) {
+    return (TS) ptr | (1ul << bit_num);}
+  static trans_descriptor* untag_descriptor(TS sd) {
+    return (trans_descriptor*) (sd & ~(1ul << bit_num));}
+
+public:
+
+  std::pair<trans_descriptor*, TS> get_stamp_and_descriptor() {
+    TS td = stamp_or_descriptor.load();
+    if (is_tagged(td))
+      return std::pair(untag_descriptor(td), tbd);
+    else return std::pair(nullptr, td);
   }
-  versioned() : time_stamp(tbd), trans(nullptr), next_version(init_ptr) {} 
-  versioned(versioned* next) : time_stamp(tbd), trans(nullptr), next_version(next) {}
+
+  bool has_self_descriptor() {
+    TS td = stamp_or_descriptor.load();
+    if (is_tagged(td)) {
+      assert(untag_descriptor(td)->owner == flck::internal::current_id);
+      return true;
+    } else return false;
+  }
+
+  void set_descriptor() {
+    assert(stamp_or_descriptor.load() == tbd);
+    stamp_or_descriptor = tag_descriptor(current_transaction);
+  }
+
+  void clear_descriptor(TS ts) {
+    TS td = stamp_or_descriptor.load();
+    assert(is_tagged(td) &&
+	   untag_descriptor(td)->owner == flck::internal::current_id);
+    stamp_or_descriptor = ts;
+  }
+
+  // once a next version is installed, it becomes recorded
+  bool is_recorded() {
+    return next_version != init_ptr;}
+  
+  void set_stamp(TS t) {
+    assert(stamp_or_descriptor.load() == tbd);
+    next_version = nullptr;
+    stamp_or_descriptor = t;
+  }
+  
+  TS get_stamp() {
+    TS td = stamp_or_descriptor.load();
+    assert(!is_tagged(td));
+    return td;
+  }
 #else
-  bool is_recorded() {return time_stamp.load() != tbd;}
-  versioned() : time_stamp(tbd) {}
-  versioned(versioned* next) : time_stamp(tbd), next_version(next) {}
+public:
+  bool is_recorded() {return stamp_or_descriptor.load() != tbd;}
+  void set_stamp(TS t) { stamp_or_descriptor = t;}
+  TS get_stamp() { return stamp_or_descriptor;}
 #endif
+  versioned() : stamp_or_descriptor(tbd), next_version(init_ptr) {} 
+  versioned(versioned* next) : stamp_or_descriptor(tbd), next_version(next) {}
+  versioned* get_next_version() {return next_version;}
+  void set_next_version(versioned* nv) {next_version = nv;}
+  void set_with_current_stamp() {
+    TS old_t = tbd;
+    TS new_t = global_stamp.get_write_stamp();
+    if (stamp_or_descriptor.load() == tbd) 
+      stamp_or_descriptor.compare_exchange_strong(old_t, new_t);
+  }
 };
 
   // uses lowest bit of pointer to indicate whether indirect (1) or not (0)
@@ -61,60 +138,44 @@ struct ver_link : versioned {
 flck::memory_pool<ver_link> link_pool;
 
 #ifdef Transactional
-  void undo_versioned_write(flck::atomic<versioned*>* loc, bool flag=false) {
-    versioned* ptr = loc->load();
-    versioned* ptr_ = strip_indirect(ptr);
+  void undo_versioned_store(flck::atomic<versioned*>* loc) {
+    versioned* ptr_ = strip_indirect(loc->load());
     assert(ptr_ != nullptr);
-    trans_descriptor* td = ptr_->get_descriptor();
-    if (td == nullptr) std::cout << "undo null" << std::endl;
-    assert(td != nullptr && td->owner == flck::internal::current_id);
-    *loc = ptr_->next_version;
+    // splice this latest version out
+    *loc = ptr_->get_next_version();
+    // mark its timestamp as failed
+    ptr_->clear_descriptor(failed);
   }
 
-// set the stamp on the transaction descriptor
-TS set_transaction_stamp(trans_descriptor* desc) {
-  TS t = global_stamp.get_write_stamp();
-  TS old = tbs;
-  if (desc->time_stamp.load() == tbs)
-    desc->time_stamp.compare_exchange_strong(old, t);
-  return desc->time_stamp.load();
-}
+  void commit_versioned_store(flck::atomic<versioned*>* loc, TS ts) {
+    versioned* ptr_ = strip_indirect(loc->load());
+    assert(ptr_ != nullptr);
+    ptr_->clear_descriptor(ts);
+  }
 
   versioned* set_stamp(versioned* ptr, bool validating=false) {
+    if (ptr == nullptr) return nullptr;
     versioned* ptr_ = strip_indirect(ptr);
-    if (ptr_ != nullptr) {
-      TS t = ptr_->get_stamp();
-      trans_descriptor* td = ptr_->get_descriptor();
-      if (t == tbd && td == nullptr) {
-	TS new_t = global_stamp.get_write_stamp();
-	if (ptr_->time_stamp.load() == tbd) {
-	  TS old_t = tbd;
-	  ptr_->time_stamp.compare_exchange_strong(old_t, new_t);
-	}
-      } else if (td != nullptr) {
-	if (td->owner != flck::internal::current_id) {
-	  if (td->time_stamp.load() == tbd)
-	    return ptr_->next_version;
-	  else {
+    auto [td, ts] = ptr_->get_stamp_and_descriptor();
+    if (ts != tbd) return (ts == failed) ? ptr_->get_next_version() : ptr;
+    if (td == nullptr) {ptr_->set_with_current_stamp(); return ptr; }
+    if (td->owner == flck::internal::current_id) return ptr;
+
+    // at this point there is a descriptor and it is owned by someone else
 #ifdef Validate
-	    if (validating && td->time_stamp.load() == tbs && td->owner < flck::internal::current_id) { 
-	      // kill other if they have lower id. prevents wait cycle
-	      TS old = tbs;
-	      td->time_stamp.compare_exchange_strong(old,failed);
-	    } else //otherwise wait until other is done (could also help)
-	      while (td->time_stamp.load() == tbs);
+    if (validating &&
+	td->time_stamp.load() == tbs &&
+	td->owner < flck::internal::current_id) { 
+      // kill other if they have lower id. prevents wait cycle
+      td->atomic_set_stamp(failed);
+    } else //otherwise wait until other is done (could also help)
+      while (td->time_stamp.load() == tbs);
+    if (td->time_stamp.load() == failed)
+      return ptr_->get_next_version();
 #else
-	    if (td->time_stamp.load() == tbs)
-	      set_transaction_stamp(td);
+    if (td->time_stamp.load() == tbs)
+      td->atomic_set_current_stamp();
 #endif
-#ifdef TransUndo
-	    if (td->time_stamp.load() == failed)
-	      return ptr_->next_version;
-#endif
-	  }
-	}
-      }
-    }
     return ptr;
   }
 
@@ -123,13 +184,8 @@ TS set_transaction_stamp(trans_descriptor* desc) {
 #else // Not transactional
   versioned* set_stamp(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
-    if (ptr != nullptr && ptr_->time_stamp.load() == tbd) {
-      TS t = global_stamp.get_write_stamp();
-      if(ptr_->time_stamp.load() == tbd) {
-	TS old_t = tbd;
-        ptr_->time_stamp.compare_exchange_strong(old_t, t);
-      }
-    }
+    if (ptr != nullptr && ptr_->get_stamp() == tbd) 
+      ptr_->set_with_current_stamp();
     return ptr;
   }
 #endif
@@ -167,18 +223,10 @@ struct versioned_ptr {
     shortcut(ptr);
     return (V*) ((ver_link*) ptr_)->value;
   }
-
   
   static versioned* set_zero_stamp(V* ptr) {
-    if (ptr != nullptr) {
-      if (!ptr->is_recorded())  {
-	ptr->time_stamp = zero_stamp;
-#ifdef Transactional
-	ptr->trans = nullptr;
-	ptr->next_version = nullptr;
-#endif
-      }
-    }
+    if (ptr != nullptr && !ptr->is_recorded())
+      ptr->set_stamp(zero_stamp);
     return ptr;
   }
 
@@ -207,22 +255,22 @@ public:
 
   V* read_snapshot() {
     TS ls = local_stamp;
-    versioned* head = set_stamp(v.read());
-    versioned* head_unmarked = strip_indirect(head);
+    versioned* ptr = set_stamp(v.read());
+    versioned* ptr_ = strip_indirect(ptr);
 
     // chase down version chain
-    while (head != nullptr && head_unmarked->time_stamp.load() > ls) {
-      head = head_unmarked->next_version;
-      head_unmarked = strip_indirect(head);
+    while (ptr != nullptr && ptr_->get_stamp() > ls) {
+      ptr = ptr_->get_next_version();
+      ptr_ = strip_indirect(ptr);
     }
 #ifdef LazyStamp
-    if (head != nullptr && head_unmarked->time_stamp.load() == ls
+    if (ptr != nullptr && ptr_->get_stamp() == ls
 	&& speculative)
       aborted = true;
 #endif
-    if (is_indirect(head)) {
-      return (V*) ((ver_link*) head_unmarked)->value;
-    } else return (V*) head;
+    if (is_indirect(ptr)) {
+      return (V*) ((ver_link*) ptr_)->value;
+    } else return (V*) ptr;
   }
 
   V* load() {  // can be used anywhere
@@ -232,14 +280,9 @@ public:
     return get_ptr_shortcut(set_stamp(x));
   }
   
-  V* read() {  // only safe on journey
-    return get_ptr_shortcut(v.read());
-  }
-
-  void validate() {
-    set_stamp(v.load());     // ensure time stamp is set
-  }
-
+  // V* read() {  // only safe on journey
+  //   return get_ptr_shortcut(v.read());
+  // }
 
 #ifdef SlowStore
   void store(V* newv) {
@@ -252,16 +295,10 @@ public:
     versioned* next = old_v;
 #ifdef Transactional
     if (current_transaction != nullptr) {
-      if (old_v != nullptr &&
-	  strip_indirect(old_v)->get_descriptor() != nullptr) {
-	next = strip_indirect(old_v)->next_version;
-      } else {
-	// if (write_log.cnt > 0 &
-	//     write_log.vals[write_log.cnt-1] == &v) {
-	//   std::cout << "adding repeat: " << old_v << ", " << strip_indirect(old_v)->get_descriptor() << "," << std::hex << (get_ptr(old_v)->key) << std::dec << ", " << (get_ptr(old_v)->nt) << ", " << (ptr->nt) << ", " << (get_ptr(old_v)->next_version) << std::endl;
-	//   for (int i=0; i < count_a; i++)
-	//     std::cout << std::hex << hold_a[i] << std::dec <<  ", " << (int) type_a[i] << std::endl;
-	// }
+      if (old_v != nullptr && strip_indirect(old_v)->has_self_descriptor()) { 
+	next = strip_indirect(old_v)->get_next_version();
+      } else { 
+	assert(write_log.cnt == 0 || write_log.vals[write_log.cnt-1] != &v);
 	write_log.add(&v);
       }
     }
@@ -271,28 +308,20 @@ public:
     bool use_indirect = (ptr == nullptr || ptr->is_recorded());
     if (use_indirect) 
       new_v = add_indirect(link_pool.new_obj(next, new_v)); 
-    else ptr->next_version = next;
+    else ptr->set_next_version(next);
 #ifdef Transactional
-    auto yy = current_transaction;
     if (current_transaction != nullptr)
       strip_indirect(new_v)->set_descriptor();
-    auto xx = strip_indirect(new_v)->get_descriptor();
-    std::atomic_thread_fence(std::memory_order_seq_cst);
 #endif
       
 #ifdef NoShortcut
     v = new_v;
 #ifdef Transactional
-    // if (current_transaction != nullptr)
-    //   for (int i=0; i < write_log.cnt; i++) {
-    // 	for (int j=0; j < i; j++)
-    // 	  if (write_log.vals[i] == write_log.vals[j]) std::cout << "repeat: " << i << "," << j << std::endl;
-    // 	auto des = strip_indirect(write_log.vals[i]->load())->get_descriptor();
-    // 	if (des == nullptr) std::cout << "ouch: " << i << ", " << write_log.cnt << ", " << current_transaction <<
-    // 			      ", " << strip_indirect(write_log.vals[i]->load()) << ", " << write_log.vals[i] << std::endl;
-    //   }
+    // need to comment this out
+    if (current_transaction != nullptr)
+      for (int i=0; i < write_log.cnt; i++) 
+	assert(strip_indirect(write_log.vals[i]->load())->has_self_descriptor());
 #endif
-
     if (is_indirect(old_v))
       link_pool.retire((ver_link*) strip_indirect(old_v));
 #else
@@ -306,12 +335,8 @@ public:
     }
 #endif
 #ifdef Transactional
-    if (current_transaction == nullptr) {
-      versioned* ptr_ = strip_indirect(new_v);
-      TS t = global_stamp.get_write_stamp();
-      TS old_t = tbd;
-      ptr_->time_stamp.compare_exchange_strong(old_t, t);
-    } 
+    if (current_transaction == nullptr)
+      strip_indirect(new_v)->set_with_current_stamp();
 #else
     set_stamp(new_v);
 #endif
@@ -319,41 +344,42 @@ public:
   }
 #endif
   
-  bool cas(V* exp, V* ptr) {
-#ifndef NoShortcut
-    for(int ii = 0; ii < 2; ii++) {
-#endif
-      versioned* old_v = v.load();
-      versioned* new_v = ptr;
-      V* old = get_ptr(old_v);
-      set_stamp(old_v);
-      if(old != exp) return false;
-      if (exp == ptr) return true;
-      bool use_indirect = (ptr == nullptr || !ptr->is_unset());
+//   bool cas(V* exp, V* ptr) {
+// #ifndef NoShortcut
+//     for(int ii = 0; ii < 2; ii++) {
+// #endif
+//       versioned* old_v = v.load();
+//       versioned* new_v = ptr;
+//       V* old = get_ptr(old_v);
+//       set_stamp(old_v);
+//       if(old != exp) return false;
+//       if (exp == ptr) return true;
+//       bool use_indirect = (ptr == nullptr || !ptr->is_unset());
 
-      if(use_indirect)
-	new_v = add_indirect(link_pool.new_obj(old_v, new_v));
-      else ptr->next_version = old_v;
+//       if(use_indirect)
+// 	new_v = add_indirect(link_pool.new_obj(old_v, new_v));
+//       else ptr->next_version = old_v;
 
-      if (cas_from_cam(old_v, new_v)) {
-        set_stamp(new_v);
-        if (is_indirect(old_v))
-	  link_pool.retire((ver_link*) strip_indirect(old_v));
-#ifndef NoShortcut
-	if (use_indirect) shortcut(new_v);
-#endif
-        return true;
-      }
-      if (use_indirect)
-	link_pool.destruct((ver_link*) strip_indirect(new_v));
-#ifndef NoShortcut
-    }
-#endif
-    set_stamp(v.load());
-    return false;
-  }
+//       if (cas_from_cam(old_v, new_v)) {
+//         set_stamp(new_v);
+//         if (is_indirect(old_v))
+// 	  link_pool.retire((ver_link*) strip_indirect(old_v));
+// #ifndef NoShortcut
+// 	if (use_indirect) shortcut(new_v);
+// #endif
+//         return true;
+//       }
+//       if (use_indirect)
+// 	link_pool.destruct((ver_link*) strip_indirect(new_v));
+// #ifndef NoShortcut
+//     }
+// #endif
+//     set_stamp(v.load());
+//     return false;
+//   }
 
   V* operator=(V* b) {store(b); return b; }
+
 #ifdef Validate
   bool validate(V* expected) {
     assert(this != nullptr);
@@ -369,7 +395,8 @@ public:
 
 #ifdef Validate
   template <typename T>
-  bool validate_(versioned_ptr<T>* ptr, T* expected) {return ptr->validate(expected); }
+  bool validate_(versioned_ptr<T>* ptr, T* expected) {
+    return ptr->validate(expected); }
 
   bool validate_(flck::atomic_write_once<bool>* a, bool expected) {
     if (a->load() != expected) return false;
@@ -379,22 +406,21 @@ public:
 #endif
 
 template <typename T, typename E>
-bool validate(flck::lock& lck, T* ptr, E expected) {
-#ifdef TransUndo
+bool validate(flck::lock& lck, T* v, E expected) {
+#ifdef TransUndo // FIX!!
   if (current_transaction != nullptr) {
 #ifdef Validate
     if (try_count < 20) // anywhere from 10-100 seems good
-      return validate_(ptr, expected);
+      return validate_(v, expected);
     else // if too many tries give up on validation and take locks
-      return lck.try_lock([=] {return (ptr->load() == expected);});
+      return lck.try_lock([=] {return (v->load() == expected);});
 #else
-    return lck.try_lock([=] {return (ptr->load() == expected);});
+    return lck.try_lock([=] {return (v->load() == expected);});
 #endif
   } else return true;
 #else
   return true;
 #endif
 }
-  
 
 } // namespace verlib

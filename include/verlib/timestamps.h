@@ -282,11 +282,6 @@ timestamp_no_inc global_stamp;
 timestamp_read_write global_stamp;
 #endif
 
-const TS tbd = std::numeric_limits<TS>::max();
-#ifdef Transactional
-const TS tbs = std::numeric_limits<TS>::max() - 1;
-const TS failed = std::numeric_limits<TS>::max() - 2;
-#endif  
 const TS zero_stamp = 1;
 thread_local TS local_stamp{-1};
 

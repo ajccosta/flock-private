@@ -374,7 +374,7 @@ struct Set {
 
   std::optional<V> find_(node* root, const K& k) {
     auto [gp, p, cptr, l, pos] = find_location(root, k);
-    if (cptr != nullptr) cptr->validate();
+    //if (cptr != nullptr) cptr->validate();
     auto ll = (leaf*) l;
     if (ll != nullptr) return std::optional<V>(ll->value); 
     else return {};
