@@ -96,6 +96,7 @@ void run_mixed_operations(SetType& os,
 
   for (int i = 1; i < rounds+1; i++) {
     auto tr = os.empty(buckets);
+    auto tr2 = os.empty(buckets);
     long len;
     if (do_check) {
       size_t len = os.check(tr);
@@ -147,6 +148,7 @@ void run_mixed_operations(SetType& os,
 					     
     parlay::parallel_for(0, p, [&] (size_t i) {
 	int cnt = 0;
+	int current_id = flck::internal::current_id;
 	size_t j = i*mp;
 	size_t total = 0;
 	long added = 0;
@@ -232,9 +234,20 @@ void run_mixed_operations(SetType& os,
 	    if (j < (i+1)*mp -2) {
 	      update_count += 2;
 	      added += verlib::with_transaction([&] {
-			  bool de = os.remove_(tr, std::min(all[j],all[j+1]));
-			  bool in = os.insert_(tr, std::max(all[j],all[j+1]), 123);
-			  return std::optional<int>(in - de);});
+				bool ins = (parlay::hash64(j + i) % 2) == 0;
+				if (ins) { 
+				  auto x = os.try_insert(tr, all[j], 123);
+				  if (!x.has_value()) return std::optional<int>();
+				  //if (*x) std::cout << 10*all[j] + i << ",";
+				  auto y = os.try_remove(tr2, all[j]);
+				  if (!y.has_value()) return std::optional<int>();
+				  return std::optional<int>(*x ? 1 : 0);
+				} else {
+				  auto x = os.try_remove(tr, all[j]);
+				  if (!x.has_value()) return std::optional<int>();
+				  auto y = os.try_insert(tr2, all[j+1], 123);
+				  if (!y.has_value()) return std::optional<int>();
+				  return std::optional<int>(*x ? -1 : 0);}});
 	      cnt += 2;
 	      total += 2;
 	    }
@@ -303,7 +316,9 @@ void run_mixed_operations(SetType& os,
 	  total++;
 	}
       }, 1);
+
     double duration = t.stop();
+    //os.print(tr);
     if (duration > 1.1 * trial_time)
       std::cout << "duration: " << duration << std::endl;
 

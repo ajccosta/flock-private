@@ -194,6 +194,7 @@ public:
 
   // destruction and freeing is delayed until a future epoch
   bool* retire(T* p, bool add_to_log=true) {
+    //return nullptr;
     auto i = parlay::worker_id();
     auto &pid = pools[i];
     if (pid.epoch < epoch.get_current()) {

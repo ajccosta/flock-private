@@ -80,9 +80,9 @@ struct Set {
 	if (p->removed.load() || l_new != l) return false;
 	node* new_l = leaf_pool.new_obj(k, v);
 	if (!l->is_sentinal && equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
-	else ptr->store((l->is_sentinal || less(l->key, k) ?
-			 internal_pool.new_obj(k, l, new_l) :
-			 internal_pool.new_obj(l->key, new_l, l)), 1);
+	else *ptr = (l->is_sentinal || less(l->key, k) ?
+		     internal_pool.new_obj(k, l, new_l) :
+		     internal_pool.new_obj(l->key, new_l, l));
 	return true;});
     if (r) return (l->is_sentinal || !equal(k, l->key));
     else return {};

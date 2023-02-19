@@ -68,13 +68,13 @@ if all :
     trees = trees + ["hash", "leaftree", "blockleaftree", "avltree"]
     
 if test_only :
-    time = .5
+    time = .2
     rounds = 1
     zipfians = [.99]
-    tree_sizes = [100000]
-    list_sizes = [100]
+    tree_sizes = [1,100000]
+    list_sizes = [1,100]
     trans_sizes = [16]
-    suffixes_all = ["_noundo", "_trans", "_validate"]
+    suffixes_all = ["_noundo", "_trans"] #, "_validate"]
     mix_percents = [[50,0,0,0]]
     
 today = date.today().strftime("%m_%d_%y")

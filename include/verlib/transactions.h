@@ -17,40 +17,14 @@ auto with_transaction(F f) {
 	  retired_log.clear();
 	  write_once_log.clear();
 #endif
-#ifdef Validate
-	  validate_ptr_log.clear();
-	  validate_val_log.clear();
-#endif	  
+	  assert(current_transaction->time_stamp == tbd);
 	  auto x = f();
 	  TS ts;
 	  bool passed = x.has_value();
 	  if (passed) {
 	    current_transaction->time_stamp = tbs;
-#ifdef Validate
-	    ts = global_stamp.get_write_stamp();
-	    // validate versioned pointers
-	    for (int i=0; i < validate_ptr_log.cnt; i++) {
-	      auto [loc, expected] = validate_ptr_log.vals[i];
- 	      if (set_stamp(loc->load(), true) != expected) {
-		passed = false;
-		break;
-	      }
-	    }
-	    if (passed)
-	      // validate values
-	      for (int i=0; i < validate_val_log.cnt; i++) {
-		auto [loc, expected] = validate_val_log.vals[i];
-		if (loc->load() != expected) {
-		  passed = false;
-		  break;
-		}
-	      }
-	    current_transaction->atomic_set_stamp(passed ? ts : failed);
-	    passed = current_transaction->time_stamp.load() != failed;
-#else
 	    current_transaction->atomic_set_current_stamp();
 	    ts = current_transaction->time_stamp.load();
-#endif
 	  } 
 	  if (passed) {
 	    // set stamps on logged writes
@@ -63,16 +37,16 @@ auto with_transaction(F f) {
 	      *allocated_log.vals[i] = true;
 #endif
 	  } else {
-	    //assert(false); // FIX!!
 #ifdef TransUndo
 	    current_transaction->time_stamp = failed;
+	    //std::cout << write_log.cnt << "+";
 
 	    // if count goes too high uses lock for validation on next try
 	    try_count++;
 	    
 	    // undo the logged retires
 	    for (int i=0; i < retired_log.cnt; i++)
-	      *retired_log.vals[i] = true;
+	      *retired_log.vals[i] = true; 
 
 	    // undo logged write onces
 	    for (int i=0; i < write_once_log.cnt; i++) {
@@ -90,13 +64,14 @@ auto with_transaction(F f) {
 	  }
 	  // unlock all acquired locks
 	  for (int i=0; i < lock_log.cnt; i++) {
+	    assert(lock_log.vals[i]->is_self_locked());
 	    lock_log.vals[i]->unlock();
 	  }
 
 	  // retire descripor
 	  trans_descriptor* tmp = current_transaction;
 	  current_transaction = nullptr;
-	  //trans_descriptor_pool.retire(tmp);
+	  trans_descriptor_pool.retire(tmp); 
 
 	  // return optional value (empty if aborted)
 	  using RT = decltype(x);
