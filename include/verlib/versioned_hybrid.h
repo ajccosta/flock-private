@@ -180,20 +180,6 @@ namespace verlib {
     return tagged_ptr;
   }
 
-#include "transactions.h"
-
-#else // Not transactional
-  versioned* set_stamp(versioned* tagged_ptr) {
-    versioned* ptr = strip_indirect(tagged_ptr);
-    if (ptr != nullptr && ptr->get_stamp() == tbd) 
-      ptr->set_with_current_stamp();
-    return tagged_ptr;
-  }
-#endif
-
-#ifdef Transactional
-  using atomic_val = size_t;
-
   struct hold {
     atomic_val old_val;
     atomic_val new_val;
@@ -210,37 +196,7 @@ namespace verlib {
 
   static flck::memory_pool<hold> hold_pool;
 
-  template <typename V> 
-  struct atomic {
-    std::atomic<atomic_val> v;
-    V load() {
-      atomic_val x = v.load();
-      if (!hold::is_held(x)) return (V) x;
-      hold* ptr = hold::untag_hold(x);
-      trans_descriptor* td = ptr->descriptor;
-      if (td->time_stamp == tbd) return (V) ptr->old_val;
-      td->atomic_set_current_stamp();
-      return (V) ptr->new_val;
-    }
-    void store(V x) {
-      if (current_transaction == nullptr) v = x;
-      else {
-	atomic_val y = v.load();
-	if (hold::is_held(y)) {
-	  hold* ptr = hold::untag_hold(x);
-	  trans_descriptor* td = ptr->descriptor;
-	  assert(td->owner == flck::internal::current_id);
-	  ptr->new_val = (atomic_val) x;
-	} else {
-	  v = hold::tag_hold(hold_pool.new_obj(y, (atomic_val) x, current_transaction));
-	}
-      }
-    }
-
-    V operator=(V b) {store(b); return b; }
-  };
-
-  void finalize_atomic_store(atomic_val* loc) {
+  void finalize_atomic_store(std::atomic<atomic_val>* loc) {
     assert(hold::is_held(*loc));
     auto hold_ptr = hold::untag_hold(*loc);
     assert(hold_ptr->descriptor->owner == flck::internal::current_id);
@@ -250,6 +206,52 @@ namespace verlib {
     *loc = passed ? hold_ptr->new_val : hold_ptr->old_val;
     hold_pool.retire(hold_ptr);
   }
+
+#include "transactions.h"
+
+#else // Not transactional
+  versioned* set_stamp(versioned* tagged_ptr) {
+    versioned* ptr = strip_indirect(tagged_ptr);
+    if (ptr != nullptr && ptr->get_stamp() == tbd) 
+      ptr->set_with_current_stamp();
+    return tagged_ptr;
+  }
+#endif
+
+#ifdef Transactional
+  template <typename V> 
+  struct atomic {
+    std::atomic<atomic_val> v;
+    atomic(V v) : v(v) {}
+    V load() {
+      atomic_val x = v.load();
+      if (!hold::is_held(x)) return (V) x;
+      hold* ptr = hold::untag_hold(x);
+      trans_descriptor* td = ptr->descriptor;
+      if (td->time_stamp == tbd) return (V) ptr->old_val;
+      td->atomic_set_current_stamp();
+      return (V) ptr->new_val;
+    }
+    void store(V new_v) {
+      if (current_transaction == nullptr) v = new_v;
+      else {
+	atomic_val old_v = v.load();
+	if (hold::is_held(old_v)) {
+	  hold* ptr = hold::untag_hold(old_v);
+	  trans_descriptor* td = ptr->descriptor;
+	  assert(td->owner == flck::internal::current_id);
+	  ptr->new_val = (atomic_val) new_v;
+	} else {
+	  write_atomic_log.add(&v);
+	  hold* ptr = hold_pool.new_obj(old_v, (atomic_val) new_v, current_transaction);
+	  v = hold::tag_hold(ptr);
+	}
+      }
+    }
+
+    V operator=(V b) {store(b); return b; }
+  };
+
 #endif
   
   template <typename V>

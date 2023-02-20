@@ -14,22 +14,23 @@ struct Set {
     K key;
     bool is_leaf;
     bool is_sentinal;
-    flck::atomic_write_once<bool> removed; // not used for leaves, but fits here
     node(K key, bool is_leaf)
-      : key(key), is_leaf(is_leaf), is_sentinal(false), removed(false) {}
+      : key(key), is_leaf(is_leaf), is_sentinal(false) {}
     node(bool is_sentinal) :
-      is_leaf(is_sentinal), is_sentinal(is_sentinal), removed(false) {}
+      is_leaf(is_sentinal), is_sentinal(is_sentinal) {}
   };
 
   // internal node
   struct internal : node {
     flck::lock lck;
+    //flck::atomic_write_once<bool> removed; // not used for leaves, but fits here
+    verlib::atomic<bool> removed; // not used for leaves, but fits here
     verlib::versioned_ptr<node> left;
     verlib::versioned_ptr<node> right;
     internal(K k, node* left, node* right)
-      : node{k,false}, left(left), right(right) {};
+      : node{k,false}, left(left), right(right), removed(false) {};
     internal(node* left) // for the root, only has a left pointer
-      : node{false}, left(left), right(nullptr) {};
+      : node{false}, left(left), right(nullptr), removed(false) {};
   };
 
   struct leaf : node {

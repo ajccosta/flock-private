@@ -16,6 +16,7 @@ auto with_transaction(F f) {
 	  allocated_log.clear();
 	  retired_log.clear();
 	  write_once_log.clear();
+	  write_atomic_log.clear();
 #endif
 	  assert(current_transaction->time_stamp == tbd);
 	  auto x = f();
@@ -31,6 +32,9 @@ auto with_transaction(F f) {
 	    for (int i=0; i < write_log.cnt; i++) 
 	      finalize_versioned_store(write_log.vals[i], ts);
 
+	    for (int i=0; i < write_atomic_log.cnt; i++)
+	      finalize_atomic_store(write_atomic_log.vals[i]);
+
 #ifdef TransUndo
 	    // undo the retires on the logged allocates
 	    for (int i=0; i < allocated_log.cnt; i++)
@@ -44,6 +48,10 @@ auto with_transaction(F f) {
 	    // if count goes too high uses lock for validation on next try
 	    try_count++;
 	    
+	    // undo logged atomics
+	    for (int i=0; i < write_atomic_log.cnt; i++)
+	      finalize_atomic_store(write_atomic_log.vals[i]);
+
 	    // undo the logged retires
 	    for (int i=0; i < retired_log.cnt; i++)
 	      *retired_log.vals[i] = true; 

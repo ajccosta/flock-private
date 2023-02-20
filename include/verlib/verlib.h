@@ -38,9 +38,12 @@ namespace verlib { // trans
   struct trans_descriptor;
   struct versioned;
   thread_local trans_descriptor* current_transaction = nullptr;
+  using atomic_val = size_t;
 
+  // All the logs
   thread_local transaction_log<flck::internal::lock*> lock_log;
   thread_local transaction_log<flck::atomic<versioned*>*> write_log;
+  thread_local transaction_log<std::atomic<atomic_val>*> write_atomic_log;
   thread_local transaction_log<std::tuple<std::atomic<unsigned char>*, unsigned char>> write_once_log;
 #ifdef TransUndo
   thread_local transaction_log<bool*> retired_log;
