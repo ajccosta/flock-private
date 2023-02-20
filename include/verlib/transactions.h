@@ -29,7 +29,7 @@ auto with_transaction(F f) {
 	  if (passed) {
 	    // set stamps on logged writes
 	    for (int i=0; i < write_log.cnt; i++) 
-	      commit_versioned_store(write_log.vals[i], ts);
+	      finalize_versioned_store(write_log.vals[i], ts);
 
 #ifdef TransUndo
 	    // undo the retires on the logged allocates
@@ -56,7 +56,7 @@ auto with_transaction(F f) {
 
 	    // undo logged writes to versioned pointers
 	    for (int i=0; i < write_log.cnt; i++)
-	      undo_versioned_store(write_log.vals[i]);
+	      finalize_versioned_store(write_log.vals[i], failed);
 #else
 	    std::cout << "error: undo requested, but turned off" << std::endl;
 	    abort(); 

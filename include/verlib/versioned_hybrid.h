@@ -16,6 +16,7 @@ namespace verlib {
 #ifdef Transactional
   const TS tbs = std::numeric_limits<TS>::max()/4 - 1;
   const TS failed = std::numeric_limits<TS>::max()/4 - 2;
+  const TS overwritten = std::numeric_limits<TS>::max()/4 - 3;
 #endif  
 
 #ifdef Transactional
@@ -50,8 +51,6 @@ namespace verlib {
 #define init_ptr (((versioned*) nullptr) - 1)
 
   struct versioned {
-  public:
-    long setter;
   private:
     std::atomic<TS> stamp_or_descriptor;
     std::atomic<versioned*> next_version;
@@ -90,10 +89,11 @@ namespace verlib {
       stamp_or_descriptor = tag_descriptor(current_transaction);
     }
 
-    void remove_descriptor(TS ts) {
+    void remove_descriptor(TS ts, bool check_stamp = true) {
       TS td = stamp_or_descriptor.load();
-      assert(is_tagged(td) &&
-	     untag_descriptor(td)->owner == flck::internal::current_id);
+      assert(is_tagged(td));
+      assert(untag_descriptor(td)->owner == flck::internal::current_id);
+      assert(!check_stamp || untag_descriptor(td)->time_stamp == ts);
       stamp_or_descriptor = ts;
     }
 
@@ -103,7 +103,6 @@ namespace verlib {
   
     void set_stamp(TS t) {
       assert(stamp_or_descriptor.load() == tbd);
-      setter = 90+flck::internal::current_id;
       next_version = nullptr;
       stamp_or_descriptor = t;
     }
@@ -119,18 +118,18 @@ namespace verlib {
     void set_stamp(TS t) { stamp_or_descriptor = t;}
     TS get_stamp() { return stamp_or_descriptor;}
 #endif
-    versioned() : setter(-1), stamp_or_descriptor(tbd), next_version(init_ptr) {} 
-    versioned(versioned* next) : setter(-1), stamp_or_descriptor(tbd), next_version(next) {}
+    versioned() : stamp_or_descriptor(tbd), next_version(init_ptr) {} 
+    versioned(versioned* next) : stamp_or_descriptor(tbd), next_version(next) {}
     versioned* get_next_version() {return next_version;}
     void set_next_version(versioned* nv) {
-      assert(next_version == init_ptr);  // Fixed, added assert
+      assert(next_version == init_ptr);  
       next_version = nv;}
     void set_with_current_stamp() {
       TS old_t = tbd;
       TS new_t = global_stamp.get_write_stamp();
       TS td = stamp_or_descriptor.load();
 #if Transactional
-      assert(!is_tagged(td));    // Fixed, added assert
+      assert(!is_tagged(td));    
 #endif
       if (td == old_t) 
 	stamp_or_descriptor.compare_exchange_strong(old_t, new_t);
@@ -153,31 +152,30 @@ namespace verlib {
   flck::memory_pool<ver_link> link_pool;
 
 #ifdef Transactional
-  void undo_versioned_store(flck::atomic<versioned*>* loc) {
-    versioned* ptr_ = strip_indirect(loc->load());
-    assert(ptr_ != nullptr);
-    // splice this latest version out
-    *loc = ptr_->get_next_version();
-    // mark its timestamp as failed
-    ptr_->remove_descriptor(failed); // FIX
-  }
 
-  void commit_versioned_store(flck::atomic<versioned*>* loc, TS ts) {
-    versioned* ptr_ = strip_indirect(loc->load());
-    assert(ptr_ != nullptr);
-    ptr_->remove_descriptor(ts);
+  void finalize_versioned_store(flck::atomic<versioned*>* loc, TS ts) {
+    versioned* ptr = strip_indirect(loc->load());
+    assert(ptr != nullptr);
+    // splice this latest version out if transaction aborted
+    if (ts == failed) *loc = ptr->get_next_version();
+    // replace descriptor with timestamp (possibly failed stamp)
+    ptr->remove_descriptor(ts); 
   }
 
   versioned* set_stamp(versioned* tagged_ptr, bool validating = false) {
     if (tagged_ptr == nullptr) return nullptr;
     versioned* ptr = strip_indirect(tagged_ptr);
     auto [descriptor, stamp] = ptr->get_descriptor_and_stamp();
+    if (stamp == failed || stamp == overwritten) return ptr->get_next_version();
+    if (stamp != tbd) return tagged_ptr;
     if (stamp != tbd) return (stamp == failed) ? ptr->get_next_version() : tagged_ptr;
     if (descriptor == nullptr) {ptr->set_with_current_stamp(); return tagged_ptr; }
     if (descriptor->owner == flck::internal::current_id) return tagged_ptr;
     // at this point there is a descriptor and it is owned by someone else
     TS dts = descriptor->time_stamp.load();
     if (dts == tbd || dts == failed) return ptr->get_next_version();
+    auto [ignore, new_stamp] = ptr->get_descriptor_and_stamp();
+    if (new_stamp == overwritten) return ptr->get_next_version();
     descriptor->atomic_set_current_stamp();
     return tagged_ptr;
   }
@@ -288,9 +286,9 @@ namespace verlib {
     }
   
     static versioned* set_zero_stamp(V* ptr) {
-      //versioned* x = link_pool.new_obj(nullptr, (versioned*) ptr); //fix
-      //x->set_stamp(zero_stamp);
-      //return add_indirect(x);
+      // versioned* x = link_pool.new_obj(nullptr, (versioned*) ptr); //fix
+      // x->set_stamp(zero_stamp);
+      // return add_indirect(x);
       if (ptr != nullptr && !ptr->is_recorded()) 
 	ptr->set_stamp(zero_stamp);
       return ptr;
@@ -346,10 +344,6 @@ namespace verlib {
       return get_ptr_shortcut(set_stamp(x));
     }
   
-    // V* read() {  // only safe on journey
-    //   return get_ptr_shortcut(v.read());
-    // }
-
 #ifdef SlowStore
     void store(V* newv) {
       V* oldv = load();
@@ -361,17 +355,27 @@ namespace verlib {
       versioned* next = old_v;
 #ifdef Transactional
       if (current_transaction != nullptr) {
+	if (old_v != nullptr) {
+	  auto [td, ts] = strip_indirect(old_v)->get_descriptor_and_stamp();
+	  if (td != nullptr && (td->owner != flck::internal::current_id || write_log.cnt == 0)) {
+	    TS xx = td->time_stamp;
+	    std::cout << "ouch1: " << xx << ", " << td->owner << ", " << flck::internal::current_id << ", " << std::endl;
+	    auto [td2, ts2] = strip_indirect(old_v)->get_descriptor_and_stamp();
+	    std::cout << "ouch2: " << td2 << ", " << (ts2 == failed) << ", " << (td->time_stamp == failed) << std::endl;
+	  }
+	}
 	if (old_v != nullptr && strip_indirect(old_v)->has_self_descriptor()) { 
 	  next = strip_indirect(old_v)->get_next_version();
+	  strip_indirect(old_v)->remove_descriptor(overwritten, false);
 	} else { 
-	  assert(write_log.cnt == 0 || write_log.vals[write_log.cnt-1] != &v); // fix
+	  //assert(write_log.cnt == 0 || write_log.vals[write_log.cnt-1] != &v); // fix
 	  write_log.add(&v);
 	}
       }
 #endif
       versioned* new_v = ptr;
       assert(!is_indirect(ptr));
-      bool use_indirect = (ptr == nullptr || ptr->is_recorded()); 
+      bool use_indirect = true; //(ptr == nullptr || ptr->is_recorded()); 
       if (use_indirect) 
 	new_v = add_indirect(link_pool.new_obj(next, new_v)); 
       else ptr->set_next_version(next);

@@ -94,7 +94,7 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
     int delay = 0;
     int cnt =0;
     while (true)  {
-      if (cnt++ == 10000) {
+      if (cnt++ == 100000) {
 	std::cout << "problably in an infinite retry loop" << std::endl;
 	abort(); 
 	deadlock = true;

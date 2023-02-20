@@ -100,9 +100,9 @@ public:
   template <typename Thunk>
   auto try_lock_no_delay(Thunk f) {
     verlib::trans_descriptor* tmp = verlib::current_transaction;
-    verlib::current_transaction = nullptr;
+    //verlib::current_transaction = nullptr;  // fix
     auto result = try_lock_result(f);
-    verlib::current_transaction = tmp;
+    //verlib::current_transaction = tmp;
     return result.has_value() && result.value();
   }
 #else

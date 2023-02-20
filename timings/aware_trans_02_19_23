@@ -1,0 +1,422 @@
+d515665
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,292.8
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,257.3
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,140
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,103.2
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,144.6
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,153.8
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,100.2
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,91.31
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,96.41
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,101.6
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,79.55
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,69.01
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,29.67
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,44.82
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,28.21
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 10000000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+./leaftree_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,28.66
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 10000000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,28.17
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,39.95
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,26.66
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 10000000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+./leaftree_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,27.21
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./leaftree_noundo -tt 1.0 -r 1 -n 10000000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,309.7
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,278.8
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,82.55
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,8.822
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,7.245
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,2.151
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,135.1
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,100.7
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,61.29
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,6.749
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,5.837
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,1.287
+...
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,145.4
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,154.2
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,97.19
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,12.72
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,80.34
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,1.694
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,97.01
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,93.97
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,74.81
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,10.09
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,67.72
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,1.324
+...
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,30.44
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,45.51
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,27.78
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,8.958
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,28.53
+./leaftree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,0.9779
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,28.15
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,40.53
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,26.31
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,8.734
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,27.44
+./leaftree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,0.9423
+...
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,76.64
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,117.2
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,2.238
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,2.241
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,2.966
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,3.058
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,7.998
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,11.82
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./btree_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,1.333
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./btree_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./btree_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,412.6
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,371.4
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,70.66
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,11.03
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,5.333
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,2.649
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,152.7
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,133.1
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,42.37
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,6.658
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,3.002
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,1.444
+...
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,167.9
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,220.3
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,120.2
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,15.07
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,105
+./btree_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,2.618
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,114.8
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,131
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,94.76
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,9.209
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,82.02
+./btree_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,1.725
+...
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,71.89
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,132.6
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,2.376
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,2.353
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,3.192
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,3.206
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,7.493
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,11.14
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./btree_trans -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./btree_trans -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./btree_trans -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./btree_trans -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,438.9
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,409.1
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,113.9
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,10.48
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,8.924
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,3.435
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,134.4
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,117.5
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,63.55
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,7.3
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,4.815
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,1.554
+...
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,162
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,221.5
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,118.7
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,14.45
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,110.2
+./btree_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,3.324
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,113
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,119.2
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,91.7
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,9.186
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,82.06
+./btree_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,2.005
+...
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,899.3
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,523.9
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,288.4
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,154
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,913.4
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,600.9
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,292.3
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,282.9
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,197.5
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,193
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,249.2
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,376.6
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,170.8
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 10000000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+./hash_block_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,217
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 10000000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,197.4
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,196.3
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,155.5
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,16.48
+./hash_block_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,174.6
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./hash_block_noundo -tt 1.0 -r 1 -n 10000000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,881.1
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,526.3
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,283.2
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,20.38
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,82.53
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,8.487
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,292.5
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,155.7
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,159.8
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,7.397
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,35.62
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,2.824
+...
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,913.6
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,611.1
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,318.4
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,11.73
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,447.1
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,11.57
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,278.9
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,197.1
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,181.5
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,6.947
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,213
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,2.891
+...
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,247.5
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,371.4
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,185.4
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,35.91
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,264.4
+./hash_block_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,11.14
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,191.8
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,196.9
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,153.8
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,14.55
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,181.6
+./hash_block_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,4.514
+...
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,161.7
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,230.4
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 1000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,13.07
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,17.98
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 1000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,581.4
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,444.3
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 100000 -u 5 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,180.3
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,156.1
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0 -trans 16 
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 100000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 16 
+...
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,142.3
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,227.3
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,113.8
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,15.64
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,124.9
+./arttree2_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,2.923
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,123.6
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,124
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,102.3
+problably in an infinite retry loop
+Failed: PARLAY_NUM_THREADS=143 numactl -i all ./arttree2_noundo -tt 1.0 -r 1 -n 10000000 -u 50 -mfind 0 -range 0 -rs 0 -z 0.99 -trans 2 
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,98.58
+./arttree2_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,2.061
+...
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,157.5
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,226.6
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,10.4
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,4.564
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,3.391
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,2.897
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,12.1
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,17.26
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,5.314
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,3.563
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,1.605
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,1.441
+...
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,563
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,444.3
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,163.4
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,10.29
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,25.32
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,3.859
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0,170
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=143,z=0.99,148.2
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0,91.97
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100000,p=143,z=0.99,7.822
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0,12.4
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=143,z=0.99,1.967
+...
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,164.3
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,225.5
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,110.6
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,12.37
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,123.8
+./arttree2_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,3.796
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0,124.5
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=143,z=0.99,122.6
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0,97.12
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=10000000,p=143,z=0.99,9.011
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0,98.25
+./arttree2_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=143,z=0.99,2.33
+...
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100,p=143,z=0,65.57
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=100,p=143,z=0.99,65.87
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=100,p=143,z=0,4.94
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=100,p=143,z=0.99,1.958
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=100,p=143,z=0,0.7902
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=100,p=143,z=0.99,0.718
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100,p=143,z=0,25.78
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=100,p=143,z=0.99,27.18
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=100,p=143,z=0,3.203
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=100,p=143,z=0.99,1.349
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=100,p=143,z=0,0.6635
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=100,p=143,z=0.99,0.6737
+...
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,16.69
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,17.54
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,8.765
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,0.9734
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,0.4438
+./list_noundo,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,0.1328
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,11.42
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,12.49
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,7.004
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,0.7806
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,0.3838
+./list_noundo,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,0.1181
+...
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100,p=143,z=0,65.88
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=100,p=143,z=0.99,66.54
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100,p=143,z=0,6.421
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=100,p=143,z=0.99,1.888
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100,p=143,z=0,0.6038
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=100,p=143,z=0.99,0.533
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100,p=143,z=0,25.95
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=100,p=143,z=0.99,27.28
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100,p=143,z=0,4.799
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=100,p=143,z=0.99,1.289
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100,p=143,z=0,0.4745
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=100,p=143,z=0.99,0.4126
+...
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,14.79
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,16.77
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,8.609
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,1.1
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,0.5834
+./list_trans,5%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,0.1175
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0,12.47
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=0,n=1000,p=143,z=0.99,12.59
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0,7.157
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=2,n=1000,p=143,z=0.99,0.816
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0,0.4392
+./list_trans,50%update,0%range,0%mfind,rs=0,trans=16,n=1000,p=143,z=0.99,0.09606
+...
