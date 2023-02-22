@@ -23,8 +23,8 @@ struct Set {
   // internal node
   struct internal : node {
     flck::lock lck;
-    //flck::atomic_write_once<bool> removed; // not used for leaves, but fits here
-    verlib::atomic<bool> removed; // not used for leaves, but fits here
+    flck::atomic_write_once<bool> removed; // not used for leaves, but fits here
+    //verlib::atomic<bool> removed; // not used for leaves, but fits here
     verlib::versioned_ptr<node> left;
     verlib::versioned_ptr<node> right;
     internal(K k, node* left, node* right)

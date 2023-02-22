@@ -18,14 +18,41 @@ auto with_transaction(F f) {
 	  write_once_log.clear();
 	  write_atomic_log.clear();
 #endif
+#ifdef Validate
+	  validate_ptr_log.clear();
+	  validate_val_log.clear();
+#endif	  
 	  assert(current_transaction->time_stamp == tbd);
 	  auto x = f();
 	  TS ts;
 	  bool passed = x.has_value();
 	  if (passed) {
 	    current_transaction->time_stamp = tbs;
+#ifdef Validate
+	    ts = global_stamp.get_write_stamp();
+	    // validate versioned pointers
+	    for (int i=0; i < validate_ptr_log.cnt; i++) {
+	      auto [loc, expected] = validate_ptr_log.vals[i];
+ 	      if (set_stamp(loc->load(), true) != expected) {
+		passed = false;
+		break;
+	      }
+	    }
+	    if (passed)
+	      // validate values
+	      for (int i=0; i < validate_val_log.cnt; i++) {
+		auto [loc, expected] = validate_val_log.vals[i];
+		if (loc->load() != expected) {
+		  passed = false;
+		  break;
+		}
+	      }
+	    current_transaction->atomic_set_stamp(passed ? ts : failed);
+	    passed = current_transaction->time_stamp.load() != failed;
+#else
 	    current_transaction->atomic_set_current_stamp();
 	    ts = current_transaction->time_stamp.load();
+#endif
 	  } 
 	  if (passed) {
 	    // set stamps on logged writes

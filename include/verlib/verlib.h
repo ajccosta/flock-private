@@ -42,7 +42,7 @@ namespace verlib { // trans
 
   // All the logs
   thread_local transaction_log<flck::internal::lock*> lock_log;
-  thread_local transaction_log<flck::atomic<versioned*>*> write_log;
+  thread_local transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_log;
   thread_local transaction_log<std::atomic<atomic_val>*> write_atomic_log;
   thread_local transaction_log<std::tuple<std::atomic<unsigned char>*, unsigned char>> write_once_log;
 #ifdef TransUndo
@@ -65,6 +65,8 @@ namespace verlib { // trans
 #include "versioned_recorded_once.h"
 #elif FullyIndirect
 #include "versioned_indirect.h"
+#elif Transactional
+#include "versioned_transaction.h"
 #else
 #include "versioned_hybrid.h"
 #endif

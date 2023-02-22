@@ -34,7 +34,7 @@ target_include_directories(verlib INTERFACE ${FLOCK_INCLUDE_DIR})
 target_compile_features(verlib INTERFACE cxx_std_17)
 #target_compile_options(verlib INTERFACE -mcx16 -march=native -g -DPARLAY_USE_STD_ALLOC=1 -fsanitize=address)
 #target_link_options(verlib INTERFACE -fsanitize=address -static-libasan)
-target_compile_options(verlib INTERFACE -mcx16 -march=native -g)
+target_compile_options(verlib INTERFACE -mcx16 -march=native)
 
 # Find threading library
 find_package(Threads REQUIRED)
