@@ -158,22 +158,28 @@ namespace verlib {
 
   flck::memory_pool<ver_link> link_pool;
 
-  void finalize_versioned_store(std::tuple<flck::atomic<versioned*>*,bool> loc_dir, TS ts) {
-    auto [loc, direct] = loc_dir;
+  versioned* install_versioned_store(flck::atomic<versioned*>* loc,
+				     versioned* ptr,
+				     bool in_transaction) {
+    versioned* old_v = loc->load();
+    bool use_indirect = (ptr == nullptr || ptr->is_recorded());
+    versioned* new_v = ptr;
+    if (use_indirect) new_v = add_indirect(link_pool.new_obj(old_v, new_v));
+    else ptr->set_next_version(old_v);
+    if (in_transaction) strip_indirect(new_v)->set_descriptor(); 
+    *loc = new_v;
+    if (is_indirect(old_v))
+      link_pool.retire((ver_link*) strip_indirect(old_v));
+    return new_v;
+  }
+
+  void finalize_versioned_store(flck::atomic<versioned*>* loc, TS ts) {
     versioned* ptr = strip_indirect(loc->load());
+    auto [td, tts] = ptr->get_descriptor_and_stamp();
+    if (td == nullptr) std::cout << "ouch: " << std::hex << tts << ", " << tbd << std::dec << std::endl;
     assert(ptr != nullptr);
     // splice this latest version out if transaction aborted
     if (ts == failed) *loc = ptr->get_next_version();
-    else {
-      versioned* val_ptr = ((ver_link*) ptr)->value;
-      // try to shortcut indirect
-      if (val_ptr != nullptr && !val_ptr->is_recorded()) {
-	val_ptr->set_stamp_and_version(ts, ptr->get_next_version());
-	*loc = val_ptr;
-	link_pool.retire((ver_link*) ptr);
-	return;
-      }
-    }
     // replace descriptor with timestamp (possibly failed stamp)
     ptr->remove_descriptor(ts); 
   }
@@ -355,39 +361,27 @@ namespace verlib {
     V* load() {  // can be used anywhere
       assert(this != nullptr);
       if (local_stamp != -1) return read_snapshot();
-       // if (current_transaction != nullptr)
-       // 	for (int i=0; i < write_log.cnt; i++)
-       // 	  if (write_log.vals[i].first == &v)
-       // 	    return (V*) write_log.vals[i].second;
+      if (current_transaction != nullptr)
+	for (int i=0; i < write_log.cnt; i++)
+	  if (write_log.vals[i].first == &v)
+	    return (V*) write_log.vals[i].second;
       auto x = v.load();
       return get_ptr_shortcut(set_stamp(x));
     }
   
     void store(V* ptr) {  // Fix, get rid of extra argument
-      versioned* old_v = v.load();
-      bool use_indirect = (ptr == nullptr || ptr->is_recorded());
       if (current_transaction != nullptr) {
-	if (!use_indirect) { ptr->set_zero(); }
-	// if current transaction already wrote to this location.
-	if (old_v != nullptr && strip_indirect(old_v)->has_self_descriptor()) {
-	  for (int i=0; i < write_log.cnt; i++)
-	    if (write_log.vals[i].first == &v) 
-	      write_log.vals[i].second == ptr;
-	  ((ver_link*) strip_indirect(old_v))->value = ptr;
-	  return;}
-	write_log.add(std::pair(&v,ptr));
-	versioned* new_v = link_pool.new_obj(old_v, ptr);
-	new_v->set_descriptor();
-	v = add_indirect(new_v);
+	int i;
+	for (i=0; i < write_log.cnt; i++)
+	  if (write_log.vals[i].first == &v) {
+	    write_log.vals[i].second = ptr;
+	    break;
+	  }
+	if (i == write_log.cnt) write_log.add(std::pair(&v,ptr));
       } else { // not in a transaction
-	versioned* new_v = ptr;
-	if (use_indirect) new_v = add_indirect(link_pool.new_obj(old_v, new_v));
-	else ptr->set_next_version(old_v);
-	v = new_v;
+	versioned* new_v = install_versioned_store(&v, ptr, false);
 	strip_indirect(new_v)->set_with_current_stamp();
       }
-      if (is_indirect(old_v))
-	link_pool.retire((ver_link*) strip_indirect(old_v));
     }
     V* operator=(V* b) {store(b); return b; }
 
