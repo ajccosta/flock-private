@@ -20,10 +20,11 @@ struct Set {
   struct leaf;
   enum Status : char { isOver, isUnder, OK};
 
-    struct header : verlib::versioned {
+  struct header : verlib::versioned {
     bool is_leaf;
     Status status;
-    flck::atomic_write_once<bool> removed;
+    verlib::atomic<bool> removed; 
+    //flck::atomic_write_once<bool> removed;
     int size;
     header(bool is_leaf, Status status, int size)
       : is_leaf(is_leaf), status(status), size(size), removed(false) {}

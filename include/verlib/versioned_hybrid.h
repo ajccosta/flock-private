@@ -7,6 +7,9 @@ namespace verlib {
 
 const TS tbd = std::numeric_limits<TS>::max()/4;
 
+template <typename T>
+using atomic = flck::atomic<T>;
+  
 struct versioned {
   flck::atomic_write_once<TS> time_stamp;
   versioned* next_version;

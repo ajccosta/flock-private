@@ -23,7 +23,8 @@ struct Set {
   
   struct header : verlib::versioned {
     const node_type nt;
-    flck::atomic_write_once<bool> removed;
+    //flck::atomic_write_once<bool> removed;
+    verlib::atomic<bool> removed;
     K key;
     // every node has a byte position in the key
     // e.g. the root has byte_num = 0

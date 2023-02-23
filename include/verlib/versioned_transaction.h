@@ -4,8 +4,6 @@
 //#include "flock/acquired_pool.h"
 #include "timestamps.h"
 
-thread_local size_t check_array[1000];
-
 namespace verlib {
 
   thread_local long unsigned int* hold_a;
@@ -75,14 +73,6 @@ namespace verlib {
       else return std::pair(nullptr, td);
     }
 
-    bool has_self_descriptor() {
-      TS td = stamp_or_descriptor.load();
-      if (is_tagged(td)) {
-	assert(untag_descriptor(td)->owner == flck::internal::current_id);
-	return true;
-      } else return false;
-    }
-
     void set_descriptor() {
       assert(stamp_or_descriptor.load() == tbd);
       stamp_or_descriptor = tag_descriptor(current_transaction);
@@ -107,18 +97,6 @@ namespace verlib {
     void set_stamp(TS t) {
       assert(stamp_or_descriptor.load() == tbd);
       next_version = nullptr;
-      stamp_or_descriptor = t;
-    }
-
-    void set_zero() {
-      assert(next_version == init_ptr);
-      //assert(stamp_or_descriptor.load() == tbd);
-      stamp_or_descriptor = zero_stamp;
-    }
-
-    void set_stamp_and_version(TS t, versioned* ver) {
-      assert(stamp_or_descriptor.load() == zero_stamp);
-      next_version = ver;
       stamp_or_descriptor = t;
     }
 
@@ -184,6 +162,30 @@ namespace verlib {
     ptr->remove_descriptor(ts); 
   }
 
+  template <typename T>
+  T resolve_descriptor(trans_descriptor* descriptor, T old_v, T new_v,
+		       bool validating) {
+    if (descriptor->owner == flck::internal::current_id) {
+      assert(validating); // self descriptor should not be installed if not validating
+      return old_v; // if validating then should check against old value
+    }
+    TS desc_ts = descriptor->time_stamp.load();
+    if (desc_ts == tbd || desc_ts == failed) return old_v;
+#ifdef Validate
+    if (validating && desc_ts == tbs &&
+	descriptor->owner < flck::internal::current_id) { 
+      // kill other if they have lower id. prevents validate cycle
+      TS old = tbs;
+      descriptor->time_stamp.compare_exchange_strong(old, failed);
+    } else //otherwise wait until other is done (could also help)
+      while (descriptor->time_stamp.load() == tbs);
+    if (descriptor->time_stamp.load() == failed) return old_v;
+#else
+    descriptor->atomic_set_current_stamp();
+#endif
+    return new_v;
+  }
+
   versioned* set_stamp(versioned* tagged_ptr, bool validating = false) {
     if (tagged_ptr == nullptr) return nullptr;
     versioned* ptr = strip_indirect(tagged_ptr);
@@ -192,23 +194,8 @@ namespace verlib {
     if (stamp != tbd) return tagged_ptr;
     if (stamp != tbd) return (stamp == failed) ? ptr->get_next_version() : tagged_ptr;
     if (descriptor == nullptr) {ptr->set_with_current_stamp(); return tagged_ptr; }
-    if (descriptor->owner == flck::internal::current_id) return tagged_ptr;
-    // at this point there is a descriptor and it is owned by someone else
-    TS dts = descriptor->time_stamp.load();
-    if (dts == tbd || dts == failed) return ptr->get_next_version();
-#ifdef Validate
-    if (validating && dts == tbs &&
-	descriptor->owner < flck::internal::current_id) { 
-      // kill other if they have lower id. prevents validate cycle
-      TS old = tbs;
-      descriptor->time_stamp.compare_exchange_strong(old,failed);
-    } else //otherwise wait until other is done (could also help)
-      while (descriptor->time_stamp.load() == tbs);
-    if (descriptor->time_stamp.load() == failed) return ptr->get_next_version();
-#else
-    descriptor->atomic_set_current_stamp();
-#endif
-    return tagged_ptr;
+    return resolve_descriptor(descriptor, ptr->get_next_version(),
+			      tagged_ptr, validating);
   }
 
   struct hold {
@@ -227,6 +214,13 @@ namespace verlib {
 
   static flck::memory_pool<hold> hold_pool;
 
+  void install_atomic_store(std::atomic<atomic_val>* loc,
+				  atomic_val new_v) {
+    atomic_val old_v = loc->load();
+    hold* ptr = hold_pool.new_obj(old_v, (atomic_val) new_v, current_transaction);
+    *loc = hold::tag_hold(ptr);
+  }
+
   void finalize_atomic_store(std::atomic<atomic_val>* loc) {
     assert(hold::is_held(*loc));
     auto hold_ptr = hold::untag_hold(*loc);
@@ -238,38 +232,50 @@ namespace verlib {
     hold_pool.retire(hold_ptr);
   }
 
+  V get_value(atomic_val x, bool validating=false) {
+    if (!hold::is_held(x)) return x;
+    hold* ptr = hold::untag_hold(x);
+    return resolve_descriptor(ptr->descriptor, ptr->old_val,
+			      ptr->new_val, validating);
+  }
+
 #include "transactions.h"
 
   template <typename V> 
   struct atomic {
     std::atomic<atomic_val> v;
     atomic(V v) : v(v) {}
+    std::optional<int> find_in_atomic_write_log() {
+      for (int i=0; i < write_atomic_log.cnt; i++)
+	if (write_atomic_log.vals[i].first == &v)
+	  return std::optional<int>(i);
+      return std::optional<int>();
+    }
     V load() {
-      atomic_val x = v.load();
-      if (!hold::is_held(x)) return (V) x;
-      hold* ptr = hold::untag_hold(x);
-      trans_descriptor* td = ptr->descriptor;
-      if (td->time_stamp == tbd) return (V) ptr->old_val;
-      td->atomic_set_current_stamp();
-      return (V) ptr->new_val;
+      if (current_transaction != nullptr) {
+	std::optional<int> lid = find_in_atomic_write_log();
+	if (lid.has_value())
+	  return (V*) write_atomic_log.vals[*lid].second;
+      }
+      return get_value(v.load());
     }
     void store(V new_v) {
       if (current_transaction == nullptr) v = new_v;
       else {
-	atomic_val old_v = v.load();
-	if (hold::is_held(old_v)) {
-	  hold* ptr = hold::untag_hold(old_v);
-	  trans_descriptor* td = ptr->descriptor;
-	  assert(td->owner == flck::internal::current_id);
-	  ptr->new_val = (atomic_val) new_v;
-	} else {
-	  write_atomic_log.add(&v);
-	  hold* ptr = hold_pool.new_obj(old_v, (atomic_val) new_v, current_transaction);
-	  v = hold::tag_hold(ptr);
-	}
+	std::optional<int> lid = find_in_atomic_write_log();
+	if (lid.has_value())
+	  write_atomic_log.vals[*lid].second = (atomic_val) new_v;
+	else write_atomic_log.add(std::pair(&v, new_v));
       }
     }
-
+    bool validate(V expected) { 
+      std::optional<int> lid = find_in_atomic_write_log();
+      if (lid.has_value()) return (write_atomic_log.vals[*lid].second == expected);
+      atomic_val cur = get_value(v.load());
+      if (cur != expected) return false; 
+      validate_atomic_log.add(std::tuple(&v, expected));
+      return true;
+    }
     V operator=(V b) {store(b); return b; }
   };
   
@@ -278,51 +284,16 @@ namespace verlib {
     //private:
     flck::atomic<versioned*> v;
 
-    static void shortcut(versioned* ptr) {
-#ifndef NoShortcut
-      ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
-      if (ptr_->time_stamp.load_ni() <= done_stamp) {
-#ifdef NoHelp
-	if (v.cas(ptr, ptr_->value))
-	  link_pool.retire(ptr_);
-#else
-	if (v.cas_ni(ptr, ptr_->value))
-	  link_pool.retire_ni(ptr_);
-#endif
-      }
-#endif
-    }
-
     static V* get_ptr(versioned* ptr) {
       versioned* ptr_ = strip_indirect(ptr);
       if (!is_indirect(ptr)) return (V*) ptr_;
       return (V*) ((ver_link*) ptr_)->value;
     }
 
-    static V* get_ptr_shortcut(versioned* ptr) {
-      versioned* ptr_ = strip_indirect(ptr);
-      if (!is_indirect(ptr)) return (V*) ptr_;
-      shortcut(ptr);
-      return (V*) ((ver_link*) ptr_)->value;
-    }
-  
     static versioned* set_zero_stamp(V* ptr) {
-      // versioned* x = link_pool.new_obj(nullptr, (versioned*) ptr); //fix
-      // x->set_stamp(zero_stamp);
-      // return add_indirect(x);
       if (ptr != nullptr && !ptr->is_recorded()) 
 	ptr->set_stamp(zero_stamp);
       return ptr;
-    }
-
-    bool cas_from_cam(versioned* old_v, versioned* new_v) {
-#ifdef NoHelp
-      return v.cas(old_v, new_v);
-#else
-      v.cam(old_v, new_v);
-      return (v.load() == new_v ||
-	      strip_indirect(new_v)->time_stamp.load() != tbd); 
-#endif
     }
 
   public:
@@ -358,26 +329,30 @@ namespace verlib {
       } else return (V*) ptr;
     }
 
-    V* load() {  // can be used anywhere
+    std::optional<int> find_in_write_log() {
+      for (int i=0; i < write_log.cnt; i++)
+	if (write_log.vals[i].first == &v)
+	  return std::optional<int>(i);
+      return std::optional<int>();
+    }
+      
+    V* load() {  
       assert(this != nullptr);
       if (local_stamp != -1) return read_snapshot();
-      if (current_transaction != nullptr)
-	for (int i=0; i < write_log.cnt; i++)
-	  if (write_log.vals[i].first == &v)
-	    return (V*) write_log.vals[i].second;
+      if (current_transaction != nullptr) {
+	std::optional<int> lid = find_in_write_log();
+	if (lid.has_value())
+	  return (V*) write_log.vals[*lid].second;
+      }
       auto x = v.load();
-      return get_ptr_shortcut(set_stamp(x));
+      return get_ptr(set_stamp(x));
     }
-  
+
     void store(V* ptr) {  // Fix, get rid of extra argument
       if (current_transaction != nullptr) {
-	int i;
-	for (i=0; i < write_log.cnt; i++)
-	  if (write_log.vals[i].first == &v) {
-	    write_log.vals[i].second = ptr;
-	    break;
-	  }
-	if (i == write_log.cnt) write_log.add(std::pair(&v,ptr));
+	std::optional<int> lid = find_in_write_log();
+	if (lid.has_value()) write_log.vals[*lid].second = ptr;
+	else write_log.add(std::pair(&v,ptr));
       } else { // not in a transaction
 	versioned* new_v = install_versioned_store(&v, ptr, false);
 	strip_indirect(new_v)->set_with_current_stamp();
@@ -385,27 +360,29 @@ namespace verlib {
     }
     V* operator=(V* b) {store(b); return b; }
 
-#ifdef Validate
     bool validate(V* expected) {
       assert(this != nullptr);
+      std::optional<int> lid = find_in_write_log();
+      if (lid.has_value()) return (write_log.vals[*lid].second == expected);
       versioned* ptr = set_stamp(v.load());
       V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
       if (cur != expected) return false; 
       validate_ptr_log.add(std::tuple(&v, ptr));
       return true;
     }
-#endif
   };
 
 #ifdef Validate
   template <typename T>
   bool validate_(versioned_ptr<T>* ptr, T* expected) {return ptr->validate(expected); }
+  template <typename T>
+  bool validate_(atomic<T>* ptr, T expected) {return ptr->validate(expected); }
 
-  bool validate_(flck::atomic_write_once<bool>* a, bool expected) {
-    if (a->load() != expected) return false;
-    validate_val_log.add(std::tuple(a, expected));
-    return true;
-  }
+  // bool validate_(flck::atomic_write_once<bool>* a, bool expected) {
+  //   if (a->load() != expected) return false;
+  //   validate_val_log.add(std::tuple(a, expected));
+  //   return true;
+  // }
 #endif
 
   template <typename T, typename E>

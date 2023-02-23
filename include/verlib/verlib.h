@@ -43,12 +43,13 @@ namespace verlib { // trans
   // All the logs
   thread_local transaction_log<flck::internal::lock*> lock_log;
   thread_local transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_log;
-  thread_local transaction_log<std::atomic<atomic_val>*> write_atomic_log;
-  thread_local transaction_log<std::tuple<std::atomic<unsigned char>*, unsigned char>> write_once_log;
+  thread_local transaction_log<std::pair<std::atomic<atomic_val>*,atomic_val>> write_atomic_log;
+  //thread_local transaction_log<std::tuple<std::atomic<unsigned char>*, unsigned char>> write_once_log;
+  thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
+  thread_local transaction_log<std::tuple<std::atomic<atomic_val>*,atomic_val>> validate_atomic_log;
+  //thread_local transaction_log<std::tuple<flck::atomic_write_once<bool>*,bool>> validate_val_log;
   thread_local transaction_log<bool*> retired_log;
   thread_local transaction_log<bool*> allocated_log;
-  thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
-  thread_local transaction_log<std::tuple<flck::atomic_write_once<bool>*,bool>> validate_val_log;
 }
 #endif
 
