@@ -73,9 +73,9 @@ namespace verlib {
       else return std::pair(nullptr, td);
     }
 
-    void set_descriptor() {
+    void set_descriptor(trans_descriptor* descriptor) {
       assert(stamp_or_descriptor.load() == tbd);
-      stamp_or_descriptor = tag_descriptor(current_transaction);
+      stamp_or_descriptor = tag_descriptor(descriptor);
     }
 
     void remove_descriptor(TS ts, bool check_stamp = true) {
@@ -138,28 +138,31 @@ namespace verlib {
 
   versioned* install_versioned_store(flck::atomic<versioned*>* loc,
 				     versioned* ptr,
-				     bool in_transaction) {
+				     trans_descriptor* descriptor) {
     versioned* old_v = loc->load();
     bool use_indirect = (ptr == nullptr || ptr->is_recorded());
     versioned* new_v = ptr;
     if (use_indirect) new_v = add_indirect(link_pool.new_obj(old_v, new_v));
     else ptr->set_next_version(old_v);
-    if (in_transaction) strip_indirect(new_v)->set_descriptor(); 
+    if (descriptor != nullptr)
+      strip_indirect(new_v)->set_descriptor(descriptor); 
     *loc = new_v;
     if (is_indirect(old_v))
       link_pool.retire((ver_link*) strip_indirect(old_v));
     return new_v;
   }
 
-  void finalize_versioned_store(flck::atomic<versioned*>* loc, TS ts) {
-    versioned* ptr = strip_indirect(loc->load());
-    auto [td, tts] = ptr->get_descriptor_and_stamp();
-    if (td == nullptr) std::cout << "ouch: " << std::hex << tts << ", " << tbd << std::dec << std::endl;
+  void finalize_versioned_store(flck::atomic<versioned*>* loc, TS time_stamp) {
+    versioned* ptr_tagged = loc->load();
+    versioned* ptr = strip_indirect(ptr_tagged);
     assert(ptr != nullptr);
     // splice this latest version out if transaction aborted
-    if (ts == failed) *loc = ptr->get_next_version();
+    if (time_stamp == failed) {
+      *loc = ptr->get_next_version();
+      if (is_indirect(ptr_tagged)) link_pool.retire((ver_link*) ptr);
+    }
     // replace descriptor with timestamp (possibly failed stamp)
-    ptr->remove_descriptor(ts); 
+    ptr->remove_descriptor(time_stamp); 
   }
 
   template <typename T>
@@ -215,20 +218,19 @@ namespace verlib {
   static flck::memory_pool<hold> hold_pool;
 
   void install_atomic_store(std::atomic<atomic_val>* loc,
-				  atomic_val new_v) {
+			    atomic_val new_v,
+			    trans_descriptor* descriptor) {
     atomic_val old_v = loc->load();
-    hold* ptr = hold_pool.new_obj(old_v, (atomic_val) new_v, current_transaction);
+    hold* ptr = hold_pool.new_obj(old_v, (atomic_val) new_v, descriptor);
     *loc = hold::tag_hold(ptr);
   }
 
-  void finalize_atomic_store(std::atomic<atomic_val>* loc) {
+  void finalize_atomic_store(std::atomic<atomic_val>* loc, TS time_stamp) {
     assert(hold::is_held(*loc));
     auto hold_ptr = hold::untag_hold(*loc);
     assert(hold_ptr->descriptor->owner == flck::internal::current_id);
-    assert(hold_ptr->descriptor->time_stamp != tbd);
-    assert(hold_ptr->descriptor->time_stamp != tbs);
-    bool passed = hold_ptr->descriptor->time_stamp != failed;
-    *loc = passed ? hold_ptr->new_val : hold_ptr->old_val;
+    assert(hold_ptr->descriptor->time_stamp == time_stamp);
+    *loc = (time_stamp == failed) ? hold_ptr->old_val : hold_ptr->new_val;
     hold_pool.retire(hold_ptr);
   }
 
@@ -239,6 +241,7 @@ namespace verlib {
 			      ptr->new_val, validating);
   }
 
+#include "lock.h"
 #include "transactions.h"
 
   template <typename V> 
@@ -256,8 +259,13 @@ namespace verlib {
 	std::optional<int> lid = find_in_atomic_write_log();
 	if (lid.has_value())
 	  return (V*) write_atomic_log.vals[*lid].second;
+	if (in_lock) {
+	  atomic_val cur = get_value(v.load());
+	  validate_atomic_log.add(std::tuple(&v, cur));
+	  return (V) cur;
+	}
       }
-      return get_value(v.load());
+      return (V) get_value(v.load());
     }
     void store(V new_v) {
       if (current_transaction == nullptr) v = new_v;
@@ -343,18 +351,22 @@ namespace verlib {
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value())
 	  return (V*) write_log.vals[*lid].second;
+	if (in_lock) {
+	  versioned* cur = set_stamp(v.load());
+	  validate_ptr_log.add(std::tuple(&v, cur));
+	  return get_ptr(cur);
+	}
       }
-      auto x = v.load();
-      return get_ptr(set_stamp(x));
+      return get_ptr(set_stamp(v.load()));
     }
 
-    void store(V* ptr) {  // Fix, get rid of extra argument
+    void store(V* ptr) { 
       if (current_transaction != nullptr) {
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value()) write_log.vals[*lid].second = ptr;
 	else write_log.add(std::pair(&v,ptr));
       } else { // not in a transaction
-	versioned* new_v = install_versioned_store(&v, ptr, false);
+	versioned* new_v = install_versioned_store(&v, ptr, nullptr);
 	strip_indirect(new_v)->set_with_current_stamp();
       }
     }
@@ -386,13 +398,13 @@ namespace verlib {
 #endif
 
   template <typename T, typename E>
-  bool validate(flck::lock& lck, T* v, E expected) {
+  bool validate(verlib::lock& lck, T* v, E expected) {
     if (current_transaction != nullptr) {
 #ifdef Validate
-    if (try_count < 20) // anywhere from 10-100 seems good
-      return validate_(v, expected);
-    else // if too many tries give up on validation and take locks
-      return lck.try_lock([=] {return (v->load() == expected);});
+      if (try_count < 20) // anywhere from 10-100 seems good
+	return validate_(v, expected);
+      else // if too many tries give up on validation and take locks
+	return lck.try_lock([=] {return (v->load() == expected);});
 #else
       return lck.try_lock([=] {return (v->load() == expected);});
 #endif

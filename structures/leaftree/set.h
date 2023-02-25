@@ -22,9 +22,9 @@ struct Set {
 
   // internal node
   struct internal : node {
-    flck::lock lck;
+    verlib::lock lck;
     //flck::atomic_write_once<bool> removed; // not used for leaves, but fits here
-    verlib::atomic<bool> removed; // not used for leaves, but fits here
+    verlib::atomic<bool> removed;
     verlib::versioned_ptr<node> left;
     verlib::versioned_ptr<node> right;
     internal(K k, node* left, node* right)
@@ -76,7 +76,7 @@ struct Set {
 	return false;
       else return {};
     //prev_leaf = l;
-    auto r = p->lck.try_lock([=] {
+    bool r = p->lck.try_lock([=] {
 	auto l_new = ptr->load();
 	if (p->removed.load() || l_new != l) return false;
 	node* new_l = leaf_pool.new_obj(k, v);

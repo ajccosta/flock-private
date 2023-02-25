@@ -95,23 +95,6 @@ public:
     auto result = try_lock_result(f);
     return result.has_value() && result.value();
   }
-
-#ifdef Transactional
-  template <typename Thunk>
-  auto try_lock_no_delay(Thunk f) {
-    verlib::trans_descriptor* tmp = verlib::current_transaction;
-    //verlib::current_transaction = nullptr;  // fix
-    auto result = try_lock_result(f);
-    //verlib::current_transaction = tmp;
-    return result.has_value() && result.value();
-  }
-#else
-  template <typename Thunk>
-  auto try_lock_no_delay(Thunk f) {
-    auto result = try_lock_result(f);
-    return result.has_value() && result.value();
-  }
-#endif
   
   template <typename Thunk>
   auto with_lock(Thunk f) {
@@ -127,6 +110,22 @@ public:
       delay = std::min(2*delay, max_delay);
     }
   }
+#ifdef Transactionalx
+  template <typename Thunk>
+  auto try_lock_no_delay(Thunk f) {
+    verlib::trans_descriptor* tmp = verlib::current_transaction;
+    //verlib::current_transaction = nullptr;  // fix
+    auto result = try_lock_result(f);
+    //verlib::current_transaction = tmp;
+    return result.has_value() && result.value();
+  }
+#else
+  template <typename Thunk>
+  auto try_lock_no_delay(Thunk f) {
+    auto result = try_lock_result(f);
+    return result.has_value() && result.value();
+  }
+#endif
 
 };
   } // namespace  internal

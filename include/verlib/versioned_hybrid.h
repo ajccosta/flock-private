@@ -9,6 +9,7 @@ const TS tbd = std::numeric_limits<TS>::max()/4;
 
 template <typename T>
 using atomic = flck::atomic<T>;
+using lock = flck::lock;
   
 struct versioned {
   flck::atomic_write_once<TS> time_stamp;

@@ -88,11 +88,9 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
 #endif
 
   template <typename F>
-  auto try_loop(const F& f) {
-    const int init_delay = 200;
-    const int max_delay = 10000;
+  auto try_loop(const F& f, const int init_delay = 200, const int max_delay = 2000) {
     int delay = 0;
-    int cnt =0;
+    int cnt = 0;
     while (true)  {
       if (cnt++ == 100000) {
 	std::cout << "problably in an infinite retry loop" << std::endl;
@@ -102,7 +100,7 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
       auto r = f();
       if (r.has_value()) return *r;
       if (delay > 0) delay = std::min(2*delay, max_delay);
-      else delay = init_delay + parlay::hash<int>()(parlay::worker_id()) % (init_delay/2);
+      else delay = init_delay;
       for (volatile int i=0; i < delay; i++);
     }
   }

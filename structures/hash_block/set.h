@@ -47,7 +47,7 @@ struct Set {
 struct slot {
 #ifdef UseCAS
 #else
-  flck::lock lck;
+  verlib::lock lck;
 #endif
     verlib::versioned_ptr<node> ptr;
     slot() : ptr(nullptr) {}

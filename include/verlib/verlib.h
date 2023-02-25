@@ -9,6 +9,8 @@
 #pragma once
 #include <parlay/parallel.h>
 
+//#define Immediate 1
+
 #ifdef Transactional
 // some definitions needed by flock locks (blocking or lock free) when
 // using transactions, so must be defined before including flock.
@@ -18,7 +20,7 @@ namespace flck {
   template <typename T> struct atomic_write_once;
   namespace internal {  struct lock; }}
 
-constexpr int log_len = 50;
+constexpr int log_len = 100;
 
 template <typename T>
 struct transaction_log {

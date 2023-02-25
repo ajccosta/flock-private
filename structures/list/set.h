@@ -14,7 +14,7 @@ struct Set {
     bool is_end;
     verlib::atomic<bool> removed;
     //flck::atomic_write_once<bool> removed;
-    flck::lock lck;
+    verlib::lock lck;
     node(K key, V value, node* next)
       : key(key), value(value), next(next), is_end(false), removed(false) {};
     node(node* next, bool is_end) // for head and tail

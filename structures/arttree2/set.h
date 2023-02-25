@@ -36,7 +36,7 @@ struct Set {
 
   // generic node
   struct node : header {
-    flck::lock lck;
+    verlib::lock lck;
     node(node_type nt) : header(nt) {}
     node(const K& key, node_type nt, int byte_num) : header(key, nt, byte_num) {}
   };

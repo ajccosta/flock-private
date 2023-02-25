@@ -37,7 +37,7 @@ struct Set {
   static constexpr int leaf_join_cutoff = leaf_min_size * 4;
 
   static constexpr int node_block_bytes = 64 * 6;
-  static constexpr int entry_bytes = node_block_bytes - sizeof(header) - sizeof(flck::lock) + sizeof(K);
+  static constexpr int entry_bytes = node_block_bytes - sizeof(header) - sizeof(verlib::lock) + sizeof(K);
   static constexpr int node_block_size = entry_bytes/(sizeof(K) + 8);
   static constexpr int node_min_size = node_block_size/5;
   static constexpr int node_join_cutoff = node_min_size * 4;
@@ -52,7 +52,7 @@ struct Set {
     //flck::atomic_write_once<bool> removed;
     K keys[node_block_size-1];
     verlib::versioned_ptr<node> children[node_block_size];
-    flck::lock lck;
+    verlib::lock lck;
     
     int find(const K& k, uint i=0) {
       //while (i < header::size-1 && !less(k, keys[i])) i++;

@@ -191,10 +191,10 @@ void run_mixed_operations(SetType& os,
 	      abort();
 	    }
 	    for (int k=0; k < tsize; k++) range_keys[k] = all[j+k];
-	    std::sort(range_keys.begin(), range_keys.begin() + tsize);
-	    verlib::hold_a = &range_keys[0];
-	    verlib::count_a = tsize;
-	    verlib::type_a = (char*) &op_types[j];
+	    //std::sort(range_keys.begin(), range_keys.begin() + tsize);
+	    //verlib::hold_a = &range_keys[0];
+	    //verlib::count_a = tsize;
+	    //verlib::type_a = (char*) &op_types[j];
 	    //os.check_tags(tr);
 	    added += verlib::with_transaction([&] {
                int loc_added = 0;
@@ -234,18 +234,17 @@ void run_mixed_operations(SetType& os,
 	    if (j < (i+1)*mp -2) {
 	      update_count += 2;
 	      added += verlib::with_transaction([&] {
-				bool ins = (parlay::hash64(j + i) % 2) == 0;
+						  bool ins = (parlay::hash64(j + i) % 2) == 0;
 				if (ins) { 
 				  auto x = os.try_insert(tr, all[j], 123);
 				  if (!x.has_value()) return std::optional<int>();
-				  //if (*x) std::cout << 10*all[j] + i << ",";
 				  auto y = os.try_remove(tr2, all[j]);
 				  if (!y.has_value()) return std::optional<int>();
 				  return std::optional<int>(*x ? 1 : 0);
 				} else {
 				  auto x = os.try_remove(tr, all[j]);
 				  if (!x.has_value()) return std::optional<int>();
-				  auto y = os.try_insert(tr2, all[j+1], 123);
+				  auto y = os.try_insert(tr2, all[j], 123);
 				  if (!y.has_value()) return std::optional<int>();
 				  return std::optional<int>(*x ? -1 : 0);}});
 	      cnt += 2;
