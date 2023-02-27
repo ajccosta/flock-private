@@ -30,19 +30,8 @@ public:
 #endif
   }
 
-#ifdef Transactional
-  template <typename Thunk>
-  auto try_lock_no_delay(Thunk f) {
-    verlib::trans_descriptor* tmp = verlib::current_transaction;
-    //verlib::current_transaction = nullptr;  // fix
-    bool result = try_lock(f);
-    //verlib::current_transaction = tmp;
-    return result;
-  }
-#else
   template <typename Thunk>
   auto try_lock_no_delay(Thunk f) {return try_lock(f);}
-#endif
 };
 
   template <typename F>
@@ -53,10 +42,15 @@ public:
   }
 
   template <typename F>
-  bool run_with_logged_locks(F f) {
-    // for (int i=0; i < validate_ptr_log.cnt; i++) {
-    //   auto [location, expected] = validate_ptr_log.vals[i];
-    //   if (set_stamp(location->load()) != expected) return false;
+  bool run_with_logged_locks(F f, bool validate=false) {
+    if (validate)
+      for (int i=0; i < validate_ptr_log.cnt; i++) {
+	auto [location, expected] = validate_ptr_log.vals[i];
+	if (set_stamp(location->load()) != expected) return false;
+      }
+    // for (int i=0; i < lock_log.cnt; i++) {
+    //   if (lock_log.vals[i]->is_locked() && !lock_log.vals[i]->is_self_locked())
+    // 	return false;
     // }
     return run_with_locks_rec(0, f);
   }

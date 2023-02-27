@@ -9,8 +9,6 @@
 #pragma once
 #include <parlay/parallel.h>
 
-//#define Immediate 1
-
 #ifdef Transactional
 // some definitions needed by flock locks (blocking or lock free) when
 // using transactions, so must be defined before including flock.
@@ -20,7 +18,7 @@ namespace flck {
   template <typename T> struct atomic_write_once;
   namespace internal {  struct lock; }}
 
-constexpr int log_len = 100;
+constexpr int log_len = 200;
 
 template <typename T>
 struct transaction_log {
@@ -44,12 +42,10 @@ namespace verlib { // trans
 
   // All the logs
   thread_local transaction_log<flck::internal::lock*> lock_log;
-  thread_local transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_log;
+  thread_local transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_ptr_log;
   thread_local transaction_log<std::pair<std::atomic<atomic_val>*,atomic_val>> write_atomic_log;
-  //thread_local transaction_log<std::tuple<std::atomic<unsigned char>*, unsigned char>> write_once_log;
   thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
   thread_local transaction_log<std::tuple<std::atomic<atomic_val>*,atomic_val>> validate_atomic_log;
-  //thread_local transaction_log<std::tuple<flck::atomic_write_once<bool>*,bool>> validate_val_log;
   thread_local transaction_log<bool*> retired_log;
   thread_local transaction_log<bool*> allocated_log;
 }

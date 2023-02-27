@@ -1,7 +1,7 @@
 #pragma once
 
 #include "flock/flock.h"
-//#include "flock/acquired_pool.h"
+#include "flock/acquired_pool.h"
 #include "timestamps.h"
 
 namespace verlib {
@@ -24,7 +24,7 @@ namespace verlib {
     // originally "tbd", then "tbs", then either a real timestamp or "failed"
     std::atomic<TS> time_stamp;  
 
-    //std::atomic<bool> acquired;   
+    std::atomic<bool> acquired;   
 
     void atomic_set_stamp(TS ts) {
       assert(time_stamp.load() != tbd);
@@ -44,8 +44,8 @@ namespace verlib {
     }
   };
 
-  flck::memory_pool<trans_descriptor> trans_descriptor_pool;
-  //  flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
+  //flck::memory_pool<trans_descriptor> trans_descriptor_pool;
+  flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
 
 #define init_ptr (((versioned*) nullptr) - 1)
 
@@ -69,6 +69,11 @@ namespace verlib {
 
     std::pair<trans_descriptor*, TS> get_descriptor_and_stamp() {
       TS td = stamp_or_descriptor.load();
+      if (is_tagged(td)) {
+      	trans_descriptor* descriptor = untag_descriptor(td);
+      	trans_descriptor_pool.acquire(descriptor);
+      	td = stamp_or_descriptor.load();
+      } 
       if (is_tagged(td)) return std::pair(untag_descriptor(td), tbd);
       else return std::pair(nullptr, td);
     }
@@ -159,7 +164,8 @@ namespace verlib {
     // splice this latest version out if transaction aborted
     if (time_stamp == failed) {
       *loc = ptr->get_next_version();
-      if (is_indirect(ptr_tagged)) link_pool.retire((ver_link*) ptr);
+      // no need to retire since will automatically be retired
+      //if (is_indirect(ptr_tagged)) link_pool.retire((ver_link*) ptr);
     }
     // replace descriptor with timestamp (possibly failed stamp)
     ptr->remove_descriptor(time_stamp); 
@@ -205,6 +211,7 @@ namespace verlib {
     atomic_val old_val;
     atomic_val new_val;
     trans_descriptor* descriptor;
+    std::atomic<bool> acquired;
     constexpr static int bit_num = 63;
     static bool is_held(atomic_val x) {return (x >> bit_num) & 1;}
     static atomic_val tag_hold(hold* ptr) {
@@ -215,7 +222,8 @@ namespace verlib {
       : old_val(o), new_val(n), descriptor(d) {}
   };
 
-  static flck::memory_pool<hold> hold_pool;
+  //static flck::memory_pool<hold> hold_pool;
+  static flck::internal::acquired_pool<hold> hold_pool;
 
   void install_atomic_store(std::atomic<atomic_val>* loc,
 			    atomic_val new_v,
@@ -234,9 +242,17 @@ namespace verlib {
     hold_pool.retire(hold_ptr);
   }
 
-  V get_value(atomic_val x, bool validating=false) {
-    if (!hold::is_held(x)) return x;
-    hold* ptr = hold::untag_hold(x);
+  V get_value(std::atomic<atomic_val>& v, bool validating=false) {
+    atomic_val x = v.load();
+    atomic_val y;
+    hold* ptr;
+    do {
+      if (!hold::is_held(x)) return x;
+      ptr = hold::untag_hold(x);
+      hold_pool.acquire(ptr);
+      y = x;
+      x = v.load();
+    } while (x != y);
     return resolve_descriptor(ptr->descriptor, ptr->old_val,
 			      ptr->new_val, validating);
   }
@@ -260,12 +276,12 @@ namespace verlib {
 	if (lid.has_value())
 	  return (V*) write_atomic_log.vals[*lid].second;
 	if (in_lock) {
-	  atomic_val cur = get_value(v.load());
+	  atomic_val cur = get_value(v);
 	  validate_atomic_log.add(std::tuple(&v, cur));
 	  return (V) cur;
 	}
       }
-      return (V) get_value(v.load());
+      return (V) get_value(v);
     }
     void store(V new_v) {
       if (current_transaction == nullptr) v = new_v;
@@ -279,7 +295,7 @@ namespace verlib {
     bool validate(V expected) { 
       std::optional<int> lid = find_in_atomic_write_log();
       if (lid.has_value()) return (write_atomic_log.vals[*lid].second == expected);
-      atomic_val cur = get_value(v.load());
+      atomic_val cur = get_value(v);
       if (cur != expected) return false; 
       validate_atomic_log.add(std::tuple(&v, expected));
       return true;
@@ -338,8 +354,8 @@ namespace verlib {
     }
 
     std::optional<int> find_in_write_log() {
-      for (int i=0; i < write_log.cnt; i++)
-	if (write_log.vals[i].first == &v)
+      for (int i=0; i < write_ptr_log.cnt; i++)
+	if (write_ptr_log.vals[i].first == &v)
 	  return std::optional<int>(i);
       return std::optional<int>();
     }
@@ -350,7 +366,7 @@ namespace verlib {
       if (current_transaction != nullptr) {
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value())
-	  return (V*) write_log.vals[*lid].second;
+	  return (V*) write_ptr_log.vals[*lid].second;
 	if (in_lock) {
 	  versioned* cur = set_stamp(v.load());
 	  validate_ptr_log.add(std::tuple(&v, cur));
@@ -363,8 +379,8 @@ namespace verlib {
     void store(V* ptr) { 
       if (current_transaction != nullptr) {
 	std::optional<int> lid = find_in_write_log();
-	if (lid.has_value()) write_log.vals[*lid].second = ptr;
-	else write_log.add(std::pair(&v,ptr));
+	if (lid.has_value()) write_ptr_log.vals[*lid].second = ptr;
+	else write_ptr_log.add(std::pair(&v,ptr));
       } else { // not in a transaction
 	versioned* new_v = install_versioned_store(&v, ptr, nullptr);
 	strip_indirect(new_v)->set_with_current_stamp();
@@ -375,7 +391,7 @@ namespace verlib {
     bool validate(V* expected) {
       assert(this != nullptr);
       std::optional<int> lid = find_in_write_log();
-      if (lid.has_value()) return (write_log.vals[*lid].second == expected);
+      if (lid.has_value()) return (write_ptr_log.vals[*lid].second == expected);
       versioned* ptr = set_stamp(v.load());
       V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
       if (cur != expected) return false; 

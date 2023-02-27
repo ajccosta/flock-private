@@ -86,22 +86,23 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
 #else 
  using lock = internal::lock;
 #endif
+  thread_local long try_time_taken = -1;
 
   template <typename F>
-  auto try_loop(const F& f, const int init_delay = 200, const int max_delay = 2000) {
-    int delay = 0;
+  auto try_loop(const F& f, int delay = 200, const int max_multiplier = 10) {
+    int multiplier = 1;
     int cnt = 0;
     while (true)  {
-      if (cnt++ == 100000) {
+      if (cnt++ == 1000000000/(delay*max_multiplier)) {
 	std::cout << "problably in an infinite retry loop" << std::endl;
 	abort(); 
 	deadlock = true;
       }
       auto r = f();
+      //if (try_time_taken != -1) delay = try_time_taken;
       if (r.has_value()) return *r;
-      if (delay > 0) delay = std::min(2*delay, max_delay);
-      else delay = init_delay;
-      for (volatile int i=0; i < delay; i++);
+      multiplier = std::min(2*multiplier, max_multiplier);
+      for (volatile int i=0; i < delay * multiplier; i++);
     }
   }
     

@@ -394,12 +394,14 @@ struct Set {
         if (c->is_leaf) {
           gp->children[pidx] = add_child(p, split_leaf(c), cidx);
           leaf_pool.retire((leaf*) c);
-        } else {
-        gp->children[pidx] = add_child(p, split(c), cidx);
-        node_pool.retire(c);
+	  node_pool.retire(p);
+	  return true;
         }
-        node_pool.retire(p);
-        return true;
+	return c->lck.try_lock_no_delay([=] {
+	  gp->children[pidx] = add_child(p, split(c), cidx);
+	  node_pool.retire(c);
+	  node_pool.retire(p);
+	  return true;});
       });});
   }
 
@@ -508,22 +510,26 @@ struct Set {
       if (c->status == isOver || (!c->is_leaf && c->size == 1))
         fix_root(root, c);
       else while (true) {
-        if (c->is_leaf) return std::tuple(p, cidx, (leaf*) c);
-        node* gp = p;
-        int pidx = cidx;
-        p = c;
-        cidx = c->find(k);
-        c = p->children[cidx].load();
-        // The following two lines are only useful if hardware
-        // prefetching is turned off.  They prefetch the next two
-        // cache lines.
-        __builtin_prefetch (((char*) c) + 64); 
-        __builtin_prefetch (((char*) c) + 128);
-    if (c->status != OK) {
-          fix_node(gp, pidx, p, cidx, c);
-          break;
-    }
-      }
+	  if (c->is_leaf) return std::tuple(p, cidx, (leaf*) c);
+	  node* gp = p;
+	  int pidx = cidx;
+	  p = c;
+	  cidx = c->find(k);
+	  c = p->children[cidx].load();
+	  // The following two lines are only useful if hardware
+	  // prefetching is turned off.  They prefetch the next two
+	  // cache lines.
+	  __builtin_prefetch (((char*) c) + 64); 
+	  __builtin_prefetch (((char*) c) + 128);
+	  if (c->status != OK) {
+	    fix_node(gp, pidx, p, cidx, c);
+	    if (cnt++ == 100000) {
+	      std::cout << "probable infinite loop in find_and_fix" << std::endl;
+	      abort();
+	    }
+	    break;
+	  }
+	}
     }
   }
 

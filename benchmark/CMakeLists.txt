@@ -44,7 +44,8 @@ add_benchmark(arttree ${STRUCT_DIR}/arttree "NoHelp;Versioned;NoShortcut;WriteSt
 
 foreach(bench ${FLOCK_BENCH})
 add_benchmark(${bench}_validate ${STRUCT_DIR}/${bench} "NoHelp;Validate;Transactional;TransUndo;Versioned;NoShortcut;HWWriteStamp")
-add_benchmark(${bench}_trans ${STRUCT_DIR}/${bench} "NoHelp;Transactional;TransUndo;Versioned;NoShortcut;HWWriteStamp")
+add_benchmark(${bench}_immediate ${STRUCT_DIR}/${bench} "NoHelp;Validate;Immediate;Transactional;TransUndo;Versioned;NoShortcut;HWWriteStamp")
+add_benchmark(${bench}_trans ${STRUCT_DIR}/${bench} "NoHelp;Immediate;Transactional;TransUndo;Versioned;NoShortcut;HWWriteStamp")
 add_benchmark(${bench}_noundo ${STRUCT_DIR}/${bench} "NoHelp;Transactional;Versioned;NoShortcut;HWWriteStamp")
 add_benchmark(${bench} ${STRUCT_DIR}/${bench} "NoHelp;Versioned;NoShortcut;HWWriteStamp")
 #  add_benchmark(${bench}_nohelp ${STRUCT_DIR}/${bench} "NoHelp")
