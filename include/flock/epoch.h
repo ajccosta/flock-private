@@ -178,8 +178,8 @@ public:
     T* newv = Allocator::alloc();
     new (newv) T(args...);
 #ifdef TransUndo
-    //if (verlib::current_transaction != nullptr)
-    //  verlib::allocated_log.add(retire(newv,false));
+    if (verlib::current_transaction != nullptr)
+      verlib::allocated_log.add(retire(newv,false));
 #endif
     return newv;
   }
@@ -194,7 +194,7 @@ public:
 
   // destruction and freeing is delayed until a future epoch
   bool* retire(T* p, bool add_to_log=true) {
-    return nullptr;
+    //return nullptr;
     auto i = parlay::worker_id();
     auto &pid = pools[i];
     if (pid.epoch < epoch.get_current()) {
