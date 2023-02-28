@@ -43,6 +43,7 @@ public:
 
   template <typename F>
   bool run_with_logged_locks(F f, bool validate=false) {
+    std::sort(lock_log.vals.begin(), lock_log.vals.begin()+lock_log.cnt);
     if (validate)
       for (int i=0; i < validate_ptr_log.cnt; i++) {
 	auto [location, expected] = validate_ptr_log.vals[i];

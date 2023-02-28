@@ -196,7 +196,6 @@ struct Set {
                else if (i == pos) return c;
                else return p->children[i+1].load();};
     node* new_p = copy(size-1, get_key, get_child);
-    p->removed = true;
     return new_p;
   }
 
@@ -213,7 +212,6 @@ struct Set {
                else if (i == pos+1) return c2;
                else return p->children[i].load();};
     node* new_p = copy(size, get_key, get_child);
-    p->removed = true;
     return new_p;
   }
 
@@ -384,11 +382,11 @@ struct Set {
   // for a grandparent gp, parent p, and child c:
   // copies the parent p to replace with new children and
   // updates the grandparent gp to point to the new copied parent.
-  void overfull_node(node* gp, int pidx, node* p, int cidx, node* c) {
-    gp->lck.try_lock_no_delay([=] {
-    // check that gp has not been removed, and p has not changed
-    if (gp->removed.load() || gp->children[pidx].load() != p) return false;
-    return p->lck.try_lock_no_delay([=] {
+  bool overfull_node(node* gp, int pidx, node* p, int cidx, node* c) {
+    return gp->lck.try_lock_no_delay([=] {
+      // check that gp has not been removed, and p has not changed
+      if (gp->removed.load() || gp->children[pidx].load() != p) return false;
+      return p->lck.try_lock_no_delay([=] {
         // check that c has not changed
         if (p->children[cidx].load() != c) return false;
         if (c->is_leaf) {
@@ -410,48 +408,47 @@ struct Set {
   // the sizes is less than join_cutoff, or rebalances the two otherwise.
   // Copies the parent p to replace with new child or children.
   // Updates the grandparent gp to point to the new copied parent.
-  void underfull_node(node* gp, int pidx, node* p, int cidx, node* c) {
-    gp->lck.try_lock_no_delay([=] {
-    // check that gp has not been removed, and p has not changed
-    if (gp->removed.load() || gp->children[pidx].load() != p) return false;
-    return p->lck.try_lock_no_delay([=] {
+  bool underfull_node(node* gp, int pidx, node* p, int cidx, node* c) {
+    return gp->lck.try_lock_no_delay([=] {
+      // check that gp has not been removed, and p has not changed
+      if (gp->removed.load() || gp->children[pidx].load() != p) return false;
+      return p->lck.try_lock_no_delay([=] {
         // join with next if first in block, otherwise with previous
         node* other_c = p->children[(cidx == 0 ? cidx + 1 : cidx - 1)].load();
         auto [li, lc, rc] = ((cidx == 0) ?
                  std::make_tuple(0, c, other_c) :  
                  std::make_tuple(cidx-1, other_c, c)); 
         if (c->is_leaf) { // leaf
+	  p->removed = true; 
           if (lc->size + rc->size < leaf_join_cutoff)  // join
-        gp->children[pidx] = join_children(p, join_leaf(lc, rc), li);
+	    gp->children[pidx] = join_children(p, join_leaf(lc, rc), li);
           else   // rebalance
-        gp->children[pidx] = rebalance_children(p, rebalance_leaf(lc, rc), li);
+	    gp->children[pidx] = rebalance_children(p, rebalance_leaf(lc, rc), li);
           node_pool.retire(p);
           leaf_pool.retire((leaf*) lc);
           leaf_pool.retire((leaf*) rc);
           return true;
         } else { // internal node
           K& k = p->keys[li];
-          // need to lock the other child 
-          return other_c->lck.try_lock_no_delay([=] {
-          other_c->removed = true;
-          if (lc->size + rc->size < node_join_cutoff)   // join
-            gp->children[pidx] = join_children(p, join(lc, k, rc), li);
-          else // rebalance
-            gp->children[pidx] = rebalance_children(p, rebalance(lc, k, rc), li);
-          node_pool.retire(p);
-          node_pool.retire(lc);
-          node_pool.retire(rc);
-          return true;
-        });
+          // need to lock the two children
+          return lc->lck.try_lock_no_delay([=] {
+            return rc->lck.try_lock_no_delay([=] {
+	      if (lc->size + rc->size < node_join_cutoff)   // join
+		gp->children[pidx] = join_children(p, join(lc, k, rc), li);
+	      else // rebalance
+		gp->children[pidx] = rebalance_children(p, rebalance(lc, k, rc), li);
+	      lc->removed = rc->removed = p->removed = true;
+	      node_pool.retire(p);
+	      node_pool.retire(lc);
+	      node_pool.retire(rc);
+	      return true;});});
         }
       });});
   }
 
-  void fix_node(node* gp, int pidx, node* p, int cidx, node* c) {
-    if (c->status == isOver)
-      overfull_node(gp, pidx, p, cidx, c);
-    else 
-      underfull_node(gp, pidx, p, cidx, c);
+  bool fix_node(node* gp, int pidx, node* p, int cidx, node* c) {
+    if (c->status == isOver) return overfull_node(gp, pidx, p, cidx, c);
+    else return underfull_node(gp, pidx, p, cidx, c);
   }
 
   node* copy_node_or_leaf(node* p) {
@@ -466,31 +463,31 @@ struct Set {
   // it takes a lock on the root
   void fix_root(node* root, node* c) {
       root->lck.try_lock_no_delay([=] {
-    // check that c has not changed
-    if (root->children[0].load() != c) return false;
-    if (c->status == isOver) {
-      if (c->is_leaf) {
-        root->children[0] = node_pool.new_obj(split_leaf(c));
-        leaf_pool.retire((leaf*) c);
-      } else {
-        root->children[0] = node_pool.new_obj(split(c));
-        node_pool.retire(c);
-      }
-      return true;
-    } else { // c has degree 1 and not a leaf
+        // check that c has not changed
+        if (root->children[0].load() != c) return false;
+	if (c->status == isOver) {
+	  if (c->is_leaf) {
+	    root->children[0] = node_pool.new_obj(split_leaf(c));
+	    leaf_pool.retire((leaf*) c);
+	  } else {
+	    root->children[0] = node_pool.new_obj(split(c));
+	    node_pool.retire(c);
+	  }
+	  return true;
+	} else { // c has degree 1 and not a leaf
 #ifdef Recorded_Once
-      // if recorded once then child of c needs to be copied
-      return c->lck.try_lock_no_delay([=] {
-          root->children[0] = copy_node_or_leaf(c->children[0].load());
-          node_pool.retire(c);
-          return true;});
+	  // if recorded once then child of c needs to be copied
+	  return c->lck.try_lock_no_delay([=] {
+            root->children[0] = copy_node_or_leaf(c->children[0].load());
+	    node_pool.retire(c);
+	    return true;});
 #else
-      // if not recorded once then can be updated in place
-      root->children[0] = c->children[0].load();
-      node_pool.retire(c);
-      return true;
+	  // if not recorded once then can be updated in place
+	  root->children[0] = c->children[0].load();
+	  node_pool.retire(c);
+	  return true;
 #endif
-    }});
+	}});
   }
 
   // Finds the leaf containing a given key, returning the parent, the
@@ -515,12 +512,6 @@ struct Set {
 	  int pidx = cidx;
 	  p = c;
 	  cidx = c->find(k);
-	  c = p->children[cidx].load();
-	  // The following two lines are only useful if hardware
-	  // prefetching is turned off.  They prefetch the next two
-	  // cache lines.
-	  __builtin_prefetch (((char*) c) + 64); 
-	  __builtin_prefetch (((char*) c) + 128);
 	  if (c->status != OK) {
 	    fix_node(gp, pidx, p, cidx, c);
 	    if (cnt++ == 100000) {
