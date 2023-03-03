@@ -6,11 +6,6 @@
 
 namespace verlib {
 
-  thread_local bool in_main_loop = false;
-  thread_local long unsigned int* hold_a;
-  thread_local int count_a;
-  thread_local char* type_a;
-
   bool valid_pointer(void* ptr) { return ((size_t) ptr) < (1ul << 48);}
   
   // Special timestamps
@@ -219,23 +214,25 @@ namespace verlib {
     return new_v;
   }
 
-  versioned* set_stamp(versioned* tagged_ptr, bool validating = false) {
+  versioned* get_value(versioned* tagged_ptr, bool validating = false) {
     if (tagged_ptr == nullptr) return nullptr;
     versioned* ptr = strip_indirect(tagged_ptr);
     auto [descriptor, stamp] = ptr->get_descriptor_and_stamp();
     if (stamp == failed) return ptr->get_next_version();
     if (stamp != tbd) return tagged_ptr;
-    if (stamp != tbd) return (stamp == failed) ? ptr->get_next_version() : tagged_ptr;
     if (descriptor == nullptr) {ptr->set_with_current_stamp(); return tagged_ptr; }
     return resolve_descriptor(descriptor, ptr->get_next_version(),
 			      tagged_ptr, validating);
   }
 
-  #include "atomic_val.h"
-  
+  thread_local int try_count;
+#include "lock.h"
+#include "transactions.h"
+  //  #include "atomic_val.h"
+
   template <typename V>
   struct versioned_ptr {
-    //private:
+  private:
     flck::atomic<versioned*> v;
 
     // probably a memory leak on retiring, need to look into it.
@@ -274,7 +271,6 @@ namespace verlib {
     }
 
   public:
-
     
     versioned_ptr(): v(nullptr) {}
     versioned_ptr(V* ptr) : v(set_zero_stamp(ptr)) {}
@@ -289,7 +285,7 @@ namespace verlib {
 
     V* read_snapshot() {
       TS ls = local_stamp;
-      versioned* ptr = set_stamp(v.read());
+      versioned* ptr = get_value(v.read());
       versioned* ptr_ = strip_indirect(ptr);
 
       // chase down version chain
@@ -321,14 +317,14 @@ namespace verlib {
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value())
 	  return (V*) write_ptr_log.vals[*lid].second;
-	versioned* cur = set_stamp(v.load());
+	versioned* cur = get_value(v.load());
 	if (in_lock) validate_ptr_log.add(std::tuple(&v, cur));
 	// for opacity
 	if (cur != nullptr && strip_indirect(cur)->get_stamp() > start_stamp)
 	  trans_aborted = true;
 	return get_ptr_shortcut(cur, false);
       }
-      return get_ptr_shortcut(set_stamp(v.load()));
+      return get_ptr_shortcut(get_value(v.load()));
     }
 
     void store(V* ptr) { 
@@ -347,7 +343,7 @@ namespace verlib {
       assert(this != nullptr);
       std::optional<int> lid = find_in_write_log();
       if (lid.has_value()) return (write_ptr_log.vals[*lid].second == expected);
-      versioned* ptr = set_stamp(v.load());
+      versioned* ptr = get_value(v.load());
       V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
       if (cur != expected) return false; 
       validate_ptr_log.add(std::tuple(&v, ptr));
@@ -362,35 +358,20 @@ namespace verlib {
     versioned_ptr<Empty> val;
     bool load() {return val.load() != nullptr;}
     void store(bool v) {val = v ? &true_val : nullptr;}
+    bool validate(bool expected) {
+      Empty* cur = val.load();
+      if ((cur == nullptr) == expected) return false;
+      return val.validate(cur); }
     atomic_bool(bool v) : val(v ? &true_val : nullptr) {}
     bool operator=(bool b) {store(b); return b; }
   };
 
-#ifdef Validate
-  template <typename T>
-  bool validate_(versioned_ptr<T>* ptr, T* expected) {return ptr->validate(expected); }
-  template <typename T>
-  bool validate_(atomic<T>* ptr, T expected) {return ptr->validate(expected); }
-  bool validate_(atomic_bool* value, bool expected) {
-    Empty* cur = value->val.load();
-    if ((cur == nullptr) == expected) return false;
-    return value->val.validate(cur); }
-  
-
-  // bool validate_(flck::atomic_write_once<bool>* a, bool expected) {
-  //   if (a->load() != expected) return false;
-  //   validate_val_log.add(std::tuple(a, expected));
-  //   return true;
-  // }
-#endif
-
-  
   template <typename T, typename E>
   bool validate(verlib::lock& lck, T* v, E expected) {
     if (current_transaction != nullptr) {
 #ifdef Validate
       if (try_count < 20) // anywhere from 10-100 seems good
-	return validate_(v, expected);
+	return v->validate(expected);
       else // if too many tries give up on validation and take locks
 	return lck.try_lock([=] {return (v->load() == expected);});
 #else

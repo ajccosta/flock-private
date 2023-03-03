@@ -30,6 +30,20 @@ public:
 #endif
   }
 
+  template <typename T, typename E>
+  bool validate(T* v, E expected) {
+    if (current_transaction != nullptr) {
+#ifdef Validate
+      if (try_count < 20) // anywhere from 10-100 seems good
+	return v->validate(expected);
+      else // if too many tries give up on validation and take locks
+	return try_lock([=] {return (v->load() == expected);});
+#else
+      return try_lock([=] {return (v->load() == expected);});
+#endif
+    } else return true;
+  }
+
   template <typename Thunk>
   auto try_lock_no_delay(Thunk f) {return try_lock(f);}
 };
@@ -47,7 +61,7 @@ public:
     if (validate)
       for (int i=0; i < validate_ptr_log.cnt; i++) {
 	auto [location, expected] = validate_ptr_log.vals[i];
-	if (set_stamp(location->load()) != expected) return false;
+	if (get_value(location->load()) != expected) return false;
       }
     // for (int i=0; i < lock_log.cnt; i++) {
     //   if (lock_log.vals[i]->is_locked() && !lock_log.vals[i]->is_self_locked())

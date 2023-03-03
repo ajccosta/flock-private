@@ -1,7 +1,6 @@
 // Code for transactions
 // One allocated for every transaction
 
-thread_local int try_count;
 thread_local TS start_stamp = 0;
 thread_local bool trans_aborted = false;
 
@@ -18,11 +17,11 @@ bool commit_transaction (trans_descriptor* descriptor) {
   }
   current_transaction = nullptr;
 
-  for (int i=0; i < write_atomic_log.cnt; i++) {
-    auto [location, value] = write_atomic_log.vals[i];  
-    install_atomic_store(location, value, descriptor);
+  // for (int i=0; i < write_atomic_log.cnt; i++) {
+  //   auto [location, value] = write_atomic_log.vals[i];  
+  //   install_atomic_store(location, value, descriptor);
+  // }
 
-  }
   descriptor->time_stamp = tbs;
 
   TS ts = global_stamp.get_write_stamp();
@@ -34,20 +33,20 @@ bool commit_transaction (trans_descriptor* descriptor) {
     // validate versioned pointers
     for (int i=0; i < validate_ptr_log.cnt; i++) {
       auto [location, expected] = validate_ptr_log.vals[i];
-      if (set_stamp(location->load(), true) != expected) {
+      if (get_value(location->load(), true) != expected) {
 	passed = false;
 	break;
       }
     }
-    if (passed)
-      // validate values
-      for (int i=0; i < validate_atomic_log.cnt; i++) {
-	auto [location, expected] = validate_atomic_log.vals[i];
-	if (get_value(*location, true) != expected) {
-	  passed = false;
-	  break;
-	}
-      }
+    // if (passed)
+    //   // validate values
+    //   for (int i=0; i < validate_atomic_log.cnt; i++) {
+    // 	auto [location, expected] = validate_atomic_log.vals[i];
+    // 	if (get_value(*location, true) != expected) {
+    // 	  passed = false;
+    // 	  break;
+    // 	}
+    //   }
 
     descriptor->atomic_set_stamp(passed ? ts : failed);
     ts = descriptor->time_stamp.load();
@@ -60,9 +59,8 @@ bool commit_transaction (trans_descriptor* descriptor) {
     finalize_versioned_store(location, value, ts);
   }
 
-  for (int i=0; i < write_atomic_log.cnt; i++)
-    finalize_atomic_store(write_atomic_log.vals[i].first, ts);
-
+  //for (int i=0; i < write_atomic_log.cnt; i++)
+  //  finalize_atomic_store(write_atomic_log.vals[i].first, ts);
   
   return passed;
 }
@@ -70,9 +68,9 @@ bool commit_transaction (trans_descriptor* descriptor) {
 void clear_logs() {
   lock_log.clear();
   write_ptr_log.clear();
-  write_atomic_log.clear();
+  //write_atomic_log.clear();
   validate_ptr_log.clear();
-  validate_atomic_log.clear();
+  //validate_atomic_log.clear();
   allocated_log.clear();
   retired_log.clear();
 }
@@ -83,6 +81,7 @@ auto with_transaction(F f) {
   try_count = 0;
   double time_taken = 200;
   int delay = 0;
+  int max_delay = 0;
   while (true) {
     auto r = flck::with_epoch([&] {
 	  clear_logs();
@@ -114,7 +113,7 @@ auto with_transaction(F f) {
 #endif
 
 	  assert(current_transaction == nullptr);
-	  auto end_time = std::chrono::system_clock::now();
+	  //auto end_time = std::chrono::system_clock::now();
 	  //time_taken = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
 	  if (passed) {
 	    trans_descriptor_pool.retire(descriptor);
@@ -127,14 +126,15 @@ auto with_transaction(F f) {
 	    for (int i=0; i < allocated_log.cnt; i++)
 	      *allocated_log.vals[i] = false;
 
-	    if (delay == 0) delay = 100 * (1  + 4 * lock_log.cnt);
-	    int max_ratio = 8;
+	    if (delay == 0) {
+	      delay = 100 * (1  + 4 * lock_log.cnt);
+	      max_delay = 4 * delay;
 #ifdef Immediate
-	    max_ratio = 16;
+	      max_delay = 16 * delay;
 #endif
-	    int wait = delay * std::min(max_ratio, 1 << try_count);
-	    for (volatile int i=0; i < wait; i++);
-	    if (try_count++ > 1000000000/(max_ratio*delay)) {
+	    } else delay = std::min(2 * delay, max_delay);
+	    for (volatile int i=0; i < delay; i++);
+	    if (try_count++ > 1000000000l/max_delay) {
 	      std::cout << "looks like an infinite retry loop" << std::endl;
 	      abort();
 	    }
