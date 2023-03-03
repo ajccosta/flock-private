@@ -2,6 +2,8 @@
 // One allocated for every transaction
 
 thread_local int try_count;
+thread_local TS start_stamp = 0;
+thread_local bool trans_aborted = false;
 
 bool commit_transaction (trans_descriptor* descriptor) {
   bool passed = true;
@@ -84,13 +86,16 @@ auto with_transaction(F f) {
   while (true) {
     auto r = flck::with_epoch([&] {
 	  clear_logs();
-	  auto start_time = std::chrono::system_clock::now();
+	  //auto start_time = std::chrono::system_clock::now();
 	  in_lock = false;
+	  start_stamp = global_stamp.get_read_stamp();
+	  trans_aborted = false;
 	  trans_descriptor* descriptor = trans_descriptor_pool.new_obj();
 	  current_transaction = descriptor;
 	  auto x = f();
 	  current_transaction = nullptr;
-	  bool passed = x.has_value();
+	  //bool passed = x.has_value();
+	  bool passed = x.has_value() && !trans_aborted;
 
 #ifdef Immediate
 	  if (passed)
@@ -110,7 +115,7 @@ auto with_transaction(F f) {
 
 	  assert(current_transaction == nullptr);
 	  auto end_time = std::chrono::system_clock::now();
-	  time_taken = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+	  //time_taken = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
 	  if (passed) {
 	    trans_descriptor_pool.retire(descriptor);
 	    return x;

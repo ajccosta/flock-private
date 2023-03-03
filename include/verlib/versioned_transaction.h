@@ -323,8 +323,10 @@ namespace verlib {
 	  return (V*) write_ptr_log.vals[*lid].second;
 	versioned* cur = set_stamp(v.load());
 	if (in_lock) validate_ptr_log.add(std::tuple(&v, cur));
+	// for opacity
+	if (cur != nullptr && strip_indirect(cur)->get_stamp() > start_stamp)
+	  trans_aborted = true;
 	return get_ptr_shortcut(cur, false);
-	return get_ptr(cur);
       }
       return get_ptr_shortcut(set_stamp(v.load()));
     }

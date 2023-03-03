@@ -206,11 +206,11 @@ void run_mixed_operations(SetType& os,
 		   keysum += (*x).has_value();
 		 } else if (op_types[j+k] == Insert) {
 		   auto x = os.try_insert(tr, range_keys[k], 123);
-		   if (!x.has_value()) return std::optional<int>();
+		   if (!x.has_value() || verlib::trans_aborted) return std::optional<int>();
 		   if (*x) loc_added++;
 		 } else if (op_types[j+k] == Remove) {
 		   auto x = os.try_remove(tr, range_keys[k]);
-		   if (!x.has_value()) return std::optional<int>();
+		   if (!x.has_value()  || verlib::trans_aborted) return std::optional<int>();
 		   if (*x) loc_added--;
 		 }
 #else
