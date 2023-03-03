@@ -10,6 +10,7 @@ const TS tbd = std::numeric_limits<TS>::max()/4;
 template <typename T>
 using atomic = flck::atomic<T>;
 using lock = flck::lock;
+using atomic_bool = flck::atomic_write_once<bool>;
   
 struct versioned {
   flck::atomic_write_once<TS> time_stamp;
@@ -53,7 +54,7 @@ private:
 #endif
   }
 
-  V* get_ptr(versioned* ptr) {
+  static V* get_ptr(versioned* ptr) {
     versioned* ptr_ = strip_indirect(ptr);
     if (!is_indirect(ptr)) return (V*) ptr_;
     return (V*) ((ver_link*) ptr_)->value;

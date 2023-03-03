@@ -124,6 +124,17 @@ private:
   std::vector<old_current> pools;
   int workers;
 
+  Link* add_to_current_list(xT* p) {
+    auto i = parlay::worker_id();
+    auto &pid = pools[i];
+    advance_epoch(i, pid);
+    Link* lnk = list_allocator::alloc();
+    lnk->next = pid.current;
+    lnk->value = (void*) p;
+    pid.current = lnk;
+    return lnk;
+  }
+
   // destructs and frees a linked list of objects 
   void clear_list(Link* ptr) {
     while (ptr != nullptr) {
@@ -136,6 +147,25 @@ private:
       list_allocator::free(tmp);
     }
   }
+
+  void advance_epoch(int i, old_current& pid) {
+    if (pid.epoch + 1 < epoch.get_current()) {
+      clear_list(pid.old);
+      pid.old = pid.current;
+      pid.current = nullptr;
+      pid.epoch = epoch.get_current();
+    }
+    // a heuristic
+    auto now = system_clock::now();
+    if (++pid.count == update_threshold  ||
+	duration_cast<milliseconds>(now - pid.time).count() >
+	milliseconds_between_epoch_updates * (1 + ((float) i)/workers)) {
+      pid.count = 0;
+      pid.time = now;
+      epoch.update_epoch();
+    }
+  }
+
 
 public:
   using T = xT;
@@ -178,8 +208,7 @@ public:
     T* newv = Allocator::alloc();
     new (newv) T(args...);
 #ifdef TransUndo
-    if (verlib::current_transaction != nullptr)
-      verlib::allocated_log.add(retire(newv,false));
+    delayed_retire(newv);
 #endif
     return newv;
   }
@@ -193,39 +222,25 @@ public:
   }
 
   // destruction and freeing is delayed until a future epoch
-  bool* retire(T* p, bool add_to_log=true) {
-    //return nullptr;
-    auto i = parlay::worker_id();
-    auto &pid = pools[i];
-    if (pid.epoch < epoch.get_current()) {
-      clear_list(pid.old);
-      pid.old = pid.current;
-      pid.current = nullptr;
-      pid.epoch = epoch.get_current();
-    }
-    // a heuristic
-    auto now = system_clock::now();
-    if (++pid.count == update_threshold  ||
-	duration_cast<milliseconds>(now - pid.time).count() >
-	milliseconds_between_epoch_updates * (1 + ((float) i)/workers)) {
-      pid.count = 0;
-      pid.time = now;
-      epoch.update_epoch();
-    }
-    Link* lnk = list_allocator::alloc();
-    lnk->next = pid.current;
-    lnk->value = (void*) p;
-    pid.current = lnk;
+  void retire(T* p, bool add_to_log=true) {
+    Link* lnk = add_to_current_list(p);
 #ifdef TransUndo
     lnk->skip = false;
     if (verlib::current_transaction != nullptr && add_to_log) 
       verlib::retired_log.add(&lnk->skip);
-    return &lnk->skip;
-#else
-    return nullptr;
 #endif
   }
 
+#ifdef TransUndo
+  void delayed_retire(T* p) {
+    if (verlib::current_transaction != nullptr)  {
+      Link* lnk = add_to_current_list(p);
+      lnk->skip = true;  // by default don't retire
+      verlib::allocated_log.add(&lnk->skip);
+    }
+  }
+#endif
+  
   // clears all the lists and terminates the underlying allocator
   // to be used on termination
   void clear() {

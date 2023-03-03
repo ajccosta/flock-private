@@ -24,7 +24,8 @@ struct Set {
   struct internal : node {
     verlib::lock lck;
     //flck::atomic_write_once<bool> removed; // not used for leaves, but fits here
-    verlib::atomic<bool> removed;
+    //verlib::atomic<bool> removed;
+    verlib::atomic_bool removed;
     verlib::versioned_ptr<node> left;
     verlib::versioned_ptr<node> right;
     internal(K k, node* left, node* right)

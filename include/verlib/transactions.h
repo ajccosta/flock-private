@@ -12,7 +12,7 @@ bool commit_transaction (trans_descriptor* descriptor) {
   current_transaction = descriptor;
   for (int i=0; i < write_ptr_log.cnt; i++) {
     auto [location, value] = write_ptr_log.vals[i];  
-    install_versioned_store(location, value, descriptor);
+    write_ptr_log.vals[i].second = install_versioned_store(location, value, descriptor);
   }
   current_transaction = nullptr;
 
@@ -53,8 +53,10 @@ bool commit_transaction (trans_descriptor* descriptor) {
   }
 
   // finalize logged writes (whether passed or failed)
-  for (int i=0; i < write_ptr_log.cnt; i++) 
-    finalize_versioned_store(write_ptr_log.vals[i].first, ts);
+  for (int i=0; i < write_ptr_log.cnt; i++) {
+    auto [location, value] = write_ptr_log.vals[i];
+    finalize_versioned_store(location, value, ts);
+  }
 
   for (int i=0; i < write_atomic_log.cnt; i++)
     finalize_atomic_store(write_atomic_log.vals[i].first, ts);
@@ -92,7 +94,8 @@ auto with_transaction(F f) {
 
 #ifdef Immediate
 	  if (passed)
-	    passed = commit_transaction(descriptor);
+	    if (lock_log.cnt > 0)
+	      passed = commit_transaction(descriptor);
 	  // unlock all acquired locks
 	  for (int i=0; i < lock_log.cnt; i++) {
 	    assert(lock_log.vals[i]->is_self_locked());
@@ -100,25 +103,24 @@ auto with_transaction(F f) {
 	  }
 #else
 	  if (passed)
-	    passed = run_with_logged_locks([=] {
-	     return commit_transaction(descriptor);}); //, try_count > 0);
+	    if (lock_log.cnt > 0)
+	      passed = run_with_logged_locks([=] {
+	         return commit_transaction(descriptor);}); //, try_count > 0);
 #endif
 
 	  assert(current_transaction == nullptr);
 	  auto end_time = std::chrono::system_clock::now();
 	  time_taken = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-	  //std::cout << time_taken << std::endl;
 	  if (passed) {
-	    // undo the retires on the logged allocates
-	    for (int i=0; i < allocated_log.cnt; i++)
-	      *allocated_log.vals[i] = true;
-
 	    trans_descriptor_pool.retire(descriptor);
 	    return x;
 	  } else {
 	    // undo the logged retires
 	    for (int i=0; i < retired_log.cnt; i++)
 	      *retired_log.vals[i] = true;
+	    // undo logged allocates
+	    for (int i=0; i < allocated_log.cnt; i++)
+	      *allocated_log.vals[i] = false;
 
 	    if (delay == 0) delay = 100 * (1  + 4 * lock_log.cnt);
 	    int max_ratio = 8;

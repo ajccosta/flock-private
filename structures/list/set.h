@@ -12,7 +12,8 @@ struct Set {
     K key;
     V value;
     bool is_end;
-    verlib::atomic<bool> removed;
+    //verlib::atomic<bool> removed;
+    verlib::atomic_bool removed;
     //flck::atomic_write_once<bool> removed;
     verlib::lock lck;
     node(K key, V value, node* next)

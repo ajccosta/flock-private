@@ -335,6 +335,8 @@ auto with_snapshot_internal(F f) {
   });
 }
 
+thread_local bool aborted = false;
+
 #ifndef LazyStamp
 template <typename F>
 auto with_snapshot(F f, bool unused_parameter=false) {
@@ -351,7 +353,6 @@ auto with_snapshot(F f, bool unused_parameter=false) {
   });
 }
 #else
-thread_local bool aborted = false;
 thread_local bool speculative = false;
 parlay::sequence<long> num_retries(parlay::num_workers()*16, 0);
 void print_retries() {

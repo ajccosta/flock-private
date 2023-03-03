@@ -6,6 +6,7 @@
 
 namespace verlib {
 
+  thread_local bool in_main_loop = false;
   thread_local long unsigned int* hold_a;
   thread_local int count_a;
   thread_local char* type_a;
@@ -110,12 +111,22 @@ namespace verlib {
       assert(!is_tagged(td));
       return td;
     }
+
+    TS get_stamp_indirect() {
+      TS td = stamp_or_descriptor.load();
+      if (is_tagged(td)) return tbd;
+      else return td;
+    }
+
     versioned() : stamp_or_descriptor(tbd), next_version(init_ptr) {} 
     versioned(versioned* next) : stamp_or_descriptor(tbd), next_version(next) {}
+
     versioned* get_next_version() {return next_version;}
+
     void set_next_version(versioned* nv) {
       assert(next_version == init_ptr);  
       next_version = nv;}
+
     void set_with_current_stamp() {
       TS old_t = tbd;
       TS new_t = global_stamp.get_write_stamp();
@@ -150,15 +161,28 @@ namespace verlib {
     if (use_indirect) new_v = add_indirect(link_pool.new_obj(old_v, new_v));
     else ptr->set_next_version(old_v);
     if (descriptor != nullptr)
-      strip_indirect(new_v)->set_descriptor(descriptor); 
+      strip_indirect(new_v)->set_descriptor(descriptor);
+#ifdef NoShortcut
     *loc = new_v;
     if (is_indirect(old_v))
       link_pool.retire((ver_link*) strip_indirect(old_v));
+#else
+    loc->cam(old_v, new_v);
+    if (is_indirect(old_v)) {
+      versioned* val = loc->load();
+      ver_link* old_l = (ver_link*) strip_indirect(old_v);
+      if (val != old_l->value)
+	; //link_pool.retire(old_l);
+      else loc->cam(val, new_v);
+    }
+#endif
     return new_v;
   }
 
-  void finalize_versioned_store(flck::atomic<versioned*>* loc, TS time_stamp) {
+  void finalize_versioned_store(flck::atomic<versioned*>* loc, versioned* expected, TS time_stamp) {
     versioned* ptr_tagged = loc->load();
+    if (ptr_tagged != expected) std::cout << "ouch: " << ptr_tagged << ", " << expected << std::endl;
+    assert(ptr_tagged == expected);
     versioned* ptr = strip_indirect(ptr_tagged);
     assert(ptr != nullptr);
     // splice this latest version out if transaction aborted
@@ -207,110 +231,39 @@ namespace verlib {
 			      tagged_ptr, validating);
   }
 
-  struct hold {
-    atomic_val old_val;
-    atomic_val new_val;
-    trans_descriptor* descriptor;
-    std::atomic<bool> acquired;
-    constexpr static int bit_num = 63;
-    static bool is_held(atomic_val x) {return (x >> bit_num) & 1;}
-    static atomic_val tag_hold(hold* ptr) {
-      return (TS) ptr | (1ul << bit_num);}
-    static hold* untag_hold(atomic_val x) {
-      return (hold*) (x & ~(1ul << bit_num)); }
-    hold(atomic_val o, atomic_val n, trans_descriptor* d)
-      : old_val(o), new_val(n), descriptor(d) {}
-  };
-
-  //static flck::memory_pool<hold> hold_pool;
-  static flck::internal::acquired_pool<hold> hold_pool;
-
-  void install_atomic_store(std::atomic<atomic_val>* loc,
-			    atomic_val new_v,
-			    trans_descriptor* descriptor) {
-    atomic_val old_v = loc->load();
-    hold* ptr = hold_pool.new_obj(old_v, (atomic_val) new_v, descriptor);
-    *loc = hold::tag_hold(ptr);
-  }
-
-  void finalize_atomic_store(std::atomic<atomic_val>* loc, TS time_stamp) {
-    assert(hold::is_held(*loc));
-    auto hold_ptr = hold::untag_hold(*loc);
-    assert(hold_ptr->descriptor->owner == flck::internal::current_id);
-    assert(hold_ptr->descriptor->time_stamp == time_stamp);
-    *loc = (time_stamp == failed) ? hold_ptr->old_val : hold_ptr->new_val;
-    hold_pool.retire(hold_ptr);
-  }
-
-  V get_value(std::atomic<atomic_val>& v, bool validating=false) {
-    atomic_val x = v.load();
-    atomic_val y;
-    hold* ptr;
-    do {
-      if (!hold::is_held(x)) return x;
-      ptr = hold::untag_hold(x);
-      hold_pool.acquire(ptr);
-      y = x;
-      x = v.load();
-    } while (x != y);
-    return resolve_descriptor(ptr->descriptor, ptr->old_val,
-			      ptr->new_val, validating);
-  }
-
-#include "lock.h"
-#include "transactions.h"
-
-  template <typename V> 
-  struct atomic {
-    std::atomic<atomic_val> v;
-    atomic(V v) : v(v) {}
-    std::optional<int> find_in_atomic_write_log() {
-      for (int i=0; i < write_atomic_log.cnt; i++)
-	if (write_atomic_log.vals[i].first == &v)
-	  return std::optional<int>(i);
-      return std::optional<int>();
-    }
-    V load() {
-      if (current_transaction != nullptr) {
-	std::optional<int> lid = find_in_atomic_write_log();
-	if (lid.has_value())
-	  return (V*) write_atomic_log.vals[*lid].second;
-	if (in_lock) {
-	  atomic_val cur = get_value(v);
-	  validate_atomic_log.add(std::tuple(&v, cur));
-	  return (V) cur;
-	}
-      }
-      return (V) get_value(v);
-    }
-    void store(V new_v) {
-      if (current_transaction == nullptr) v = new_v;
-      else {
-	std::optional<int> lid = find_in_atomic_write_log();
-	if (lid.has_value())
-	  write_atomic_log.vals[*lid].second = (atomic_val) new_v;
-	else write_atomic_log.add(std::pair(&v, new_v));
-      }
-    }
-    bool validate(V expected) { 
-      std::optional<int> lid = find_in_atomic_write_log();
-      if (lid.has_value()) return (write_atomic_log.vals[*lid].second == expected);
-      atomic_val cur = get_value(v);
-      if (cur != expected) return false; 
-      validate_atomic_log.add(std::tuple(&v, expected));
-      return true;
-    }
-    V operator=(V b) {store(b); return b; }
-  };
+  #include "atomic_val.h"
   
   template <typename V>
   struct versioned_ptr {
     //private:
     flck::atomic<versioned*> v;
 
+    // probably a memory leak on retiring, need to look into it.
+    // had to add the retire flag to prevent spurious double retires,
+    // which probably happened on aborts
+    void shortcut(versioned* ptr, bool retire) {
+      assert(retire || (current_transaction != nullptr));
+      ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
+      // need to fix for lock free locks
+      if (ptr_->get_stamp_indirect() <= done_stamp) {
+	assert(done_stamp < failed);
+	if (v.cas(ptr, ptr_->value) && retire) link_pool.retire(ptr_);
+	//if (v.cas(ptr, ptr_->value)) link_pool.retire(ptr_,false);
+      }
+    }
+
     static V* get_ptr(versioned* ptr) {
       versioned* ptr_ = strip_indirect(ptr);
       if (!is_indirect(ptr)) return (V*) ptr_;
+      return (V*) ((ver_link*) ptr_)->value;
+    }
+
+    V* get_ptr_shortcut(versioned* ptr, bool retire=true) {
+      versioned* ptr_ = strip_indirect(ptr);
+      if (!is_indirect(ptr)) return (V*) ptr_;
+#ifndef NoShortcut
+      shortcut(ptr,retire);
+#endif
       return (V*) ((ver_link*) ptr_)->value;
     }
 
@@ -321,7 +274,8 @@ namespace verlib {
     }
 
   public:
-  
+
+    
     versioned_ptr(): v(nullptr) {}
     versioned_ptr(V* ptr) : v(set_zero_stamp(ptr)) {}
 
@@ -367,13 +321,12 @@ namespace verlib {
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value())
 	  return (V*) write_ptr_log.vals[*lid].second;
-	if (in_lock) {
-	  versioned* cur = set_stamp(v.load());
-	  validate_ptr_log.add(std::tuple(&v, cur));
-	  return get_ptr(cur);
-	}
+	versioned* cur = set_stamp(v.load());
+	if (in_lock) validate_ptr_log.add(std::tuple(&v, cur));
+	return get_ptr_shortcut(cur, false);
+	return get_ptr(cur);
       }
-      return get_ptr(set_stamp(v.load()));
+      return get_ptr_shortcut(set_stamp(v.load()));
     }
 
     void store(V* ptr) { 
@@ -400,11 +353,27 @@ namespace verlib {
     }
   };
 
+  struct Empty : versioned {};
+  Empty true_val;
+  
+  struct atomic_bool {
+    versioned_ptr<Empty> val;
+    bool load() {return val.load() != nullptr;}
+    void store(bool v) {val = v ? &true_val : nullptr;}
+    atomic_bool(bool v) : val(v ? &true_val : nullptr) {}
+    bool operator=(bool b) {store(b); return b; }
+  };
+
 #ifdef Validate
   template <typename T>
   bool validate_(versioned_ptr<T>* ptr, T* expected) {return ptr->validate(expected); }
   template <typename T>
   bool validate_(atomic<T>* ptr, T expected) {return ptr->validate(expected); }
+  bool validate_(atomic_bool* value, bool expected) {
+    Empty* cur = value->val.load();
+    if ((cur == nullptr) == expected) return false;
+    return value->val.validate(cur); }
+  
 
   // bool validate_(flck::atomic_write_once<bool>* a, bool expected) {
   //   if (a->load() != expected) return false;
@@ -413,6 +382,7 @@ namespace verlib {
   // }
 #endif
 
+  
   template <typename T, typename E>
   bool validate(verlib::lock& lck, T* v, E expected) {
     if (current_transaction != nullptr) {
@@ -426,5 +396,6 @@ namespace verlib {
 #endif
     } else return true;
   }
+
 
 } // namespace verlib

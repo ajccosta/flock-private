@@ -23,7 +23,7 @@ struct Set {
   struct header : verlib::versioned {
     bool is_leaf;
     Status status;
-    verlib::atomic<bool> removed; 
+    verlib::atomic_bool removed; 
     //flck::atomic_write_once<bool> removed;
     int size;
     header(bool is_leaf, Status status, int size)
