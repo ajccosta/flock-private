@@ -33,7 +33,7 @@ bool commit_transaction (trans_descriptor* descriptor) {
     // validate versioned pointers
     for (int i=0; i < validate_ptr_log.cnt; i++) {
       auto [location, expected] = validate_ptr_log.vals[i];
-      if (get_value(location->load(), true) != expected) {
+      if (!validate_pointer(location, expected)) {
 	passed = false;
 	break;
       }
@@ -55,8 +55,8 @@ bool commit_transaction (trans_descriptor* descriptor) {
 
   // finalize logged writes (whether passed or failed)
   for (int i=0; i < write_ptr_log.cnt; i++) {
-    auto [location, value] = write_ptr_log.vals[i];
-    finalize_versioned_store(location, value, ts);
+    auto [location, old_value] = write_ptr_log.vals[i];
+    finalize_versioned_store(location, old_value, ts);
   }
 
   //for (int i=0; i < write_atomic_log.cnt; i++)
@@ -121,10 +121,10 @@ auto with_transaction(F f) {
 	  } else {
 	    // undo the logged retires
 	    for (int i=0; i < retired_log.cnt; i++)
-	      *retired_log.vals[i] = true;
+	      flck::internal::undo_retire(retired_log.vals[i]);
 	    // undo logged allocates
 	    for (int i=0; i < allocated_log.cnt; i++)
-	      *allocated_log.vals[i] = false;
+	      flck::internal::undo_allocate(allocated_log.vals[i]);
 
 	    if (delay == 0) {
 	      delay = 100 * (1  + 4 * lock_log.cnt);

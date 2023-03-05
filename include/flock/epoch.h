@@ -8,14 +8,11 @@
 //#include "timestamps.h"
 
 #pragma once
+//#define EpochMemCheck 1
 
 // ***************************
 // epoch structure
 // ***************************
-
-// timestamps are distinct from epochs and are for multiversioning (snapshots)
-// any time stamps less or equal to done_stamp indicate it is safe to
-// collect them (noone will travel through them).
 
 namespace flck {
 namespace internal {
@@ -93,12 +90,16 @@ epoch_s epoch;
 
 struct Link {
   Link* next;
-  void* value;
 #ifdef TransUndo
   bool skip;
 #endif
+  void* value;
 };
 
+  // x should point to the skip field of a link
+  void undo_retire(bool* x) { *x = true;}
+  void undo_allocate(bool* x) { *x = false;}
+  
 using list_allocator = parlay::type_allocator<Link>;
 
   using namespace std::chrono;
@@ -121,16 +122,23 @@ private:
     old_current() : old(nullptr), current(nullptr), epoch(0) {}
   };
 
+  struct paddedT {
+    long pad;
+    std::atomic<long> head;
+    xT value;
+    std::atomic<long> tail;
+  };
+
   std::vector<old_current> pools;
   int workers;
 
-  Link* add_to_current_list(xT* p) {
+  Link* add_to_current_list(void* p) {
     auto i = parlay::worker_id();
     auto &pid = pools[i];
     advance_epoch(i, pid);
     Link* lnk = list_allocator::alloc();
     lnk->next = pid.current;
-    lnk->value = (void*) p;
+    lnk->value = p;
     pid.current = lnk;
     return lnk;
   }
@@ -141,9 +149,21 @@ private:
       Link* tmp = ptr;
       ptr = ptr->next;
 #ifdef TransUndo
-      if (!tmp->skip)
+      if (!tmp->skip) {
+#ifdef EpochMemCheck
+	paddedT* x = pad_from_T((T*) tmp->value);
+	if (x->head != 10 || x->tail != 10) {
+	  if (x->head == 55) std::cout << "double free" << std::endl;
+	  else std::cout << "corrupted head" << std::endl;
+	  if (x->tail != 10) std::cout << "corrupted tail" << std::endl;
+	  assert(false);
+	}
 #endif
 	destruct((T*) tmp->value);
+      }
+#else
+      destruct((T*) tmp->value);
+#endif
       list_allocator::free(tmp);
     }
   }
@@ -169,8 +189,12 @@ private:
 
 public:
   using T = xT;
+#ifdef  EpochMemCheck
+  using Allocator = parlay::type_allocator<paddedT>;
+#else
   using Allocator = parlay::type_allocator<T>;
-
+#endif
+  
   mem_pool() {
     workers = parlay::num_workers();
     update_threshold = 10 * workers;
@@ -197,15 +221,32 @@ public:
     parlay::parallel_for(0, n, [&] (size_t i) {Allocator::free(ptrs[i]);});
   }
 
+  paddedT* pad_from_T(T* p) {
+     size_t offset = ((char*) &((paddedT*) p)->value) - ((char*) p);
+     return (paddedT*) (((char*) p) - offset);
+  }
+  
   // destructs and frees the object immediately
   void destruct(T* p) {
      p->~T();
+#ifdef EpochMemCheck
+     paddedT* x = pad_from_T(p);
+     x->head = 55;
+     Allocator::free(x);
+#else
      Allocator::free(p);
+#endif
   }
 
   template <typename ... Args>
   T* new_obj(Args... args) {
+#ifdef EpochMemCheck
+    paddedT* x = Allocator::alloc();
+    x->head = x->tail = 10;
+    T* newv = &x->value;
+#else
     T* newv = Allocator::alloc();
+#endif
     new (newv) T(args...);
 #ifdef TransUndo
     delayed_retire(newv);
@@ -223,7 +264,7 @@ public:
 
   // destruction and freeing is delayed until a future epoch
   void retire(T* p, bool add_to_log=true) {
-    Link* lnk = add_to_current_list(p);
+    Link* lnk = add_to_current_list((void*) p);
 #ifdef TransUndo
     lnk->skip = false;
     if (verlib::current_transaction != nullptr && add_to_log) 
@@ -234,7 +275,7 @@ public:
 #ifdef TransUndo
   void delayed_retire(T* p) {
     if (verlib::current_transaction != nullptr)  {
-      Link* lnk = add_to_current_list(p);
+      Link* lnk = add_to_current_list((void*) p);
       lnk->skip = true;  // by default don't retire
       verlib::allocated_log.add(&lnk->skip);
     }

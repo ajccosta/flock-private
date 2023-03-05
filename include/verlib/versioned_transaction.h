@@ -43,6 +43,7 @@ namespace verlib {
   //flck::memory_pool<trans_descriptor> trans_descriptor_pool;
   flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
 
+  // just used for correctness assertions
 #define init_ptr (((versioned*) nullptr) - 1)
 
   struct versioned {
@@ -87,7 +88,7 @@ namespace verlib {
       stamp_or_descriptor = ts;
     }
 
-    // once a next version is installed, it becomes recorded
+    // once a next version is added, it becomes recorded
     bool is_recorded() {
       if (next_version.load() == init_ptr) {
 	//assert(stamp_or_descriptor.load() == tbd);
@@ -147,14 +148,29 @@ namespace verlib {
 
   flck::memory_pool<ver_link> link_pool;
 
+  void shortcut(flck::atomic<versioned*>* loc, versioned* ptr) {
+    ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
+    // need to fix for lock free locks
+    if (ptr_->get_stamp_indirect() <= done_stamp) 
+      if (loc->cas(ptr, ptr_->value)) link_pool.retire(ptr_,false);
+  }
+
+  // Installs ptr to front of version list for a store on loc.
+  // - If in a transaction, then set descriptor on the new link, and the
+  // store will be completed by finalize_versioned_store.
+  // - Otherwise set the timestamp and no finalization is required.
+  // Returns the old link (the one that was replaced).
   versioned* install_versioned_store(flck::atomic<versioned*>* loc,
 				     versioned* ptr,
 				     trans_descriptor* descriptor) {
     versioned* old_v = loc->load();
-    bool use_indirect = (ptr == nullptr || ptr->is_recorded());
     versioned* new_v = ptr;
+    // indirection on need
+    bool use_indirect = (ptr == nullptr || ptr->is_recorded());
     if (use_indirect) new_v = add_indirect(link_pool.new_obj(old_v, new_v));
     else ptr->set_next_version(old_v);
+
+    // install descriptor if in transaction
     if (descriptor != nullptr)
       strip_indirect(new_v)->set_descriptor(descriptor);
 #ifdef NoShortcut
@@ -162,34 +178,35 @@ namespace verlib {
     if (is_indirect(old_v))
       link_pool.retire((ver_link*) strip_indirect(old_v));
 #else
+    // if using shortcutting then need to deal with race
     loc->cam(old_v, new_v);
     if (is_indirect(old_v)) {
       versioned* val = loc->load();
-      ver_link* old_l = (ver_link*) strip_indirect(old_v);
-      if (val != old_l->value)
-	; //link_pool.retire(old_l);
-      else loc->cam(val, new_v);
+      if (val == new_v)
+	link_pool.retire((ver_link*) strip_indirect(old_v));
+      else {old_v = val; loc->cam(old_v, new_v);}
     }
 #endif
-    return new_v;
+    // set timestamp and try shortcut if not in transaction
+    if (descriptor == nullptr) {
+      strip_indirect(new_v)->set_with_current_stamp();
+      if (use_indirect) shortcut(loc, new_v);
+    }
+    return old_v;
   }
 
-  void finalize_versioned_store(flck::atomic<versioned*>* loc, versioned* expected, TS time_stamp) {
-    versioned* ptr_tagged = loc->load();
-    if (ptr_tagged != expected) std::cout << "ouch: " << ptr_tagged << ", " << expected << std::endl;
-    assert(ptr_tagged == expected);
-    versioned* ptr = strip_indirect(ptr_tagged);
+  void finalize_versioned_store(flck::atomic<versioned*>* loc, versioned* old_v, TS time_stamp) {
+    versioned* ptr = strip_indirect(loc->load());
     assert(ptr != nullptr);
     // splice this latest version out if transaction aborted
-    if (time_stamp == failed) {
-      *loc = ptr->get_next_version();
-      // no need to retire since will automatically be retired
-      //if (is_indirect(ptr_tagged)) link_pool.retire((ver_link*) ptr);
-    }
+    if (time_stamp == failed) *loc = old_v;
     // replace descriptor with timestamp (possibly failed stamp)
     ptr->remove_descriptor(time_stamp); 
   }
 
+  // If a descriptor is installed then need to resolve whether to
+  // return the new value (if succeded) or old value (if not yet in
+  // validation stage or if failed).
   template <typename T>
   T resolve_descriptor(trans_descriptor* descriptor, T old_v, T new_v,
 		       bool validating) {
@@ -218,11 +235,21 @@ namespace verlib {
     if (tagged_ptr == nullptr) return nullptr;
     versioned* ptr = strip_indirect(tagged_ptr);
     auto [descriptor, stamp] = ptr->get_descriptor_and_stamp();
-    if (stamp == failed) return ptr->get_next_version();
-    if (stamp != tbd) return tagged_ptr;
-    if (descriptor == nullptr) {ptr->set_with_current_stamp(); return tagged_ptr; }
+    if (stamp == failed) return ptr->get_next_version(); // failed so ignore value
+    if (stamp != tbd) return tagged_ptr; // value already fully set
+    if (descriptor == nullptr) { // store was not in a transaction
+      ptr->set_with_current_stamp(); // check and set the stamp
+      return tagged_ptr; }
+    // a transaction descriptor is installed, need to resolve the state
     return resolve_descriptor(descriptor, ptr->get_next_version(),
 			      tagged_ptr, validating);
+  }
+
+  bool validate_pointer(flck::atomic<versioned*>* location, versioned* expected) {
+    versioned* ptr = get_value(location->load(), true);
+    // second condition is to deal with shortcutting
+    return (ptr == expected || (is_indirect(expected) &&
+				ptr == ((ver_link*) strip_indirect(expected))->value));
   }
 
   thread_local int try_count;
@@ -235,31 +262,17 @@ namespace verlib {
   private:
     flck::atomic<versioned*> v;
 
-    // probably a memory leak on retiring, need to look into it.
-    // had to add the retire flag to prevent spurious double retires,
-    // which probably happened on aborts
-    void shortcut(versioned* ptr, bool retire) {
-      assert(retire || (current_transaction != nullptr));
-      ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
-      // need to fix for lock free locks
-      if (ptr_->get_stamp_indirect() <= done_stamp) {
-	assert(done_stamp < failed);
-	if (v.cas(ptr, ptr_->value) && retire) link_pool.retire(ptr_);
-	//if (v.cas(ptr, ptr_->value)) link_pool.retire(ptr_,false);
-      }
-    }
+    // static V* get_ptr(versioned* ptr) {
+    //   versioned* ptr_ = strip_indirect(ptr);
+    //   if (!is_indirect(ptr)) return (V*) ptr_;
+    //   return (V*) ((ver_link*) ptr_)->value;
+    // }
 
-    static V* get_ptr(versioned* ptr) {
-      versioned* ptr_ = strip_indirect(ptr);
-      if (!is_indirect(ptr)) return (V*) ptr_;
-      return (V*) ((ver_link*) ptr_)->value;
-    }
-
-    V* get_ptr_shortcut(versioned* ptr, bool retire=true) {
+    V* get_ptr_shortcut(versioned* ptr) {
       versioned* ptr_ = strip_indirect(ptr);
       if (!is_indirect(ptr)) return (V*) ptr_;
 #ifndef NoShortcut
-      shortcut(ptr,retire);
+      shortcut(&v, ptr);
 #endif
       return (V*) ((ver_link*) ptr_)->value;
     }
@@ -314,38 +327,48 @@ namespace verlib {
       assert(this != nullptr);
       if (local_stamp != -1) return read_snapshot();
       if (current_transaction != nullptr) {
+	// first see if it is in the write log
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value())
 	  return (V*) write_ptr_log.vals[*lid].second;
+
+	// if not then get the value and add to validate log
 	versioned* cur = get_value(v.load());
 	if (in_lock) validate_ptr_log.add(std::tuple(&v, cur));
-	// for opacity
+
+	// for opacity check that has not changed since start of transaction
 	if (cur != nullptr && strip_indirect(cur)->get_stamp() > start_stamp)
 	  trans_aborted = true;
-	return get_ptr_shortcut(cur, false);
+	return get_ptr_shortcut(cur);
       }
       return get_ptr_shortcut(get_value(v.load()));
     }
 
     void store(V* ptr) { 
       if (current_transaction != nullptr) {
+	// check if it is in the write log: update if so, otherwise add
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value()) write_ptr_log.vals[*lid].second = ptr;
 	else write_ptr_log.add(std::pair(&v,ptr));
       } else { // not in a transaction
-	versioned* new_v = install_versioned_store(&v, ptr, nullptr);
-	strip_indirect(new_v)->set_with_current_stamp();
+	install_versioned_store(&v, ptr, nullptr);
       }
     }
     V* operator=(V* b) {store(b); return b; }
 
     bool validate(V* expected) {
       assert(this != nullptr);
+      // check if in write log.  if so no need to validate
       std::optional<int> lid = find_in_write_log();
       if (lid.has_value()) return (write_ptr_log.vals[*lid].second == expected);
+
+      // otherwise check that value matches expected, and if so add to validate log
       versioned* ptr = get_value(v.load());
       V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
-      if (cur != expected) return false; 
+      if (cur != expected) return false;
+      // Note that adding "ptr" not "expected" to log. This is because
+      // ptr might be an indirect pointer to the expected value and
+      // the pointers need to match to avoid ABA problems.
       validate_ptr_log.add(std::tuple(&v, ptr));
       return true;
     }
@@ -353,7 +376,10 @@ namespace verlib {
 
   struct Empty : versioned {};
   Empty true_val;
-  
+
+  // Simulates a boolean with a pointer to an "Empty" dummy struct.
+  // If false, then pointer is nullptr otherwise poiter to "true_val".
+  // Avoids level of indirection when storing false.
   struct atomic_bool {
     versioned_ptr<Empty> val;
     bool load() {return val.load() != nullptr;}
@@ -366,6 +392,7 @@ namespace verlib {
     bool operator=(bool b) {store(b); return b; }
   };
 
+  // should probably go into the lock code.
   template <typename T, typename E>
   bool validate(verlib::lock& lck, T* v, E expected) {
     if (current_transaction != nullptr) {
