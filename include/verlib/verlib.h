@@ -18,7 +18,7 @@ namespace flck {
   template <typename T> struct atomic_write_once;
   namespace internal {  struct lock; }}
 
-constexpr int log_len = 200;
+constexpr int log_len = 300;
 
 template <typename T>
 struct transaction_log {
