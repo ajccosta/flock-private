@@ -50,6 +50,7 @@ public:
   lock() : lck(lock_entry()) {}
 
   bool is_locked() { return lck.load().is_locked();}
+  bool count() { return lck.load().get_count();}
   bool is_self_locked() { return lck.load().is_self_locked();}
   lock_entry lock_load() {return lck.load();}
   bool unchanged(lock_entry le) {return le.le == lck.load().le;}

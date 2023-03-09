@@ -84,7 +84,31 @@ public:
   }
 };
 
-// cannot store the value 0
+template <typename V>
+struct atomic_aba_free {
+private:
+   constexpr static unsigned long set_bit= (1ul << 63);
+public:
+  std::atomic<V> v;
+  atomic_aba_free(V initial) : v(initial) {}
+  atomic_aba_free() {}
+  V load() { // set then mask high bit to ensure not zero
+    size_t x = internal::lg.commit_value((size_t) v.load() | set_bit).first;
+    return (V) (x & ~set_bit);
+  }
+  void init(V vv) { v = vv; }
+  void store(V vv) {
+    size_t old_v = load();
+    v.compare_exchange_strong(old_v, vv);
+  }
+  void cam(V expected, V new_v) {
+    size_t old_v = load();
+    if (expected == old_v)
+      v.compare_exchange_strong(old_v, new_v);
+  }
+  V operator=(V b) { store(b); return b; }
+};
+
 template <typename V>
 struct atomic_write_once {
 private:

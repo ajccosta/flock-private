@@ -7,6 +7,9 @@ namespace verlib {
 
 const TS tbd = std::numeric_limits<TS>::max()/4;
 
+  template <typename F>
+  auto do_now(F f) {return f();}
+
 template <typename T>
 using atomic = flck::atomic<T>;
 using lock = flck::lock;

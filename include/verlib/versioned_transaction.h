@@ -18,15 +18,18 @@ namespace verlib {
     const int owner; 
 
     // originally "tbd", then "tbs", then either a real timestamp or "failed"
-    std::atomic<TS> time_stamp;  
+    flck::atomic_aba_free<TS> time_stamp;  
 
     std::atomic<bool> acquired;   
 
+    transaction_log_seq<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
+    //std::tuple<flck::atomic<versioned*>*,versioned*> validate_ptr_log[300];
+    
     void atomic_set_stamp(TS ts) {
       assert(time_stamp.load() != tbd);
       if (time_stamp.load() == tbs) {
 	TS old = tbs;
-	time_stamp.compare_exchange_strong(old, ts);
+	time_stamp.cam(old, ts);
       }
     }
 
@@ -48,8 +51,8 @@ namespace verlib {
 
   struct versioned {
   private:
-    std::atomic<TS> stamp_or_descriptor;
-    std::atomic<versioned*> next_version;
+    flck::atomic_write_once<TS> stamp_or_descriptor;
+    flck::atomic_write_once<versioned*> next_version;
 
     // tags second highest bit to mark as descriptor
     constexpr static int bit_num = 62;
@@ -117,10 +120,10 @@ namespace verlib {
     versioned() : stamp_or_descriptor(tbd), next_version(init_ptr) {} 
     versioned(versioned* next) : stamp_or_descriptor(tbd), next_version(next) {}
 
-    versioned* get_next_version() {return next_version;}
+    versioned* get_next_version() {return next_version.load();}
 
     void set_next_version(versioned* nv) {
-      assert(next_version == init_ptr);  
+      //assert(next_version == init_ptr);  
       next_version = nv;}
 
     void set_with_current_stamp() {
@@ -129,7 +132,7 @@ namespace verlib {
       TS td = stamp_or_descriptor.load();
       assert(!is_tagged(td));    
       if (td == old_t) 
-	stamp_or_descriptor.compare_exchange_strong(old_t, new_t);
+	stamp_or_descriptor.cam(old_t, new_t);
     }
   };
 
@@ -159,50 +162,54 @@ namespace verlib {
   // - If in a transaction, then set descriptor on the new link, and the
   // store will be completed by finalize_versioned_store.
   // - Otherwise set the timestamp and no finalization is required.
-  // Returns the old link (the one that was replaced).
-  versioned* install_versioned_store(flck::atomic<versioned*>* loc,
+  void install_versioned_store(flck::atomic<versioned*>* loc,
 				     versioned* ptr,
 				     trans_descriptor* descriptor) {
     versioned* old_v = loc->load();
     versioned* new_v = ptr;
     // indirection on need
-    bool use_indirect = (ptr == nullptr || ptr->is_recorded());
-    if (use_indirect) new_v = add_indirect(link_pool.new_obj(old_v, new_v));
-    else ptr->set_next_version(old_v);
+    bool use_indirect = (ptr == nullptr || ptr->is_recorded()); //log 
+    if (use_indirect) new_v = add_indirect(link_pool.new_obj(old_v, new_v)); //log
+    else ptr->set_next_version(old_v); // not logged in hybrid, but could use an init here
 
     // install descriptor if in transaction
     if (descriptor != nullptr)
-      strip_indirect(new_v)->set_descriptor(descriptor);
+      strip_indirect(new_v)->set_descriptor(descriptor); // could use an init
 #ifdef NoShortcut
     *loc = new_v;
     if (is_indirect(old_v))
-      link_pool.retire((ver_link*) strip_indirect(old_v));
+      link_pool.retire((ver_link*) strip_indirect(old_v)); // loged
 #else
     // if using shortcutting then need to deal with race
-    loc->cam(old_v, new_v);
+    loc->cam(old_v, new_v);  // load is logged
     if (is_indirect(old_v)) {
-      versioned* val = loc->load();
+      versioned* val = loc->load(); // logged
       if (val == new_v)
-	link_pool.retire((ver_link*) strip_indirect(old_v));
-      else {old_v = val; loc->cam(old_v, new_v);}
+	link_pool.retire((ver_link*) strip_indirect(old_v)); // logged, but what about failed attempts by helpers and how those interact with the undo mechanism, could undo be after free?
+      else {
+	strip_indirect(new_v)->set_next_version(val); // logged, but unusual
+	loc->cam(val, new_v); // logged
+      }
     }
 #endif
     // set timestamp and try shortcut if not in transaction
     if (descriptor == nullptr) {
-      strip_indirect(new_v)->set_with_current_stamp();
-      if (use_indirect) shortcut(loc, new_v);
+      strip_indirect(new_v)->set_with_current_stamp(); // need not be idempotent since self set
+      if (use_indirect) shortcut(loc, new_v); // need not be idempotent
     }
-    return old_v;
+    //return old_v;
   }
 
-  void finalize_versioned_store(flck::atomic<versioned*>* loc, versioned* old_v, TS time_stamp) {
-    versioned* ptr = strip_indirect(loc->load());
+  void finalize_versioned_store(flck::atomic<versioned*>* loc, TS time_stamp) {
+    versioned* ptr = strip_indirect(loc->load()); // why are we rereading? will cause commit
     assert(ptr != nullptr);
     // splice this latest version out if transaction aborted
-    if (time_stamp == failed) *loc = old_v;
+    if (time_stamp == failed) *loc = ptr->get_next_version();  // need not be logged
     // replace descriptor with timestamp (possibly failed stamp)
-    ptr->remove_descriptor(time_stamp); 
+    ptr->remove_descriptor(time_stamp); // write once, so no commit
   }
+
+  void validate_reads(trans_descriptor* descriptor);
 
   // If a descriptor is installed then need to resolve whether to
   // return the new value (if succeded) or old value (if not yet in
@@ -221,9 +228,13 @@ namespace verlib {
 	descriptor->owner < flck::internal::current_id) { 
       // kill other if they have lower id. prevents validate cycle
       TS old = tbs;
-      descriptor->time_stamp.compare_exchange_strong(old, failed);
-    } else //otherwise wait until other is done (could also help)
-      while (descriptor->time_stamp.load() == tbs);
+      descriptor->time_stamp.cam(old, failed);
+    } else { //otherwise wait for a bit to see if other is done, then help
+      int cnt = 0;
+      while (descriptor->time_stamp.load() == tbs && cnt++ < 10)
+      	for (volatile int i=0; i < 100; i++);
+      if (descriptor->time_stamp.load() == tbs) validate_reads(descriptor);
+    }
     if (descriptor->time_stamp.load() == failed) return old_v;
 #else
     descriptor->atomic_set_current_stamp();
@@ -253,6 +264,7 @@ namespace verlib {
   }
 
   thread_local int try_count;
+  thread_local bool trans_aborted = false;
 #include "lock.h"
 #include "transactions.h"
   //  #include "atomic_val.h"
@@ -334,7 +346,8 @@ namespace verlib {
 
 	// if not then get the value and add to validate log
 	versioned* cur = get_value(v.load());
-	if (in_lock) validate_ptr_log.add(std::tuple(&v, cur));
+	//if (in_lock) validate_ptr_log.add(std::tuple(&v, cur));
+	if (in_lock) current_transaction->validate_ptr_log.add(std::tuple(&v, cur));
 
 	// for opacity check that has not changed since start of transaction
 	if (cur != nullptr && strip_indirect(cur)->get_stamp() > start_stamp)
@@ -369,7 +382,8 @@ namespace verlib {
       // Note that adding "ptr" not "expected" to log. This is because
       // ptr might be an indirect pointer to the expected value and
       // the pointers need to match to avoid ABA problems.
-      validate_ptr_log.add(std::tuple(&v, ptr));
+      //validate_ptr_log.add(std::tuple(&v, ptr));
+      current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
       return true;
     }
   };

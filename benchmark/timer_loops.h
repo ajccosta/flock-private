@@ -94,7 +94,7 @@ void run_mixed_operations(SetType& os,
   parlay::internal::timer t;
   if (shuffle) os.shuffle(n);
 
-  for (int i = 1; i < rounds+1; i++) {
+  for (int i = 0; i < rounds+1; i++) {
     auto tr = os.empty(buckets);
     auto tr2 = os.empty(buckets);
     long len;

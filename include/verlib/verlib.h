@@ -8,6 +8,7 @@
 // once" as described in the paper.
 #pragma once
 #include <parlay/parallel.h>
+#include <parlay/sequence.h>
 
 #ifdef Transactional
 // some definitions needed by flock locks (blocking or lock free) when
@@ -34,6 +35,29 @@ struct transaction_log {
   transaction_log() : cnt(0) {}
 };
 
+const int full_len = 20;
+
+template <typename T>
+struct transaction_log_seq {
+  std::array<T,full_len> vals;
+  parlay::sequence<T> extra_vals;
+  bool vals_full;
+  int cnt;
+  void add(T v) {
+    if (cnt < full_len) {vals[cnt++] = v; return;}
+    if (cnt == full_len) {
+      extra_vals.reserve(2*full_len);
+      for (int i=0; i < full_len; i++)
+	extra_vals.push_back(vals[i]);
+    }
+    extra_vals.push_back(v);
+    cnt++;
+  }
+  T& operator [](int i) {
+    return (cnt > full_len) ? extra_vals[i] : vals[i];}
+  transaction_log_seq() : cnt(0) {}
+};
+
 namespace verlib { // trans
   struct trans_descriptor;
   struct versioned;
@@ -44,7 +68,7 @@ namespace verlib { // trans
   thread_local transaction_log<flck::internal::lock*> lock_log;
   thread_local transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_ptr_log;
   //thread_local transaction_log<std::pair<std::atomic<atomic_val>*,atomic_val>> write_atomic_log;
-  thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
+  //thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
   //thread_local transaction_log<std::tuple<std::atomic<atomic_val>*,atomic_val>> validate_atomic_log;
   thread_local transaction_log<bool*> retired_log;
   thread_local transaction_log<bool*> allocated_log;
