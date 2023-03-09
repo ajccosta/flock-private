@@ -262,17 +262,19 @@ public:
     return x;
   }
 
+#ifndef TransUndo
   // destruction and freeing is delayed until a future epoch
-  void retire(T* p, bool add_to_log=true) {
+  void retire(T* p) {add_to_current_list((void*) p);}
+  void retire_undo(T* p, void* ignore) {add_to_current_list((void*) p);}
+#else
+  void retire(T* p) {retire_undo(p, verlib::current_transaction);}
+      
+  void retire_undo(T* p, verlib::trans_descriptor* descriptor) {
     Link* lnk = add_to_current_list((void*) p);
-#ifdef TransUndo
     lnk->skip = false;
-    if (verlib::current_transaction != nullptr && add_to_log) 
-      verlib::retired_log.add(&lnk->skip);
-#endif
+    if (descriptor != nullptr) verlib::retired_log.add(&lnk->skip);
   }
 
-#ifdef TransUndo
   void delayed_retire(T* p) {
     if (verlib::current_transaction != nullptr)  {
       Link* lnk = add_to_current_list((void*) p);

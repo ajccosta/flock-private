@@ -22,8 +22,7 @@ namespace verlib {
 
     std::atomic<bool> acquired;   
 
-    transaction_log_seq<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
-    //std::tuple<flck::atomic<versioned*>*,versioned*> validate_ptr_log[300];
+    transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
     
     void atomic_set_stamp(TS ts) {
       assert(time_stamp.load() != tbd);
@@ -155,7 +154,7 @@ namespace verlib {
     ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
     // need to fix for lock free locks
     if (ptr_->get_stamp_indirect() <= done_stamp) 
-      if (loc->cas(ptr, ptr_->value)) link_pool.retire(ptr_,false);
+      if (loc->cas(ptr, ptr_->value)) link_pool.retire_undo(ptr_, nullptr);
   }
 
   // Installs ptr to front of version list for a store on loc.
@@ -185,7 +184,7 @@ namespace verlib {
     if (is_indirect(old_v)) {
       versioned* val = loc->load(); // logged
       if (val == new_v)
-	link_pool.retire((ver_link*) strip_indirect(old_v)); // logged, but what about failed attempts by helpers and how those interact with the undo mechanism, could undo be after free?
+	link_pool.retire((ver_link*) strip_indirect(old_v)); // logged, but what about failed attempts by helpers and how those interact with the undo mechanism, could undo be after free?  seems like only main thread will undo, and will it undo the right one?
       else {
 	strip_indirect(new_v)->set_next_version(val); // logged, but unusual
 	loc->cam(val, new_v); // logged

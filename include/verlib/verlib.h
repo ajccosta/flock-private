@@ -22,7 +22,7 @@ namespace flck {
 constexpr int log_len = 300;
 
 template <typename T>
-struct transaction_log {
+struct transaction_log_old {
   std::array<T,log_len> vals;
   int cnt;
   void add(T v) {
@@ -32,13 +32,13 @@ struct transaction_log {
     vals[cnt++] = v;
   }
   void clear() { cnt = 0;}
-  transaction_log() : cnt(0) {}
+  transaction_log_old() : cnt(0) {}
 };
 
 const int full_len = 20;
 
 template <typename T>
-struct transaction_log_seq {
+struct transaction_log {
   std::array<T,full_len> vals;
   parlay::sequence<T> extra_vals;
   bool vals_full;
@@ -53,9 +53,10 @@ struct transaction_log_seq {
     extra_vals.push_back(v);
     cnt++;
   }
+  void clear() { cnt = 0; extra_vals.clear();}
   T& operator [](int i) {
     return (cnt > full_len) ? extra_vals[i] : vals[i];}
-  transaction_log_seq() : cnt(0) {}
+  transaction_log() : cnt(0) {}
 };
 
 namespace verlib { // trans
