@@ -55,15 +55,15 @@ public:
 
   template <typename F>
   bool run_with_locks_rec(int i, F& f) {
-    if (i == lock_log.cnt) return f();
-    return lock_log.vals[i]->try_lock([&] {
+    if (i == lock_log.size()) return f();
+    return lock_log[i]->try_lock([&] {
 	return run_with_locks_rec(i+1, f);});
   }
 
   template <typename F>
   bool run_with_logged_locks(F f) {
     // sorting actually slows things down slightly (5%) under high contention
-    std::sort(lock_log.vals.begin(), lock_log.vals.begin()+lock_log.cnt);
+    std::sort(lock_log.data(), lock_log.data() + lock_log.size());
     // long max_count = lock_log.vals[0]->count();
     // int j=0;
     // for (int i=1; i < lock_log.cnt; i++) {
@@ -77,8 +77,8 @@ public:
     // 	if (!validate_pointer(location, expected)) return false;
     //   }
     if (false)
-      for (int i=0; i < lock_log.cnt; i++) {
-	if (lock_log.vals[i]->is_locked() && !lock_log.vals[i]->is_self_locked())
+      for (int i=0; i < lock_log.size(); i++) {
+	if (lock_log[i]->is_locked() && !lock_log[i]->is_self_locked())
 	  return false;
       }
     return run_with_locks_rec(0, f);

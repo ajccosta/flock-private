@@ -9,7 +9,7 @@ void validate_reads(trans_descriptor* descriptor) {
   //auto log = &validate_ptr_log;
   bool passed = true;
   TS ts = global_stamp.get_write_stamp();
-  for (int i=0; i < log.cnt; i++) {
+  for (int i=0; i < log.size(); i++) {
     if (descriptor->time_stamp.load() != tbs) return;
     auto [location, expected] = log[i];
     if (!validate_pointer(location, expected)) {
@@ -25,8 +25,10 @@ bool commit_transaction (trans_descriptor* descriptor) {
   // current_transaction temporarility set so retire in
   // install_versioned_store is undone on abort
   current_transaction = descriptor;
-  for (int i=0; i < write_ptr_log.cnt; i++) {
-    auto [location, value] = write_ptr_log.vals[i];  
+  auto& write_log = current_transaction->write_ptr_log;
+  
+  for (int i=0; i < write_log.size(); i++) {
+    auto [location, value] = write_log[i];  
     //write_ptr_log.vals[i].second =
     install_versioned_store(location, value, descriptor);
   }
@@ -37,8 +39,8 @@ bool commit_transaction (trans_descriptor* descriptor) {
   passed = (ts != failed);
 
   // finalize logged writes (whether passed or failed)
-  for (int i=0; i < write_ptr_log.cnt; i++) {
-    auto [location, old_value] = write_ptr_log.vals[i];
+  for (int i=0; i < write_log.size(); i++) {
+    auto [location, old_value] = write_log[i];
     //finalize_versioned_store(location, old_value, ts);
     finalize_versioned_store(location, ts);
   }
@@ -48,7 +50,7 @@ bool commit_transaction (trans_descriptor* descriptor) {
 
 void clear_logs() {
   lock_log.clear();
-  write_ptr_log.clear();
+  //write_ptr_log.clear();
   //validate_ptr_log.clear();
   allocated_log.clear();
   retired_log.clear();
@@ -74,16 +76,16 @@ auto with_transaction(F f) {
 
 #ifdef Immediate
 	  if (passed)
-	    if (lock_log.cnt > 0)
+	    if (lock_log.size() > 0)
 	      passed = commit_transaction(descriptor);
 	  // unlock all acquired locks
-	  for (int i=0; i < lock_log.cnt; i++) {
-	    assert(lock_log.vals[i]->is_self_locked());
-	    lock_log.vals[i]->unlock();
+	  for (int i=0; i < lock_log.size(); i++) {
+	    assert(lock_log[i]->is_self_locked());
+	    lock_log[i]->unlock();
 	  }
 #else
 	  if (passed)
-	    if (lock_log.cnt > 0)
+	    if (lock_log.size() > 0)
 	      passed = run_with_logged_locks([=] {
 	         return commit_transaction(descriptor);}); 
 #endif
@@ -93,15 +95,16 @@ auto with_transaction(F f) {
 	    trans_descriptor_pool.retire(descriptor);
 	    return x;
 	  } else {
+	    // auto& retired_log = current_transaction->retired_log;
 	    // undo the logged retires
-	    for (int i=0; i < retired_log.cnt; i++)
-	      flck::internal::undo_retire(retired_log.vals[i]);
+	    for (int i=0; i < retired_log.size(); i++)
+	      flck::internal::undo_retire(retired_log[i]);
 	    // undo logged allocates
-	    for (int i=0; i < allocated_log.cnt; i++)
-	      flck::internal::undo_allocate(allocated_log.vals[i]);
+	    for (int i=0; i < allocated_log.size(); i++)
+	      flck::internal::undo_allocate(allocated_log[i]);
 
 	    if (delay == 0) {
-	      delay = 100 * (1  + 4 * lock_log.cnt);
+	      delay = 100 * (1  + 4 * lock_log.size());
 	      max_delay = 4 * delay;
 #ifdef Immediate
 	      max_delay = 16 * delay;

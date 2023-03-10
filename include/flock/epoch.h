@@ -268,7 +268,7 @@ public:
   void retire_undo(T* p, void* ignore) {add_to_current_list((void*) p);}
 #else
   void retire(T* p) {retire_undo(p, verlib::current_transaction);}
-      
+
   void retire_undo(T* p, verlib::trans_descriptor* descriptor) {
     Link* lnk = add_to_current_list((void*) p);
     lnk->skip = false;

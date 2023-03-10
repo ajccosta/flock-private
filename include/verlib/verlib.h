@@ -21,28 +21,30 @@ namespace flck {
 
 constexpr int log_len = 300;
 
-template <typename T>
-struct transaction_log_old {
-  std::array<T,log_len> vals;
-  int cnt;
-  void add(T v) {
-    if (cnt == log_len) {
-      std::cout << "overfull log" << std::endl;
-      abort();}
-    vals[cnt++] = v;
-  }
-  void clear() { cnt = 0;}
-  transaction_log_old() : cnt(0) {}
-};
+// template <typename T>
+// struct transaction_log {
+//   std::array<T,log_len> vals;
+//   int cnt;
+//   void add(T v) {
+//     if (cnt == log_len) {
+//       std::cout << "overfull log" << std::endl;
+//       abort();}
+//     vals[cnt++] = v;
+//   }
+//   void clear() { cnt = 0;}
+//   transaction_log() : cnt(0) {}
+// };
 
 const int full_len = 20;
 
 template <typename T>
 struct transaction_log {
+private:
   std::array<T,full_len> vals;
   parlay::sequence<T> extra_vals;
-  bool vals_full;
   int cnt;
+public:
+  int size() {return cnt;}
   void add(T v) {
     if (cnt < full_len) {vals[cnt++] = v; return;}
     if (cnt == full_len) {
@@ -53,6 +55,8 @@ struct transaction_log {
     extra_vals.push_back(v);
     cnt++;
   }
+  T* data() {
+    return (cnt > full_len) ? extra_vals.data() : &vals[0];}
   void clear() { cnt = 0; extra_vals.clear();}
   T& operator [](int i) {
     return (cnt > full_len) ? extra_vals[i] : vals[i];}
@@ -67,7 +71,6 @@ namespace verlib { // trans
 
   // All the logs
   thread_local transaction_log<flck::internal::lock*> lock_log;
-  thread_local transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_ptr_log;
   //thread_local transaction_log<std::pair<std::atomic<atomic_val>*,atomic_val>> write_atomic_log;
   //thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
   //thread_local transaction_log<std::tuple<std::atomic<atomic_val>*,atomic_val>> validate_atomic_log;
@@ -110,5 +113,25 @@ namespace verlib {
 
 namespace verlib {
   using flck::with_epoch;
-  using flck::memory_pool;
+
+template <typename xT>
+struct memory_pool {
+  using T = xT;
+  flck::memory_pool<T> pool;
+  void reserve(size_t n) { pool.reserve(n);}
+  void shuffle(size_t n) { pool.shuffle(n);}
+  void stats() { pool.stats();}
+  void clear() { pool.clear();}
+  void destruct(T* ptr) { pool.destruct(ptr); }
+  template <typename ... Args>
+  T* new_obj(Args... args) { return pool.new_obj(args...);}
+  template <typename F, typename ... Args>
+  T* new_init(F f, Args... args) { return pool.new_init(f, args...);}
+  void retire(T* ptr) {pool.retire(ptr);}
+#ifdef TransUndo
+  void retire_undo(T* ptr, trans_descriptor* d) {pool.retire_undo(ptr, d);}
+#else
+  void retire_undo(T* ptr, void* d) {pool.retire_undo(ptr, d);}
+#endif
+};
 }

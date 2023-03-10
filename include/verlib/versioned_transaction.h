@@ -22,8 +22,10 @@ namespace verlib {
 
     std::atomic<bool> acquired;   
 
+    transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_ptr_log;
     transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
-    
+    //transaction_log<bool*> retired_log;
+
     void atomic_set_stamp(TS ts) {
       assert(time_stamp.load() != tbd);
       if (time_stamp.load() == tbs) {
@@ -328,8 +330,9 @@ namespace verlib {
     }
 
     std::optional<int> find_in_write_log() {
-      for (int i=0; i < write_ptr_log.cnt; i++)
-	if (write_ptr_log.vals[i].first == &v)
+      auto& log = current_transaction->write_ptr_log;
+      for (int i=0; i < log.size(); i++)
+	if (log[i].first == &v)
 	  return std::optional<int>(i);
       return std::optional<int>();
     }
@@ -341,7 +344,7 @@ namespace verlib {
 	// first see if it is in the write log
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value())
-	  return (V*) write_ptr_log.vals[*lid].second;
+	  return (V*) current_transaction->write_ptr_log[*lid].second;
 
 	// if not then get the value and add to validate log
 	versioned* cur = get_value(v.load());
@@ -360,8 +363,8 @@ namespace verlib {
       if (current_transaction != nullptr) {
 	// check if it is in the write log: update if so, otherwise add
 	std::optional<int> lid = find_in_write_log();
-	if (lid.has_value()) write_ptr_log.vals[*lid].second = ptr;
-	else write_ptr_log.add(std::pair(&v,ptr));
+	if (lid.has_value()) current_transaction->write_ptr_log[*lid].second = ptr;
+	else current_transaction->write_ptr_log.add(std::pair(&v,ptr));
       } else { // not in a transaction
 	install_versioned_store(&v, ptr, nullptr);
       }
@@ -372,7 +375,8 @@ namespace verlib {
       assert(this != nullptr);
       // check if in write log.  if so no need to validate
       std::optional<int> lid = find_in_write_log();
-      if (lid.has_value()) return (write_ptr_log.vals[*lid].second == expected);
+      if (lid.has_value())
+	return (current_transaction->write_ptr_log[*lid].second == expected);
 
       // otherwise check that value matches expected, and if so add to validate log
       versioned* ptr = get_value(v.load());
