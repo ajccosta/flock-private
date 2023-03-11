@@ -74,8 +74,8 @@ namespace verlib { // trans
   //thread_local transaction_log<std::pair<std::atomic<atomic_val>*,atomic_val>> write_atomic_log;
   //thread_local transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
   //thread_local transaction_log<std::tuple<std::atomic<atomic_val>*,atomic_val>> validate_atomic_log;
-  thread_local transaction_log<bool*> retired_log;
-  thread_local transaction_log<bool*> allocated_log;
+  //thread_local transaction_log<bool*> retired_log;
+  //thread_local transaction_log<bool*> allocated_log;
 }
 #endif
 

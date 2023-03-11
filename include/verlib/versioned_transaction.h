@@ -6,8 +6,6 @@
 
 namespace verlib {
 
-  #include "memory_pool.h"
-  
   bool valid_pointer(void* ptr) { return ((size_t) ptr) < (1ul << 48);}
   
   // Special timestamps
@@ -26,7 +24,8 @@ namespace verlib {
 
     transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_ptr_log;
     transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
-    //transaction_log<bool*> retired_log;
+    transaction_log<bool*> retired_log;
+    transaction_log<bool*> allocated_log;
 
     void atomic_set_stamp(TS ts) {
       assert(time_stamp.load() != tbd);
@@ -48,6 +47,9 @@ namespace verlib {
 
   //flck::memory_pool<trans_descriptor> trans_descriptor_pool;
   flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
+
+#include "memory_pool.h"
+  
 
   // just used for correctness assertions
 #define init_ptr (((versioned*) nullptr) - 1)

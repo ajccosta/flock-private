@@ -17,7 +17,12 @@ public:
   template <typename Thunk>
   auto try_lock(Thunk f) {
 #ifdef Immediate
-    return lck.try_lock(f);
+    if (verlib::current_transaction != nullptr) {
+      bool taken = false;
+      auto r = lck.try_lock_result(f, &taken); // do not release lock
+      if (taken) verlib::lock_log.add(&lck);
+      return r.has_value() && r.value();
+    } else return lck.try_lock(f);
 #else
     if (current_transaction != nullptr) {
       // if (lck.is_locked() && !lck.is_self_locked()) {

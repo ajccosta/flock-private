@@ -49,8 +49,8 @@ void clear_logs() {
   lock_log.clear();
   //write_ptr_log.clear();
   //validate_ptr_log.clear();
-  allocated_log.clear();
-  retired_log.clear();
+  //allocated_log.clear();
+  //retired_log.clear();
 }
 
 // wrapper for a transaction
@@ -92,11 +92,12 @@ auto with_transaction(F f) {
 	    trans_descriptor_pool.retire(descriptor);
 	    return x;
 	  } else {
-	    // auto& retired_log = current_transaction->retired_log;
+	    auto& retired_log = descriptor->retired_log;
 	    // undo the logged retires
 	    for (int i=0; i < retired_log.size(); i++)
 	      flck::internal::undo_retire(retired_log[i]);
 	    // undo logged allocates
+	    auto& allocated_log = descriptor->allocated_log;
 	    for (int i=0; i < allocated_log.size(); i++)
 	      flck::internal::undo_allocate(allocated_log[i]);
 

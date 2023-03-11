@@ -62,20 +62,16 @@ public:
   }
 
   template <typename Thunk>
-  auto try_lock_result(Thunk f) {
+  auto try_lock_result(Thunk f, bool* no_release=nullptr) {
     using RT = decltype(f());
     lock_entry current = lck.load();
     if (!current.is_locked()) { // unlocked
       lock_entry newl = current.take_lock();
       if (lck.compare_exchange_strong(current, newl)) {
         RT result = f();
-#ifdef Transactional
-	if (verlib::current_transaction != nullptr) {
-	  verlib::lock_log.add(this);
-	} else lck = newl.release_lock();  // release lock
-#else
-	lck = newl.release_lock();  // release lock
-#endif
+	if (no_release == nullptr)
+	  lck = newl.release_lock();  // release lock
+	else *no_release = true;
         return std::optional<RT>(result); 
       } else {
         return std::optional<RT>(); // fail
