@@ -90,9 +90,7 @@ epoch_s epoch;
 
 struct Link {
   Link* next;
-#ifdef TransUndo
   bool skip;
-#endif
   void* value;
 };
 
@@ -122,6 +120,7 @@ private:
     old_current() : old(nullptr), current(nullptr), epoch(0) {}
   };
 
+  // only used for debugging (i.e. EpochMemCheck=1).
   struct paddedT {
     long pad;
     std::atomic<long> head;
@@ -132,15 +131,16 @@ private:
   std::vector<old_current> pools;
   int workers;
 
-  Link* add_to_current_list(void* p) {
+  bool* add_to_current_list(void* p) {
     auto i = parlay::worker_id();
     auto &pid = pools[i];
     advance_epoch(i, pid);
     Link* lnk = list_allocator::alloc();
     lnk->next = pid.current;
     lnk->value = p;
+    lnk->skip = false;
     pid.current = lnk;
-    return lnk;
+    return &(lnk->skip);
   }
 
   // destructs and frees a linked list of objects 
@@ -148,7 +148,6 @@ private:
     while (ptr != nullptr) {
       Link* tmp = ptr;
       ptr = ptr->next;
-#ifdef TransUndo
       if (!tmp->skip) {
 #ifdef EpochMemCheck
 	paddedT* x = pad_from_T((T*) tmp->value);
@@ -161,9 +160,6 @@ private:
 #endif
 	destruct((T*) tmp->value);
       }
-#else
-      destruct((T*) tmp->value);
-#endif
       list_allocator::free(tmp);
     }
   }
@@ -248,9 +244,6 @@ public:
     T* newv = Allocator::alloc();
 #endif
     new (newv) T(args...);
-#ifdef TransUndo
-    delayed_retire(newv);
-#endif
     return newv;
   }
 
@@ -262,27 +255,9 @@ public:
     return x;
   }
 
-#ifndef TransUndo
-  // destruction and freeing is delayed until a future epoch
-  void retire(T* p) {add_to_current_list((void*) p);}
-  void retire_undo(T* p, void* ignore) {add_to_current_list((void*) p);}
-#else
-  void retire(T* p) {retire_undo(p, verlib::current_transaction);}
-
-  void retire_undo(T* p, verlib::trans_descriptor* descriptor) {
-    Link* lnk = add_to_current_list((void*) p);
-    lnk->skip = false;
-    if (descriptor != nullptr) verlib::retired_log.add(&lnk->skip);
-  }
-
-  void delayed_retire(T* p) {
-    if (verlib::current_transaction != nullptr)  {
-      Link* lnk = add_to_current_list((void*) p);
-      lnk->skip = true;  // by default don't retire
-      verlib::allocated_log.add(&lnk->skip);
-    }
-  }
-#endif
+  // retire and return a pointer if want to undo the retire
+  bool* retire(T* p) {
+    return add_to_current_list((void*) p);}
   
   // clears all the lists and terminates the underlying allocator
   // to be used on termination

@@ -113,25 +113,4 @@ namespace verlib {
 
 namespace verlib {
   using flck::with_epoch;
-
-template <typename xT>
-struct memory_pool {
-  using T = xT;
-  flck::memory_pool<T> pool;
-  void reserve(size_t n) { pool.reserve(n);}
-  void shuffle(size_t n) { pool.shuffle(n);}
-  void stats() { pool.stats();}
-  void clear() { pool.clear();}
-  void destruct(T* ptr) { pool.destruct(ptr); }
-  template <typename ... Args>
-  T* new_obj(Args... args) { return pool.new_obj(args...);}
-  template <typename F, typename ... Args>
-  T* new_init(F f, Args... args) { return pool.new_init(f, args...);}
-  void retire(T* ptr) {pool.retire(ptr);}
-#ifdef TransUndo
-  void retire_undo(T* ptr, trans_descriptor* d) {pool.retire_undo(ptr, d);}
-#else
-  void retire_undo(T* ptr, void* d) {pool.retire_undo(ptr, d);}
-#endif
-};
 }

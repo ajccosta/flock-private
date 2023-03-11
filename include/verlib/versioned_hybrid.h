@@ -4,6 +4,7 @@
 #include "timestamps.h"
 
 namespace verlib {
+  using flck::memory_pool;
 
 const TS tbd = std::numeric_limits<TS>::max()/4;
 

@@ -6,6 +6,8 @@
 
 namespace verlib {
 
+  #include "memory_pool.h"
+  
   bool valid_pointer(void* ptr) { return ((size_t) ptr) < (1ul << 48);}
   
   // Special timestamps
@@ -88,7 +90,7 @@ namespace verlib {
       TS td = stamp_or_descriptor.load();
       assert(is_tagged(td));
       assert(untag_descriptor(td)->owner == flck::internal::current_id);
-      assert(!check_stamp || untag_descriptor(td)->time_stamp == ts);
+      assert(!check_stamp || untag_descriptor(td)->time_stamp.load() == ts);
       stamp_or_descriptor = ts;
     }
 
@@ -106,12 +108,14 @@ namespace verlib {
       stamp_or_descriptor = t;
     }
 
+    // use when stamp is already set
     TS get_stamp() {
       TS td = stamp_or_descriptor.load();
       assert(!is_tagged(td));
       return td;
     }
 
+    // use when stamp could be descriptor
     TS get_stamp_indirect() {
       TS td = stamp_or_descriptor.load();
       if (is_tagged(td)) return tbd;
@@ -150,13 +154,13 @@ namespace verlib {
     ver_link(versioned* next, versioned* value) : versioned{next}, value(value) {}
   };
 
-  flck::memory_pool<ver_link> link_pool;
+  verlib::memory_pool<ver_link> link_pool;
 
   void shortcut(flck::atomic<versioned*>* loc, versioned* ptr) {
     ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
     // need to fix for lock free locks
     if (ptr_->get_stamp_indirect() <= done_stamp) 
-      if (loc->cas(ptr, ptr_->value)) link_pool.retire_undo(ptr_, nullptr);
+      if (loc->cas(ptr, ptr_->value)) link_pool.pool.retire(ptr_);
   }
 
   // Installs ptr to front of version list for a store on loc.
@@ -170,7 +174,8 @@ namespace verlib {
     versioned* new_v = ptr;
     // indirection on need
     bool use_indirect = (ptr == nullptr || ptr->is_recorded()); //log 
-    if (use_indirect) new_v = add_indirect(link_pool.new_obj(old_v, new_v)); //log
+    if (use_indirect)
+      new_v = add_indirect(link_pool.new_obj_descriptor(descriptor, old_v, new_v)); // log
     else ptr->set_next_version(old_v); // not logged in hybrid, but could use an init here
 
     // install descriptor if in transaction
@@ -179,14 +184,14 @@ namespace verlib {
 #ifdef NoShortcut
     *loc = new_v;
     if (is_indirect(old_v))
-      link_pool.retire((ver_link*) strip_indirect(old_v)); // loged
+      link_pool.retire_descriptor(descriptor, (ver_link*) strip_indirect(old_v)); // logged
 #else
     // if using shortcutting then need to deal with race
     loc->cam(old_v, new_v);  // load is logged
     if (is_indirect(old_v)) {
       versioned* val = loc->load(); // logged
       if (val == new_v)
-	link_pool.retire((ver_link*) strip_indirect(old_v)); // logged, but what about failed attempts by helpers and how those interact with the undo mechanism, could undo be after free?  seems like only main thread will undo, and will it undo the right one?
+	link_pool.retire_descriptor(descriptor, (ver_link*) strip_indirect(old_v)); // logged, but what about failed attempts by helpers and how those interact with the undo mechanism, could undo be after free?  seems like only main thread will undo, and will it undo the right one?
       else {
 	strip_indirect(new_v)->set_next_version(val); // logged, but unusual
 	loc->cam(val, new_v); // logged
@@ -352,7 +357,7 @@ namespace verlib {
 	if (in_lock) current_transaction->validate_ptr_log.add(std::tuple(&v, cur));
 
 	// for opacity check that has not changed since start of transaction
-	if (cur != nullptr && strip_indirect(cur)->get_stamp() > start_stamp)
+	if (cur != nullptr && strip_indirect(cur)->get_stamp_indirect() > start_stamp)
 	  trans_aborted = true;
 	return get_ptr_shortcut(cur);
       }

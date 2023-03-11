@@ -22,17 +22,14 @@ bool commit_transaction (trans_descriptor* descriptor) {
   bool passed = true;
 
   // Install writes at head of version lists
-  // current_transaction temporarility set so retire in
-  // install_versioned_store is undone on abort
-  current_transaction = descriptor;
-  auto& write_log = current_transaction->write_ptr_log;
-  
+  current_transaction = descriptor; //(trans_descriptor*) 22; //descriptor;
+  auto& write_log = descriptor->write_ptr_log;
   for (int i=0; i < write_log.size(); i++) {
-    auto [location, value] = write_log[i];  
-    //write_ptr_log.vals[i].second =
+    auto [location, value] = write_log[i];
     install_versioned_store(location, value, descriptor);
   }
   current_transaction = nullptr;
+
   descriptor->time_stamp = tbs; // logged load and cas (aba_free)
   validate_reads(descriptor);  // not idempotent
   TS ts = descriptor->time_stamp.load();
