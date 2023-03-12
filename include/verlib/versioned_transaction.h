@@ -3,53 +3,12 @@
 #include "flock/flock.h"
 #include "flock/acquired_pool.h"
 #include "timestamps.h"
+#include "transaction_descriptor.h"
+#include "memory_pool.h"
 
 namespace verlib {
 
   bool valid_pointer(void* ptr) { return ((size_t) ptr) < (1ul << 48);}
-  
-  // Special timestamps
-  const TS tbd = std::numeric_limits<TS>::max()/4;
-  const TS tbs = std::numeric_limits<TS>::max()/4 - 1;
-  const TS failed = std::numeric_limits<TS>::max()/4 - 2;
-
-  struct trans_descriptor {
-    // the thread id the descriptor belongs to
-    const int owner; 
-
-    // originally "tbd", then "tbs", then either a real timestamp or "failed"
-    flck::atomic_aba_free<TS> time_stamp;  
-
-    std::atomic<bool> acquired;   
-
-    transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_ptr_log;
-    transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
-    transaction_log<bool*> retired_log;
-    transaction_log<bool*> allocated_log;
-
-    void atomic_set_stamp(TS ts) {
-      assert(time_stamp.load() != tbd);
-      if (time_stamp.load() == tbs) {
-	TS old = tbs;
-	time_stamp.cam(old, ts);
-      }
-    }
-
-    void atomic_set_current_stamp() {
-      if (time_stamp.load() == tbs)
-	atomic_set_stamp(global_stamp.get_write_stamp());
-    }
-
-    trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {
-      std::atomic_thread_fence(std::memory_order_seq_cst);
-    }
-  };
-
-  //flck::memory_pool<trans_descriptor> trans_descriptor_pool;
-  flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
-
-#include "memory_pool.h"
-  
 
   // just used for correctness assertions
 #define init_ptr (((versioned*) nullptr) - 1)

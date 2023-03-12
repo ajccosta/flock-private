@@ -46,7 +46,7 @@ bool commit_transaction (trans_descriptor* descriptor) {
 }
 
 void clear_logs() {
-  lock_log.clear();
+  //lock_log.clear();
   //write_ptr_log.clear();
   //validate_ptr_log.clear();
   //allocated_log.clear();
@@ -73,17 +73,17 @@ auto with_transaction(F f) {
 
 #ifdef Immediate
 	  if (passed)
-	    if (lock_log.size() > 0)
+	    if (descriptor->lock_log.size() > 0)
 	      passed = commit_transaction(descriptor);
 	  // unlock all acquired locks
-	  for (int i=0; i < lock_log.size(); i++) {
-	    assert(lock_log[i]->is_self_locked());
-	    lock_log[i]->unlock();
+	  for (int i=0; i < descriptor->lock_log.size(); i++) {
+	    assert(descriptor->lock_log[i]->is_self_locked());
+	    descriptor->lock_log[i]->unlock();
 	  }
 #else
 	  if (passed)
-	    if (lock_log.size() > 0)
-	      passed = run_with_logged_locks([=] {
+	    if (descriptor->lock_log.size() > 0)
+	      passed = run_with_logged_locks(descriptor, [=] {
 	         return commit_transaction(descriptor);}); 
 #endif
 
@@ -102,7 +102,7 @@ auto with_transaction(F f) {
 	      flck::internal::undo_allocate(allocated_log[i]);
 
 	    if (delay == 0) {
-	      delay = 100 * (1  + 4 * lock_log.size());
+	      delay = 100 * (1  + 4 * descriptor->lock_log.size());
 	      max_delay = 4 * delay;
 #ifdef Immediate
 	      max_delay = 16 * delay;
