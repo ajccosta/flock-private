@@ -8,6 +8,8 @@
 
 namespace verlib {
 
+  thread_local bool helping=false;
+  
   bool valid_pointer(void* ptr) { return ((size_t) ptr) < (1ul << 48);}
 
   // just used for correctness assertions
@@ -44,11 +46,13 @@ namespace verlib {
 
     void set_descriptor(trans_descriptor* descriptor) {
       assert(stamp_or_descriptor.load() == tbd);
-      stamp_or_descriptor = tag_descriptor(descriptor);
+      stamp_or_descriptor.init(tag_descriptor(descriptor));
     }
 
     void remove_descriptor(TS ts, bool check_stamp = true) {
+#ifndef NDEBUG
       TS td = stamp_or_descriptor.load();
+#endif
       assert(is_tagged(td));
       assert(untag_descriptor(td)->owner == flck::internal::current_id);
       assert(!check_stamp || untag_descriptor(td)->time_stamp.load() == ts);
@@ -56,12 +60,7 @@ namespace verlib {
     }
 
     // once a next version is added, it becomes recorded
-    bool is_recorded() {
-      if (next_version.load() == init_ptr) {
-	//assert(stamp_or_descriptor.load() == tbd);
-	return false;
-      } else return true;
-    }
+    bool is_recorded() { return next_version.load() != init_ptr; }
 
     void set_stamp(TS t) {
       assert(stamp_or_descriptor.load() == tbd);
@@ -87,18 +86,18 @@ namespace verlib {
     versioned(versioned* next) : stamp_or_descriptor(tbd), next_version(next) {}
 
     versioned* get_next_version() {return next_version.load();}
-
-    void set_next_version(versioned* nv) {
-      //assert(next_version == init_ptr);  
-      next_version = nv;}
+    void set_next_version(versioned* nv) { next_version = nv;}
+    void init_next_version(versioned* nv) {
+      assert(next_version.load() == init_ptr);  
+      next_version.init(nv);}
 
     void set_with_current_stamp() {
       TS old_t = tbd;
       TS new_t = global_stamp.get_write_stamp();
-      TS td = stamp_or_descriptor.load();
+      TS td = stamp_or_descriptor.load_ni();
       assert(!is_tagged(td));    
       if (td == old_t) 
-	stamp_or_descriptor.cam(old_t, new_t);
+	stamp_or_descriptor.cas_ni(old_t, new_t);
     }
   };
 
@@ -119,9 +118,9 @@ namespace verlib {
 
   void shortcut(flck::atomic<versioned*>* loc, versioned* ptr) {
     ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
-    // need to fix for lock free locks
-    if (ptr_->get_stamp_indirect() <= done_stamp) 
-      if (loc->cas(ptr, ptr_->value)) link_pool.pool.retire(ptr_);
+    flck::non_idempotent([=] {
+      if (ptr_->get_stamp_indirect() <= done_stamp) 
+	if (loc->cas(ptr, ptr_->value)) link_pool.pool.retire(ptr_);});
   }
 
   // Installs ptr to front of version list for a store on loc.
@@ -129,30 +128,34 @@ namespace verlib {
   // store will be completed by finalize_versioned_store.
   // - Otherwise set the timestamp and no finalization is required.
   void install_versioned_store(flck::atomic<versioned*>* loc,
-				     versioned* ptr,
-				     trans_descriptor* descriptor) {
+			       versioned* ptr,
+			       trans_descriptor* descriptor) {
+    assert(current_transaction == nullptr);
     versioned* old_v = loc->load();
     versioned* new_v = ptr;
     // indirection on need
     bool use_indirect = (ptr == nullptr || ptr->is_recorded()); //log 
-    if (use_indirect)
-      new_v = add_indirect(link_pool.new_obj_descriptor(descriptor, old_v, new_v)); // log
-    else ptr->set_next_version(old_v); // not logged in hybrid, but could use an init here
+    if (use_indirect) {
+      ver_link* link = link_pool.new_obj(old_v, new_v);
+      if (!helping) link_pool.retire_on_abort(descriptor, link);
+      new_v = add_indirect(link);
+    }
+    else ptr->init_next_version(old_v);
 
     // install descriptor if in transaction
     if (descriptor != nullptr)
       strip_indirect(new_v)->set_descriptor(descriptor); // could use an init
 #ifdef NoShortcut
     *loc = new_v;
-    if (is_indirect(old_v))
-      link_pool.retire_descriptor(descriptor, (ver_link*) strip_indirect(old_v)); // logged
+    if (is_indirect(old_v) && !helping)
+      link_pool.retire_on_success(descriptor, (ver_link*) strip_indirect(old_v)); 
 #else
     // if using shortcutting then need to deal with race
     loc->cam(old_v, new_v);  // load is logged
     if (is_indirect(old_v)) {
       versioned* val = loc->load(); // logged
-      if (val == new_v)
-	link_pool.retire_descriptor(descriptor, (ver_link*) strip_indirect(old_v)); // logged, but what about failed attempts by helpers and how those interact with the undo mechanism, could undo be after free?  seems like only main thread will undo, and will it undo the right one?
+      if (val == new_v && !helping)
+	link_pool.retire_on_success(descriptor, (ver_link*) strip_indirect(old_v)); 
       else {
 	strip_indirect(new_v)->set_next_version(val); // logged, but unusual
 	loc->cam(val, new_v); // logged
@@ -167,8 +170,9 @@ namespace verlib {
     //return old_v;
   }
 
-  void finalize_versioned_store(flck::atomic<versioned*>* loc, TS time_stamp) {
-    versioned* ptr = strip_indirect(loc->load()); // why are we rereading? will cause commit
+  void finalize_versioned_store(flck::atomic<versioned*>* loc,
+				TS time_stamp) {
+    versioned* ptr = strip_indirect(loc->load()); // could avoid load by storing pointer when installed
     assert(ptr != nullptr);
     // splice this latest version out if transaction aborted
     if (time_stamp == failed) *loc = ptr->get_next_version();  // need not be logged

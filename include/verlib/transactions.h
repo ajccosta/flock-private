@@ -22,13 +22,11 @@ bool commit_transaction (trans_descriptor* descriptor) {
   bool passed = true;
 
   // Install writes at head of version lists
-  current_transaction = descriptor; //(trans_descriptor*) 22; //descriptor;
   auto& write_log = descriptor->write_ptr_log;
   for (int i=0; i < write_log.size(); i++) {
     auto [location, value] = write_log[i];
     install_versioned_store(location, value, descriptor);
   }
-  current_transaction = nullptr;
 
   descriptor->time_stamp = tbs; // logged load and cas (aba_free)
   validate_reads(descriptor);  // not idempotent

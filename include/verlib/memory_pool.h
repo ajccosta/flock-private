@@ -9,6 +9,19 @@ namespace verlib {
     void clear() { pool.clear();}
     void destruct(T* ptr) { pool.destruct(ptr); }
 
+    void retire_on_abort(trans_descriptor* descriptor, T* ptr) {
+      if (descriptor != nullptr) {
+	bool* x = pool.retire(ptr);
+	flck::internal::undo_retire(x);
+	descriptor->allocated_log.add(x);
+      }
+    }
+
+    void retire_on_success(trans_descriptor* descriptor, T* ptr) {
+      bool* x = pool.retire(ptr);
+      if (descriptor != nullptr) descriptor->retired_log.add(x);
+    }
+
     template <typename ... Args>
     T* new_obj(Args... args) {
 #ifdef TransUndo
