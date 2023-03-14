@@ -191,15 +191,18 @@ void run_mixed_operations(SetType& os,
 	      abort();
 	    }
 	    for (int k=0; k < tsize; k++) range_keys[k] = all[j+k];
+	    int loc_keysum;
+		       
 	    //std::sort(range_keys.begin(), range_keys.begin() + tsize);
 	    added += verlib::with_transaction([&] {
                int loc_added = 0;
+	       loc_keysum = 0;
 	       for (int k=0; k < tsize; k++) {
 #ifdef TransUndo
 		 if (op_types[j+k] == Find) {
 		   auto x = os.try_find(tr, range_keys[k]);
 		   if (!x.has_value()) return std::optional<int>();
-		   keysum += (*x).has_value();
+		   loc_keysum += (*x).has_value();
 		 } else if (op_types[j+k] == Insert) {
 		   auto x = os.try_insert(tr, range_keys[k], 123);
 		   if (!x.has_value() || verlib::trans_aborted) return std::optional<int>();
@@ -211,7 +214,7 @@ void run_mixed_operations(SetType& os,
 		 }
 #else
 		 if (op_types[j+k] == Find) {
-		   keysum += os.find_locked(tr, range_keys[k]).has_value();
+		   loc_keysum += os.find_locked(tr, range_keys[k]).has_value();
 		 } else if (op_types[j+k] == Insert) {
 		   if (os.insert_(tr, range_keys[k], 123)) loc_added++;
 		 } else if (op_types[j+k] == Remove) {
@@ -220,6 +223,7 @@ void run_mixed_operations(SetType& os,
 #endif
 	       }
 	       return std::optional<int>(loc_added);});
+	    keysum += loc_keysum;
 	    i_or_d = !i_or_d;
 	    j += tsize;
 	    if (j >= (i+1)*mp) j -= mp;

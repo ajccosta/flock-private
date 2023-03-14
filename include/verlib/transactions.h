@@ -43,14 +43,6 @@ bool commit_transaction (trans_descriptor* descriptor) {
   return passed;
 }
 
-void clear_logs() {
-  //lock_log.clear();
-  //write_ptr_log.clear();
-  //validate_ptr_log.clear();
-  //allocated_log.clear();
-  //retired_log.clear();
-}
-
 // wrapper for a transaction
 template <typename F>
 auto with_transaction(F f) { 
@@ -59,7 +51,6 @@ auto with_transaction(F f) {
   int max_delay = 0;
   while (true) {
     auto r = flck::with_epoch([&] {
-	  clear_logs();
 	  in_lock = false;
 	  start_stamp = global_stamp.get_read_stamp();
 	  trans_aborted = false;
@@ -68,7 +59,6 @@ auto with_transaction(F f) {
 	  auto x = f();
 	  current_transaction = nullptr;
 	  bool passed = x.has_value() && !trans_aborted;
-
 #ifdef Immediate
 	  if (passed)
 	    if (descriptor->lock_log.size() > 0)
@@ -80,9 +70,13 @@ auto with_transaction(F f) {
 	  }
 #else
 	  if (passed)
-	    if (descriptor->lock_log.size() > 0)
-	      passed = run_with_logged_locks(descriptor, [=] {
-	         return commit_transaction(descriptor);}); 
+	    if (descriptor->lock_log.size() > 0) {
+	      std::sort(descriptor->lock_log.data(), descriptor->lock_log.data() + descriptor->lock_log.size());
+	      passed = run_with_locks_rec(0, descriptor, [=] {
+	         return commit_transaction(descriptor);});
+	    }
+	  //passed = run_with_logged_locks(descriptor, [=] {
+	  //return commit_transaction(descriptor);}); 
 #endif
 
 	  assert(current_transaction == nullptr);
@@ -100,12 +94,14 @@ auto with_transaction(F f) {
 	      flck::internal::undo_allocate(allocated_log[i]);
 
 	    if (delay == 0) {
+#ifdef Validate
+	      delay = 5 * (1  + 4 * descriptor->lock_log.size());
+	      max_delay = 16 * delay;
+#else
 	      delay = 100 * (1  + 4 * descriptor->lock_log.size());
-	      max_delay = 4 * delay;
-#ifdef Immediate
 	      max_delay = 16 * delay;
 #endif
-	    } else delay = std::min(2 * delay, max_delay);
+	    } else delay = std::min((int) std::ceil(1.2 * delay), max_delay);
 	    for (volatile int i=0; i < delay; i++);
 	    if (try_count++ > 1000000000l/max_delay) {
 	      std::cout << "looks like an infinite retry loop" << std::endl;

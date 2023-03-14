@@ -25,11 +25,7 @@ public:
     } else return lck.try_lock(f);
 #else
     if (current_transaction != nullptr) {
-      // if (lck.is_locked() && !lck.is_self_locked()) {
-      // 	trans_aborted = true;
-      // 	using RT = decltype(f());
-      // 	return RT();
-      // }
+      //if (lck.is_locked() && !lck.is_self_locked()) return false;
       current_transaction->lock_log.add(&lck);
       bool tmp = in_lock;
       in_lock = true;
@@ -59,7 +55,7 @@ public:
 };
 
 template <typename F>
-bool run_with_locks_rec(int i, trans_descriptor* descriptor, F& f) {
+bool run_with_locks_rec(int i, trans_descriptor* descriptor, F f) {
   if (i == descriptor->lock_log.size()) return f();
   return descriptor->lock_log[i]->try_lock([&] {
 					     return run_with_locks_rec(i+1, descriptor, f);});

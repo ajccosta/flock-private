@@ -9,38 +9,38 @@ namespace verlib {
     void clear() { pool.clear();}
     void destruct(T* ptr) { pool.destruct(ptr); }
 
+    bool is_helping() {
+#ifdef NoHelp
+      return false;
+#else
+      return flck::internal::helping;
+#endif
+    }
+  
     void retire_on_abort(trans_descriptor* descriptor, T* ptr) {
-      if (descriptor != nullptr) {
+#ifdef TransUndo
+      if (descriptor != nullptr && !is_helping()) {
 	bool* x = pool.retire(ptr);
 	flck::internal::undo_retire(x);
 	descriptor->allocated_log.add(x);
       }
+#endif
     }
 
     void retire_on_success(trans_descriptor* descriptor, T* ptr) {
+#ifdef TransUndo
       bool* x = pool.retire(ptr);
-      if (descriptor != nullptr) descriptor->retired_log.add(x);
+      if (descriptor != nullptr && !is_helping())
+	descriptor->retired_log.add(x);
+#else
+      pool.retire(ptr);
+#endif
     }
 
     template <typename ... Args>
     T* new_obj(Args... args) {
-#ifdef TransUndo
-      return new_obj_descriptor(verlib::current_transaction, args...);
-#else
-      return pool.new_obj(args...);
-#endif
-    }
-
-    template <typename ... Args>
-    T* new_obj_descriptor(trans_descriptor* descriptor, Args... args) {
       T* ptr = pool.new_obj(args...);
-#ifdef TransUndo
-      if (descriptor != nullptr)  {
-	bool* x = pool.retire(ptr);
-	flck::internal::undo_retire(x);
-	descriptor->allocated_log.add(x);
-      }
-#endif
+      retire_on_abort(current_transaction, ptr);
       return ptr;
     }
 
@@ -52,17 +52,7 @@ namespace verlib {
     }
 
     void retire(T* ptr) {
-#ifdef TransUndo
-      retire_descriptor(current_transaction, ptr);
-#else
-      pool.retire(ptr);
-#endif
-    }
-  
-    void retire_descriptor(trans_descriptor* descriptor, T* ptr) {
-      bool* x = pool.retire(ptr);
-      if (descriptor != nullptr) descriptor->retired_log.add(x);
+      retire_on_success(current_transaction, ptr);
     }
   };
-
 }

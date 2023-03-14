@@ -8,8 +8,6 @@
 
 namespace verlib {
 
-  thread_local bool helping=false;
-  
   bool valid_pointer(void* ptr) { return ((size_t) ptr) < (1ul << 48);}
 
   // just used for correctness assertions
@@ -137,7 +135,7 @@ namespace verlib {
     bool use_indirect = (ptr == nullptr || ptr->is_recorded()); //log 
     if (use_indirect) {
       ver_link* link = link_pool.new_obj(old_v, new_v);
-      if (!helping) link_pool.retire_on_abort(descriptor, link);
+      link_pool.retire_on_abort(descriptor, link);
       new_v = add_indirect(link);
     }
     else ptr->init_next_version(old_v);
@@ -147,14 +145,14 @@ namespace verlib {
       strip_indirect(new_v)->set_descriptor(descriptor); // could use an init
 #ifdef NoShortcut
     *loc = new_v;
-    if (is_indirect(old_v) && !helping)
+    if (is_indirect(old_v))
       link_pool.retire_on_success(descriptor, (ver_link*) strip_indirect(old_v)); 
 #else
     // if using shortcutting then need to deal with race
     loc->cam(old_v, new_v);  // load is logged
     if (is_indirect(old_v)) {
       versioned* val = loc->load(); // logged
-      if (val == new_v && !helping)
+      if (val == new_v)
 	link_pool.retire_on_success(descriptor, (ver_link*) strip_indirect(old_v)); 
       else {
 	strip_indirect(new_v)->set_next_version(val); // logged, but unusual
@@ -202,7 +200,7 @@ namespace verlib {
       descriptor->time_stamp.cam(old, failed);
     } else { //otherwise wait for a bit to see if other is done, then help
       int cnt = 0;
-      while (descriptor->time_stamp.load() == tbs && cnt++ < 10)
+      while (descriptor->time_stamp.load() == tbs && cnt++ < 50)
       	for (volatile int i=0; i < 100; i++);
       if (descriptor->time_stamp.load() == tbs) validate_reads(descriptor);
     }
@@ -384,7 +382,7 @@ namespace verlib {
   bool validate(verlib::lock& lck, T* v, E expected) {
     if (current_transaction != nullptr) {
 #ifdef Validate
-      if (try_count < 20) // anywhere from 10-100 seems good
+      if (true) //try_count < 100) // anywhere from 10-100 seems good
 	return v->validate(expected);
       else // if too many tries give up on validation and take locks
 	return lck.try_lock([=] {return (v->load() == expected);});

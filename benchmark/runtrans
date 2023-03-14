@@ -62,7 +62,7 @@ else :
     trans_sizes = [0, 16]
     mix_percents = [[5,0,0,0], [50,0,0,0]]
     #suffixes_all = ["", "_noundo", "_trans", "_validate"]
-    suffixes_all = ["_trans", "_validate", "_immediate"]
+    suffixes_all = ["_validate", "_immediate"]
 
 if all :
     lists = lists + ["list_onelock"];

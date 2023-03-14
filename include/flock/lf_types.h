@@ -98,11 +98,11 @@ public:
   }
   void init(V vv) { v = vv; }
   void store(V vv) {
-    size_t old_v = load();
+    V old_v = load();
     v.compare_exchange_strong(old_v, vv);
   }
   void cam(V expected, V new_v) {
-    size_t old_v = load();
+    V old_v = load();
     if (expected == old_v)
       v.compare_exchange_strong(old_v, new_v);
   }
@@ -149,16 +149,19 @@ struct memory_pool {
   
   void acquire(T* p) { pool.acquire(p);}
   
-  void retire(T* p) {
+  bool* retire(T* p) {
     assert(p != nullptr);
-    auto x = internal::lg.commit_value_safe(p);
-    if (x.second) // only retire if first try
-      internal::with_empty_log([&] {pool.retire(p);}); 
+    if (!internal::helping)
+      return internal::with_empty_log([&] {return pool.retire(p);});
+    else return nullptr;
+    //auto x = internal::lg.commit_value_safe(p);
+    //if (x.second) // only retire if first try
+    //  internal::with_empty_log([&] {pool.retire(p);}); 
   }
 
-  void retire_ni(T* p) {
+  bool* retire_ni(T* p) {
     assert(p != nullptr);
-    internal::with_empty_log([&] {pool.retire(p);});
+    return internal::with_empty_log([&] {return pool.retire(p);});
   }
 	      
   void destruct(T* p) {
