@@ -87,25 +87,31 @@ public:
 template <typename V>
 struct atomic_aba_free {
 private:
-   constexpr static unsigned long set_bit= (1ul << 63);
+  constexpr static unsigned long set_bit= (1ul << 63);
+  // set then mask high bit to ensure not zero
+  static V log_value(V v) {
+    size_t x = internal::lg.commit_value((size_t) v | set_bit).first;
+    return (V) (x & ~set_bit);
+  }
 public:
   std::atomic<V> v;
   atomic_aba_free(V initial) : v(initial) {}
   atomic_aba_free() {}
-  V load() { // set then mask high bit to ensure not zero
-    size_t x = internal::lg.commit_value((size_t) v.load() | set_bit).first;
-    return (V) (x & ~set_bit);
-  }
-  void init(V vv) { v = vv; }
+  V load() { return log_value(v.load());}
+  V load_ni() {return v.load();}
+  //void init(V vv) { v = vv; }
   void store(V vv) {
-    V old_v = load();
-    v.compare_exchange_strong(old_v, vv);
+    V old_v = v.load();
+    if (log_value(old_v) == old_v)
+      v.compare_exchange_strong(old_v, vv);
   }
   void cam(V expected, V new_v) {
-    V old_v = load();
-    if (expected == old_v)
+    V old_v = v.load();
+    if (old_v == expected && log_value(old_v) == old_v)
       v.compare_exchange_strong(old_v, new_v);
   }
+  bool cas_ni(V exp_v, V new_v) {return
+      v.compare_exchange_strong(exp_v, new_v);}
   V operator=(V b) { store(b); return b; }
 };
 

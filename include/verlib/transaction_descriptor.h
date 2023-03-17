@@ -1,5 +1,6 @@
 namespace verlib {
   using atomic_val = size_t;
+  thread_local int transaction_round = 0;
   
   // structure for holding the various logs
   // has a default size and will expand if needed
@@ -40,13 +41,14 @@ namespace verlib {
 
   // structure that stores transaction information, including logs and state
   struct trans_descriptor {
-    // the thread id the descriptor belongs to
-    const int owner; 
-
     // originally "tbd", then "tbs", then either a real timestamp or "failed"
     flck::atomic_aba_free<TS> time_stamp;  
 
     std::atomic<bool> acquired;   
+
+    // the thread id the descriptor belongs to
+    const int owner;
+    const int round;  // for debugging
 
     transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_ptr_log;
     transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
@@ -67,7 +69,8 @@ namespace verlib {
 	atomic_set_stamp(global_stamp.get_write_stamp());
     }
 
-    trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {
+    //trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {
+    trans_descriptor() : time_stamp(tbd), owner(parlay::worker_id()), round(++transaction_round) {
       std::atomic_thread_fence(std::memory_order_seq_cst);
     }
   };

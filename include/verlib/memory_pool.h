@@ -16,7 +16,7 @@ namespace verlib {
       return flck::internal::helping;
 #endif
     }
-  
+
     void retire_on_abort(trans_descriptor* descriptor, T* ptr) {
 #ifdef TransUndo
       if (descriptor != nullptr && !is_helping()) {

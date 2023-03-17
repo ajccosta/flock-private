@@ -8,15 +8,23 @@
 
 namespace verlib {
 
+  bool is_helping() {
+#ifdef NoHelp
+    return false;
+#else
+    return flck::internal::helping;
+#endif
+  }
+
   bool valid_pointer(void* ptr) { return ((size_t) ptr) < (1ul << 48);}
 
-  // just used for correctness assertions
-#define init_ptr (((versioned*) nullptr) - 1)
+// initial value of next_version
+#define init_ptr ((versioned*) 8ul)
 
   struct versioned {
   private:
-    flck::atomic_write_once<TS> stamp_or_descriptor;
-    flck::atomic_write_once<versioned*> next_version;
+    flck::atomic_aba_free<TS> stamp_or_descriptor;
+    flck::atomic<versioned*> next_version;
 
     // tags second highest bit to mark as descriptor
     constexpr static int bit_num = 62;
@@ -44,7 +52,7 @@ namespace verlib {
 
     void set_descriptor(trans_descriptor* descriptor) {
       assert(stamp_or_descriptor.load() == tbd);
-      stamp_or_descriptor.init(tag_descriptor(descriptor));
+      stamp_or_descriptor = tag_descriptor(descriptor);
     }
 
     void remove_descriptor(TS ts, bool check_stamp = true) {
@@ -54,14 +62,18 @@ namespace verlib {
       assert(is_tagged(td));
       assert(untag_descriptor(td)->owner == flck::internal::current_id);
       assert(!check_stamp || untag_descriptor(td)->time_stamp.load() == ts);
+      //std::cout << "removing descriptor, setting to: " << ts << std::endl;
       stamp_or_descriptor = ts;
     }
 
     // once a next version is added, it becomes recorded
-    bool is_recorded() { return next_version.load() != init_ptr; }
+    bool is_recorded() {
+      //std::cout << "is_recorded: " << next_version.v.load() << ", " << next_version.load() << std::endl;
+      return next_version.load() != init_ptr; }
 
     void set_stamp(TS t) {
       assert(stamp_or_descriptor.load() == tbd);
+      //std::cout << "setting stamp no trans: " << t << std::endl;
       next_version = nullptr;
       stamp_or_descriptor = t;
     }
@@ -86,16 +98,22 @@ namespace verlib {
     versioned* get_next_version() {return next_version.load();}
     void set_next_version(versioned* nv) { next_version = nv;}
     void init_next_version(versioned* nv) {
-      assert(next_version.load() == init_ptr);  
-      next_version.init(nv);}
+      // need to remove
+      if (next_version.load() != init_ptr)
+	std::cout << "next_version.load() == " << next_version.load() << std::endl;
+      //assert(next_version.load() == init_ptr);  
+      next_version = nv;}
 
     void set_with_current_stamp() {
-      TS old_t = tbd;
-      TS new_t = global_stamp.get_write_stamp();
       TS td = stamp_or_descriptor.load_ni();
       assert(!is_tagged(td));    
-      if (td == old_t) 
-	stamp_or_descriptor.cas_ni(old_t, new_t);
+      if (td == tbd) {
+	TS new_t = global_stamp.get_write_stamp();
+	//std::cout << "new stamp = " << new_t << ", " << this << std::endl;
+	if (stamp_or_descriptor.load_ni() == tbd) 
+	  stamp_or_descriptor.cas_ni(tbd, new_t);
+	//std::cout << "get stamp: " << global_stamp.get_stamp() << std::endl;
+      }
     }
   };
 
@@ -128,6 +146,7 @@ namespace verlib {
   void install_versioned_store(flck::atomic<versioned*>* loc,
 			       versioned* ptr,
 			       trans_descriptor* descriptor) {
+    //std::cout << "install: " << descriptor << std::endl;
     assert(current_transaction == nullptr);
     versioned* old_v = loc->load();
     versioned* new_v = ptr;
@@ -162,6 +181,7 @@ namespace verlib {
 #endif
     // set timestamp and try shortcut if not in transaction
     if (descriptor == nullptr) {
+      //std::cout << "in install" << std::endl;
       strip_indirect(new_v)->set_with_current_stamp(); // need not be idempotent since self set
       if (use_indirect) shortcut(loc, new_v); // need not be idempotent
     }
@@ -170,16 +190,21 @@ namespace verlib {
 
   void finalize_versioned_store(flck::atomic<versioned*>* loc,
 				TS time_stamp) {
+    //std::cout << "finalize: " << loc << ", " << time_stamp << std::endl;
     versioned* ptr = strip_indirect(loc->load()); // could avoid load by storing pointer when installed
     assert(ptr != nullptr);
     // splice this latest version out if transaction aborted
     if (time_stamp == failed) *loc = ptr->get_next_version();  // need not be logged
     // replace descriptor with timestamp (possibly failed stamp)
+    //std::cout << "setting stamp: " << time_stamp << std::endl;
     ptr->remove_descriptor(time_stamp); // write once, so no commit
+    //std::cout << "stamp set to: " << ptr->get_stamp() << ", " << ptr << std::endl;
   }
 
   void validate_reads(trans_descriptor* descriptor);
 
+  thread_local bool in_lock;
+ 
   // If a descriptor is installed then need to resolve whether to
   // return the new value (if succeded) or old value (if not yet in
   // validation stage or if failed).
@@ -187,6 +212,9 @@ namespace verlib {
   T resolve_descriptor(trans_descriptor* descriptor, T old_v, T new_v,
 		       bool validating) {
     if (descriptor->owner == flck::internal::current_id) {
+      //if (!is_helping() && descriptor->round != transaction_round)
+      //std::cout << descriptor->round << ", " << transaction_round << ", " << descriptor->owner << ", " << parlay::worker_id() << std::endl;
+      assert(is_helping() || descriptor->round == transaction_round);
       assert(validating); // self descriptor should not be installed if not validating
       return old_v; // if validating then should check against old value
     }
@@ -218,6 +246,7 @@ namespace verlib {
     if (stamp == failed) return ptr->get_next_version(); // failed so ignore value
     if (stamp != tbd) return tagged_ptr; // value already fully set
     if (descriptor == nullptr) { // store was not in a transaction
+      //std::cout << "in get_value: " << ptr << std::endl;
       ptr->set_with_current_stamp(); // check and set the stamp
       return tagged_ptr; }
     // a transaction descriptor is installed, need to resolve the state
@@ -259,6 +288,9 @@ namespace verlib {
     }
 
     static versioned* set_zero_stamp(V* ptr) {
+      //std::cout << "set_zero_stamp: " << ptr << std::endl;
+      //if (ptr != nullptr)
+      //std::cout << "is recorded? " << ptr->is_recorded() << ", " << (ptr->get_stamp() == tbd) << std::endl;
       if (ptr != nullptr && !ptr->is_recorded()) 
 	ptr->set_stamp(zero_stamp);
       return ptr;
@@ -267,7 +299,8 @@ namespace verlib {
   public:
     
     versioned_ptr(): v(nullptr) {}
-    versioned_ptr(V* ptr) : v(set_zero_stamp(ptr)) {}
+  versioned_ptr(V* ptr) : v(set_zero_stamp(ptr)) {}
+      //std::cout << "initializer: " << ptr << std::endl; }
 
     ~versioned_ptr() {
       versioned* ptr = v.load();
@@ -307,6 +340,7 @@ namespace verlib {
       
     V* load() {  
       assert(this != nullptr);
+      assert(!is_helping() || current_transaction == nullptr);
       if (local_stamp != -1) return read_snapshot();
       if (current_transaction != nullptr) {
 	// first see if it is in the write log
@@ -320,8 +354,10 @@ namespace verlib {
 	if (in_lock) current_transaction->validate_ptr_log.add(std::tuple(&v, cur));
 
 	// for opacity check that has not changed since start of transaction
-	if (cur != nullptr && strip_indirect(cur)->get_stamp_indirect() > start_stamp)
+	if (cur != nullptr && strip_indirect(cur)->get_stamp_indirect() > start_stamp) {
+	  //std::cout << "in load opacity test: " << strip_indirect(cur)->get_stamp_indirect() << ", " << start_stamp << std::endl;
 	  trans_aborted = true;
+	}
 	return get_ptr_shortcut(cur);
       }
       return get_ptr_shortcut(get_value(v.load()));

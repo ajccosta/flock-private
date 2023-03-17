@@ -1,12 +1,9 @@
 #pragma once
 
-#include <parlay/parallel.h> // needed for worker_id
-
-#include <atomic>
-#include<thread>
 #include<optional>
 
-thread_local bool in_lock;
+//thread_local bool in_lock;
+
 struct lock {
 private:
   flck::lock lck;
@@ -57,8 +54,8 @@ public:
 template <typename F>
 bool run_with_locks_rec(int i, trans_descriptor* descriptor, F f) {
   if (i == descriptor->lock_log.size()) return f();
-  return descriptor->lock_log[i]->try_lock([&] {
-					     return run_with_locks_rec(i+1, descriptor, f);});
+  return descriptor->lock_log[i]->try_lock([=] {
+	     return run_with_locks_rec(i+1, descriptor, f);});
 }
 
 template <typename F>

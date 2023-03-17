@@ -5,6 +5,7 @@ thread_local TS start_stamp = 0;
 
 // validate the versioned pointers that were read
 void validate_reads(trans_descriptor* descriptor) {
+  //std::cout << "val" << std::endl;
   auto &log = descriptor->validate_ptr_log;
   //auto log = &validate_ptr_log;
   bool passed = true;
@@ -20,7 +21,8 @@ void validate_reads(trans_descriptor* descriptor) {
 
 bool commit_transaction (trans_descriptor* descriptor) {
   bool passed = true;
-
+  assert(descriptor != nullptr);
+    
   // Install writes at head of version lists
   auto& write_log = descriptor->write_ptr_log;
   for (int i=0; i < write_log.size(); i++) {
@@ -29,7 +31,8 @@ bool commit_transaction (trans_descriptor* descriptor) {
   }
 
   descriptor->time_stamp = tbs; // logged load and cas (aba_free)
-  validate_reads(descriptor);  // not idempotent
+  
+  flck::non_idempotent([=] {validate_reads(descriptor);});  // not idempotent
   TS ts = descriptor->time_stamp.load();
   passed = (ts != failed);
 
@@ -59,6 +62,10 @@ auto with_transaction(F f) {
 	  auto x = f();
 	  current_transaction = nullptr;
 	  bool passed = x.has_value() && !trans_aborted;
+	  // if (!passed) {
+	  //   std::cout << "aborted: " << trans_aborted << std::endl;
+	  //   abort();
+	  // }
 #ifdef Immediate
 	  if (passed)
 	    if (descriptor->lock_log.size() > 0)

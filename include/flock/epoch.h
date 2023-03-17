@@ -4,11 +4,12 @@
 #include <parlay/alloc.h>
 #include <parlay/random.h>
 #include <parlay/primitives.h>
-#include <unordered_set>
-//#include "timestamps.h"
 
 #pragma once
-//#define EpochMemCheck 1
+
+#ifndef NDEBUG
+#define EpochMemCheck 1
+#endif
 
 // ***************************
 // epoch structure
