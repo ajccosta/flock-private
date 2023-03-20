@@ -4,10 +4,10 @@ namespace verlib {
   
   // structure for holding the various logs
   // has a default size and will expand if needed
-  template <typename T>
+  template <typename T, int InitLength=20>
   struct transaction_log {
   private:
-    static constexpr int init_log_length = 20;
+    static constexpr int init_log_length = InitLength;
     std::array<T,init_log_length> vals;
     parlay::sequence<T> extra_vals;
     int cnt;
@@ -50,11 +50,11 @@ namespace verlib {
     const int owner;
     const int round;  // for debugging
 
-    transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>> write_ptr_log;
-    transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>> validate_ptr_log;
-    transaction_log<bool*> retired_log;
-    transaction_log<bool*> allocated_log;
-    transaction_log<flck::internal::lock*> lock_log;
+    transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>,10> write_ptr_log;
+    transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>,20> validate_ptr_log;
+    transaction_log<bool*,10> retired_log;
+    transaction_log<bool*,10> allocated_log;
+    transaction_log<flck::internal::lock*,10> lock_log;
     
     void atomic_set_stamp(TS ts) {
       assert(time_stamp.load() != tbd);
@@ -76,6 +76,6 @@ namespace verlib {
   };
   thread_local trans_descriptor* current_transaction = nullptr;
 
-  //flck::memory_pool<trans_descriptor> trans_descriptor_pool;
-  flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
+  flck::memory_pool<trans_descriptor> trans_descriptor_pool;
+  //flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
 }
