@@ -65,10 +65,13 @@ namespace verlib {
       stamp_or_descriptor = ts;
     }
 
-    void set_stamp(TS t) {
-      assert(stamp_or_descriptor.load() == tbd);
-      next_version = nullptr;
-      stamp_or_descriptor = t;
+    void set_zero_stamp() {
+      if (next_version.load_ni() == init_ptr) {
+	// the order of the next two matter when using
+	// with lock free locks.
+	stamp_or_descriptor = zero_stamp; // ok since write once
+	next_version.cas_ni(init_ptr, nullptr); // idempotent
+      }
     }
 
     // use when stamp is already set
@@ -139,6 +142,7 @@ namespace verlib {
 			       versioned* ptr,
 			       trans_descriptor* descriptor) {
     assert(current_transaction == nullptr);
+    assert(flck::check_synchronized(8));
     versioned* old_v = loc->load();
     versioned* new_v = ptr;
     // indirection on need
@@ -149,7 +153,7 @@ namespace verlib {
       new_v = add_indirect(link);
     }
     else ptr->init_next_version(old_v);
-
+    
     // install descriptor if in transaction
     if (descriptor != nullptr)
       strip_indirect(new_v)->set_descriptor(descriptor);  // logged
@@ -175,6 +179,7 @@ namespace verlib {
       strip_indirect(new_v)->set_with_current_stamp();  // not logged
       if (use_indirect) shortcut(loc, new_v); // not logged
     }
+    assert(flck::check_synchronized(40));
     //return old_v;
   }
 
@@ -272,8 +277,7 @@ namespace verlib {
     }
 
     static versioned* set_zero_stamp(V* ptr) {
-      if (ptr != nullptr && !ptr->is_recorded()) 
-	ptr->set_stamp(zero_stamp);
+      if (ptr != nullptr) ptr->set_zero_stamp();
       return ptr;
     }
 
@@ -374,22 +378,24 @@ namespace verlib {
   };
 
   struct Empty : versioned {
-    Empty() {versioned::set_stamp(zero_stamp);}
+    Empty() {versioned::set_zero_stamp();}
   };
-  Empty true_val;
+  Empty true_struct;
+  Empty* false_val = nullptr;
+  Empty* true_val = &true_struct;
   
   // Simulates a boolean with a pointer to an "Empty" dummy struct.
-  // If false, then pointer is nullptr otherwise poiter to "true_val".
+  // If false, then pointer is nullptr otherwise pointer to "true_struct".
   // Avoids level of indirection when storing false.
   struct atomic_bool {
     versioned_ptr<Empty> val;
-    bool load() {return val.load() == &true_val;}
-    void store(bool v) {val = (v ? &true_val : nullptr);}
+    bool load() {return val.load() == true_val;}
+    void store(bool v) {val = (v ? true_val : false_val);}
     bool validate(bool expected) {
       Empty* cur = val.load();
-      if ((cur == nullptr) == expected) return false;
+      if ((cur == false_val) == expected) return false;
       return val.validate(cur); }
-    atomic_bool(bool v) : val(v ? &true_val : nullptr) {}
+    atomic_bool(bool v) : val(v ? true_val : false_val) {}
     bool operator=(bool b) {store(b); return b; }
   };
 

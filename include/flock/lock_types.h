@@ -76,5 +76,7 @@ using memory_pool = internal::mem_pool<T>;
   template <typename F>
   void non_idempotent(F f) { f();}
 
+  bool check_synchronized(long i) { return true;}
+
 } // namespace flck
 

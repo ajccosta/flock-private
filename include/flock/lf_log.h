@@ -102,6 +102,17 @@ struct Log {
     else return std::make_pair((V) (size_t) oldv, false);
   }
 
+  bool check_synchronized(long i) {
+    if (is_empty()) return true;
+    if (commit_value((void*) i).first != (void*) i) {
+      std::cout << "log out of sync at log position: " << count << std::endl;
+      for (int i=0; i < count; i++)
+	std::cout << (*vals)[i] << ", ";
+      std::cout << std::endl;
+      return false;
+    } else return true;
+  }
+
   // this version tags 48th bit so value can be zero
   template<typename V>
   std::pair<V,bool> commit_value_safe(V val) {
@@ -188,4 +199,8 @@ static V read_only(Thunk f) {
 }
 
 } // namespace internal
+
+  bool check_synchronized(long i) {
+    return internal::lg.check_synchronized(i);}
+
 } // namespace flck

@@ -46,9 +46,9 @@ namespace verlib {
 
     template <typename F, typename ... Args>
     T* new_init(F f, Args... args) {
-      T* x = new_obj(args...);
-      f(x);
-      return x;
+      T* ptr = pool.new_init(f, args...);
+      retire_on_abort(current_transaction, ptr);
+      return ptr;
     }
 
     void retire(T* ptr) {

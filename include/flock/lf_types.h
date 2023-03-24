@@ -193,6 +193,7 @@ struct memory_pool {
     auto r = internal::lg.commit_value(newv);
     if (!r.second)  // destruct if already initialized
       internal::with_empty_log([&] {pool.destruct(newv);});
+    assert(check_synchronized(13));
     return r.first;
   }
 
