@@ -98,7 +98,6 @@ public:
   atomic_aba_free(V initial) : v(initial) {}
   atomic_aba_free() {}
   V load() { return log_value(v.load());}
-  V load_ni() {return v.load();}
   //void init(V vv) { v = vv; }
   void store(V vv) {
     V old_v = v.load();
@@ -110,8 +109,10 @@ public:
     if (old_v == expected && log_value(old_v) == old_v)
       v.compare_exchange_strong(old_v, new_v);
   }
-  bool cas_ni(V exp_v, V new_v) {return
-      v.compare_exchange_strong(exp_v, new_v);}
+  V load_ni() {return v.load();}
+  void store_ni(V vv) {v = vv;}
+  bool cas_ni(V exp_v, V new_v) {
+    return v.compare_exchange_strong(exp_v, new_v);}
   V operator=(V b) { store(b); return b; }
 };
 
@@ -127,10 +128,12 @@ public:
     size_t x = internal::lg.commit_value((size_t) v.load() | set_bit).first;
     return (V) (x & ~set_bit);
   }
-  V load_ni() {return v.load();}
   void init(V vv) { v = vv; }
   void store(V vv) { v = vv; }
-  bool cas_ni(V exp_v, V new_v) {return v.compare_exchange_strong(exp_v, new_v);}
+  V load_ni() {return v.load();}
+  void store_ni(V vv) { v = vv; }
+  bool cas_ni(V exp_v, V new_v) {
+    return v.compare_exchange_strong(exp_v, new_v);}
   V operator=(V b) { store(b); return b; }
   // inline operator V() { return load(); } // implicit conversion
 };

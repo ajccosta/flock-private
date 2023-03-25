@@ -242,7 +242,9 @@ public:
 	my_descriptor->done = true;
 	clear(my_descriptor);
       }
-    } else help_descriptor(current);
+    } else {
+      help_descriptor(current);
+    }
 
     // retire the thunk
     descriptor_pool.retire_acquired_result(my_descriptor, i_own, result);
