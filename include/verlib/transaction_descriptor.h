@@ -4,7 +4,7 @@ namespace verlib {
   
   // structure for holding the various logs
   // has a default size and will expand if needed
-  template <typename T, int InitLength=20>
+  template <typename T, int InitLength=32>
   struct transaction_log {
   private:
     static constexpr int init_log_length = InitLength;

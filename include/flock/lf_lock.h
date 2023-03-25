@@ -209,7 +209,7 @@ public:
   // The thunk returns a value
   // The try_lock_result returns an optional value, which is empty if it fails
   template <typename Thunk>
-  auto try_lock_result(Thunk f) {
+  auto try_lock_result(Thunk f, bool do_help=true) {
     using RT = decltype(f());
     std::optional<RT> result = {};
     lock_entry current = load();
@@ -243,7 +243,7 @@ public:
 	clear(my_descriptor);
       }
     } else {
-      help_descriptor(current);
+      if (do_help) help_descriptor(current);
     }
 
     // retire the thunk
@@ -254,8 +254,8 @@ public:
   // A wrapper that returns true if the try_lock succeeds and its thunk
   // returns true.
   template <typename Thunk>
-  auto try_lock(Thunk f) {
-    auto result = try_lock_result(f);
+  auto try_lock(Thunk f, bool do_help=true) {
+    auto result = try_lock_result(f, do_help);
     return result.has_value() && result.value();
   }
 };

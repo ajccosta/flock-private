@@ -71,12 +71,13 @@ auto with_transaction(F f) {
 	descriptor->lock_log[i]->unlock();
       }
 #else
+      bool use_help = (try_count % 100) == 99;
       if (passed)
 	if (descriptor->lock_log.size() > 0) {
 	  std::sort(descriptor->lock_log.data(),
 		    descriptor->lock_log.data() + descriptor->lock_log.size());
 	  passed = run_with_locks_rec(0, descriptor, [=] {
-		       return commit_transaction(descriptor);});
+		       return commit_transaction(descriptor);}, use_help);
 	}
 #endif
       assert(current_transaction == nullptr);
