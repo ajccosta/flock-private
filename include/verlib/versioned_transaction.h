@@ -320,6 +320,24 @@ namespace verlib {
 	  return std::optional<int>(i);
       return std::optional<int>();
     }
+
+    V* get_version(versioned* ptr, TS at_stamp) {
+#ifndef NoShortcut
+      if (is_indirect(ptr)) shortcut(&v, ptr);
+#endif
+      versioned* ptr_ = strip_indirect(ptr);
+      if (ptr != nullptr && ptr_->get_stamp() > at_stamp) {
+	trans_aborted = true;
+	// chase down version chain
+	do {
+	  ptr = ptr_->get_next_version();
+	  ptr_ = strip_indirect(ptr);
+	} while (ptr != nullptr && ptr_->get_stamp() > at_stamp);
+      }
+      if (!is_indirect(ptr)) return (V*) ptr;
+      else return (V*) ((ver_link*) ptr_)->value;
+    }
+
       
     V* load() {  
       assert(this != nullptr);
@@ -336,9 +354,9 @@ namespace verlib {
 	if (in_lock) current_transaction->validate_ptr_log.add(std::tuple(&v, cur));
 
 	// for opacity check that has not changed since start of transaction
-	if (cur != nullptr && strip_indirect(cur)->get_stamp_indirect() > start_stamp) 
-	  trans_aborted = true;
-	return get_ptr_shortcut(cur);
+	//if (cur != nullptr && strip_indirect(cur)->get_stamp_indirect() > start_stamp) 
+	//  trans_aborted = true;
+	return get_version(cur, start_stamp);
       }
       return get_ptr_shortcut(get_value(v.load()));
     }
@@ -364,8 +382,8 @@ namespace verlib {
 
       // otherwise check that value matches expected, and if so add to validate log
       versioned* ptr = get_value(v.load());
-      V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
-      if (cur != expected) return false;
+      //V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
+      //if (cur != expected) return false;
       // Note that adding "ptr" not "expected" to log. This is because
       // ptr might be an indirect pointer to the expected value and
       // the pointers need to match to avoid ABA problems.

@@ -72,7 +72,9 @@ auto with_transaction(F f) {
       }
 #else
       bool use_help = (try_count % 100) == 99;
-      if (passed)
+      if (x.has_value() && descriptor->lock_log.size() == 0) 
+	passed = true;
+      else if (passed)
 	if (descriptor->lock_log.size() > 0) {
 	  std::sort(descriptor->lock_log.data(),
 		    descriptor->lock_log.data() + descriptor->lock_log.size());
