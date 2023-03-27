@@ -55,13 +55,13 @@ auto with_transaction(F f) {
     auto r = flck::with_epoch([&] {
       in_lock = false;
       start_stamp = global_stamp.get_read_stamp();
-      trans_aborted = false;
+      old_version_read = false;
       trans_descriptor* descriptor = trans_descriptor_pool.new_obj();
       current_transaction = descriptor;
       auto x = f();
       current_transaction = nullptr;
-      bool passed = x.has_value() && !trans_aborted;
-#ifdef Immediate
+#ifdef Immediate // not up to date (don't use)
+      bool passed = x.has_value() && !old_version_read;
       if (passed)
 	if (descriptor->lock_log.size() > 0)
 	  passed = commit_transaction(descriptor);
@@ -71,16 +71,18 @@ auto with_transaction(F f) {
 	descriptor->lock_log[i]->unlock();
       }
 #else
-      bool use_help = (try_count % 100) == 99;
-      if (x.has_value() && descriptor->lock_log.size() == 0) 
-	passed = true;
-      else if (passed)
-	if (descriptor->lock_log.size() > 0) {
+      bool passed = x.has_value(); 
+      if (passed && descriptor->write_ptr_log.size() > 0) {
+	// if transactions has stores and an old version was read, then abort
+	if (old_version_read) passed = false;
+	else { // otherwise acquire locks in sorted order, and commit
+	  bool use_help = (try_count % 100) == 99;
 	  std::sort(descriptor->lock_log.data(),
 		    descriptor->lock_log.data() + descriptor->lock_log.size());
 	  passed = run_with_locks_rec(0, descriptor, [=] {
 		       return commit_transaction(descriptor);}, use_help);
 	}
+      }
 #endif
       assert(current_transaction == nullptr);
       if (passed) {

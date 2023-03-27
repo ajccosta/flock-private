@@ -62,7 +62,7 @@ else :
     trans_sizes = [0, 16]
     mix_percents = [[5,0,0,0], [50,0,0,0]]
     #suffixes_all = ["", "_noundo", "_trans", "_validate"]
-    suffixes_all = ["_validate", "_validate_lf", "_immediate"]
+    suffixes_all = ["_validate", "_validate_lf"]
 
 if all :
     lists = lists + ["list_onelock"];
@@ -75,7 +75,7 @@ if test_only :
     tree_sizes = [1,1000,100000]
     list_sizes = [1,100]
     trans_sizes = [16]
-    suffixes_all = ["_trans", "_validate", "_validate_lf"]
+    suffixes_all = ["_validate", "_validate_lf"]
     mix_percents = [[50,0,0,0]]
     
 today = date.today().strftime("%m_%d_%y")

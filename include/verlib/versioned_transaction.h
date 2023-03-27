@@ -257,7 +257,7 @@ namespace verlib {
   }
 
   thread_local int try_count;
-  thread_local bool trans_aborted = false;
+  thread_local bool old_version_read = false;
 #include "lock.h"
 #include "transactions.h"
 
@@ -321,13 +321,16 @@ namespace verlib {
       return std::optional<int>();
     }
 
+    // Returns the value of the version of "ptr" at time stamp "at_stamp".
+    // If the most recent version is ahead of at_stamp, and in_lock is
+    // set, then sets "old_version_read" to true.
     V* get_version(versioned* ptr, TS at_stamp) {
 #ifndef NoShortcut
       if (is_indirect(ptr)) shortcut(&v, ptr);
 #endif
       versioned* ptr_ = strip_indirect(ptr);
       if (ptr != nullptr && ptr_->get_stamp() > at_stamp) {
-	trans_aborted = true;
+	if (in_lock) old_version_read = true;
 	// chase down version chain
 	do {
 	  ptr = ptr_->get_next_version();
@@ -349,13 +352,12 @@ namespace verlib {
 	if (lid.has_value())
 	  return (V*) current_transaction->write_ptr_log[*lid].second;
 
-	// if not then get the value and add to validate log
+	// if not then get the value and add to validate log if in a lock
 	versioned* cur = get_value(v.load());
-	if (in_lock) current_transaction->validate_ptr_log.add(std::tuple(&v, cur));
+	if (in_lock) 
+	  current_transaction->validate_ptr_log.add(std::tuple(&v, cur));
 
-	// for opacity check that has not changed since start of transaction
-	//if (cur != nullptr && strip_indirect(cur)->get_stamp_indirect() > start_stamp) 
-	//  trans_aborted = true;
+	// returns version at start_stamp for opacity
 	return get_version(cur, start_stamp);
       }
       return get_ptr_shortcut(get_value(v.load()));
