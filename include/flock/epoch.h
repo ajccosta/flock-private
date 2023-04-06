@@ -239,15 +239,28 @@ public:
   T* new_obj(Args... args) {
 #ifdef EpochMemCheck
     paddedT* x = Allocator::alloc();
-    x->head = x->tail = 10;
+    x->pad = x->head = x->tail = 10;
     T* newv = &x->value;
+    new (newv) T(args...);
+    assert(check_not_corrupted(newv));
 #else
     T* newv = Allocator::alloc();
-#endif
     new (newv) T(args...);
+#endif
     return newv;
   }
 
+  bool check_not_corrupted(T* ptr) {
+#ifdef EpochMemCheck
+    paddedT* x = pad_from_T(ptr);
+    if (x->pad != 10) std::cout << "mem_pool: pad word corrupted" << std::endl;
+    if (x->head != 10) std::cout << "mem_pool: head word corrupted" << std::endl;
+     if (x->tail != 10) std::cout << "mem_pool: tail word corrupted" << std::endl;
+    return (x->pad == 10 && x->head == 10 && x->tail == 10);
+#endif
+    return true;
+  }
+			   
   template <typename F, typename ... Args>
   // f is a function that initializes a new object before it is shared
   T* new_init(F f, Args... args) {

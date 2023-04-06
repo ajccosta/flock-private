@@ -37,6 +37,10 @@ namespace verlib {
 #endif
     }
 
+    bool check_not_corrupted(T* ptr) {
+      return pool.check_not_corrupted(ptr);
+    }
+
     template <typename ... Args>
     T* new_obj(Args... args) {
       T* ptr = pool.new_obj(args...);

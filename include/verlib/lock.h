@@ -54,8 +54,12 @@ public:
 template <typename F>
 bool run_with_locks_rec(int i, trans_descriptor* descriptor, F f, bool do_help) {
   if (i == descriptor->lock_log.size()) return f();
-  return descriptor->lock_log[i]->try_lock([=] {
-	     return run_with_locks_rec(i+1, descriptor, f, do_help);}
+  if (strict_lock)
+    return descriptor->lock_log[i]->with_lock([=] {
+	return run_with_locks_rec(i+1, descriptor, f, do_help);});
+  else
+    return descriptor->lock_log[i]->try_lock([=] {
+	return run_with_locks_rec(i+1, descriptor, f, do_help);}
 #ifndef NoHelp
 	     , do_help
 #endif
@@ -65,19 +69,8 @@ bool run_with_locks_rec(int i, trans_descriptor* descriptor, F f, bool do_help) 
 template <typename F>
 bool run_with_logged_locks(trans_descriptor* descriptor, F f, bool do_help = true) {
   // sorting actually slows things down slightly (5%) under high contention
-  std::sort(descriptor->lock_log.data(), descriptor->lock_log.data() + descriptor->lock_log.size());
-  // long max_count = lock_log.vals[0]->count();
-  // int j=0;
-  // for (int i=1; i < lock_log.cnt; i++) {
-  //   long cnt = lock_log.vals[i]->count();
-  //   if (cnt > max_count) {j = i; max_count = cnt;}
-  // }
-  // std::swap(lock_log.vals[j], lock_log.vals[lock_log.cnt-1]);
-  // if (false)
-  //   for (int i=0; i < validate_ptr_log.cnt; i++) {
-  // 	auto [location, expected] = validate_ptr_log.vals[i];
-  // 	if (!validate_pointer(location, expected)) return false;
-  //   }
+  std::sort(descriptor->lock_log.data(),
+	    descriptor->lock_log.data() + descriptor->lock_log.size());
   if (false)
     for (int i=0; i < descriptor->lock_log.size(); i++) {
       if (descriptor->lock_log[i]->is_locked() &&

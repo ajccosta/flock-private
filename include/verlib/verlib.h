@@ -11,6 +11,10 @@
 #include <parlay/sequence.h>
 #include "flock/flock.h"
 
+namespace verlib {
+ bool strict_lock = false;
+}
+
 #ifdef Versioned
 
 // versioned objects, ptr_type includes version chains
