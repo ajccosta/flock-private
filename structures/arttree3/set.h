@@ -20,8 +20,8 @@ struct Set {
 
   constexpr static int max_indirect_size = 64;
   constexpr static int max_sparse_size = 16;
-  static constexpr int max_leaf_size = 14;
-
+  static constexpr int max_small_leaf_size = 2;
+  static constexpr int max_big_leaf_size = 14;
   
   struct header : verlib::versioned {
     const node_type nt;
@@ -30,6 +30,7 @@ struct Set {
     // e.g. the root has byte_num = 0
     short int byte_num; 
     K key;
+    bool is_leaf() {return nt == Leaf;}
     header(node_type nt, char size) : nt(nt), size(size) {}
     header(const K& key, node_type nt, char size, int byte_num)
       : key(key), nt(nt), size(size), byte_num((short int) byte_num) {}
@@ -116,10 +117,10 @@ struct Set {
     // constructor for a new sparse node with two children
     sparse_node(int byte_num, node* v1, const K& k1, node* v2, const K& k2)
       : node(k1, Sparse, 2, byte_num) {
-      if (k1 == k2) {
-	std::cout << "new sparse: " << k1 << ", " << k2 << ", " << byte_num << std::endl;
-	abort();
-      }
+      // if (k1 == k2) {
+      // 	std::cout << "new sparse: " << k1 << ", " << k2 << ", " << byte_num << std::endl;
+      // 	abort();
+      // }
       keys[0] = String::get_byte(k1, byte_num);
       ptr[0].init(v1);
       keys[1] = String::get_byte(k2, byte_num);
@@ -139,19 +140,24 @@ struct Set {
   };
 
   struct KV {K key; V value;};
-  
-  struct alignas(64) leaf : header {
-    KV key_vals[max_leaf_size];
-    bool equal(const K& k1, const K& k2) {
-      if (String::length(k1) != String::length(k2)) return false;
-      for (int i = header::byte_num; i < String::length(k1); i++)
-	if (String::get_byte(k1,i) != String::get_byte(k2,i)) return false;
-      return true;
-    }
+
+  template <int MaxSize>
+  struct alignas(64) generic_leaf : header {
+    using leaf_ptr = generic_leaf<0>*;
+    KV key_vals[MaxSize];
+    // bool equal(const K& k1, const K& k2) {
+    //   if (String::length(k1) != String::length(k2)) return false;
+    //   for (int i = header::byte_num; i < String::length(k1); i++)
+    // 	if (String::get_byte(k1,i) != String::get_byte(k2,i)) return false;
+    //   return true;
+    // }
     std::optional<V> find(const K& k) {
       for (int i = 0; i < header::size; i++)
 	//if (equal(key_vals[i].key, k)) return key_vals[i].value;
-	if (key_vals[i].key == k) return key_vals[i].value;
+	//if (key_vals[i].key == k) return key_vals[i].value;
+	if (!(key_vals[i].key < k))
+	  if (k < key_vals[i].key) return {};
+	  else return key_vals[i].value;
       return {};}
 
     static int first_diff(int byte_pos, KV* start, KV* end) {
@@ -168,27 +174,43 @@ struct Set {
     }
 
     // create singleton leaf
-    leaf(K& key, V& value) : header(key, Leaf, 1, String::length(key)) {
+    generic_leaf(K& key, V& value) : header(key, Leaf, 1, String::length(key)) {
       key_vals[0] = KV{key, value};
     }
 
-
     // create multi leaf
-    leaf(int byte_pos, KV* start, KV* end)
+    generic_leaf(int byte_pos, KV* start, KV* end)
       : header(start->key, Leaf, end-start, first_diff(byte_pos, start, end)) {
       for (int i=0; i < (end-start); i++) key_vals[i] = start[i];
     }
 
+    static void insert(KV* in, KV* out, int n, const K& key, const V& value) {
+      int i = 0;
+      while (i < n && in[i].key < key) {
+	out[i] = in[i];
+	i++;
+      }
+      out[i] = KV{key,value};
+      while (i < n) {
+      	out[i+1] = in[i];
+	i++;
+      }
+    }
+      
     // add to leaf
-    leaf(int byte_pos, leaf* l, K& key, V& value) 
+    generic_leaf(int byte_pos, leaf_ptr l, K& key, V& value) 
       : header(l->key, Leaf, l->size + 1, byte_pos) {
-      for (int i=0; i < l->size; i++)
-	key_vals[i] = l->key_vals[i];
-      key_vals[l->size] = KV{key,value};
+      insert(l->key_vals, key_vals, l->size, key, value);
+      // for (int i = 1; i < header::size; i++)
+      // 	if (!(key_vals[i-1].key < key_vals[i].key)) {
+      // 	  std::cout << "x out of order at leaf: " << i << ", " << header::size << ", " << std::hex << 
+      // 	    key_vals[i-1].key << ", " << key_vals[i].key << std::dec << std::endl;
+      // 	  abort();
+      // 	}
     }
 
     // remove from leaf
-    leaf(leaf* l, K& key) 
+    generic_leaf(leaf_ptr l, K& key) 
       : header(l->key, Leaf, l->size - 1, 0) {
       int j = 0;
       for (int i=0; i < l->size; i++) {
@@ -200,11 +222,15 @@ struct Set {
     }
 
   };
-
+  using leaf = generic_leaf<0>; // only used generically
+  using small_leaf = generic_leaf<max_small_leaf_size>;
+  using big_leaf = generic_leaf<max_big_leaf_size>;
+  
   verlib::memory_pool<full_node> full_pool;
   verlib::memory_pool<indirect_node> indirect_pool;
   verlib::memory_pool<sparse_node> sparse_pool;
-  verlib::memory_pool<leaf> leaf_pool;
+  verlib::memory_pool<small_leaf> small_leaf_pool;
+  verlib::memory_pool<big_leaf> big_leaf_pool;
 
   // dispatch based on node type
   // A returned nullptr means no child matching the key
@@ -241,7 +267,7 @@ struct Set {
 	  return false;
 	return p->lck.try_lock([=] {
             if (get_child(p,k) != nullptr) return false;
-	    node* c = (node*) leaf_pool.new_obj(k, v);
+	    node* c = (node*) small_leaf_pool.new_obj(k, v);
 	    if (p->nt == Indirect) {
 	      indirect_node* i_n = (indirect_node*) p;
 	      i_n->removed = true; 
@@ -325,7 +351,7 @@ struct Set {
 	     String::get_byte(k, byte_pos) == String::get_byte(c->key, byte_pos))
 	byte_pos++;
 
-      if (byte_pos != c->byte_num || c->nt == Leaf) 
+      if (byte_pos != c->byte_num || c->is_leaf())
 	return std::make_tuple(gp, p, cptr, c, byte_pos);
 
       gp = p;
@@ -333,6 +359,12 @@ struct Set {
     }
   }
 
+  node* new_leaf(int byte_pos, KV* start, KV* end) {
+    if ((end-start) > max_small_leaf_size)
+      return (node*) big_leaf_pool.new_obj(byte_pos, start, end);
+    else return (node*) small_leaf_pool.new_obj(byte_pos, start, end);
+  }
+  
   bool insert_(node* root, const K& k, const V& v) {
     return flck::try_loop([&] () {return try_insert(root, k, v);});}
 
@@ -341,8 +373,7 @@ struct Set {
   
   std::optional<bool> try_insert(node* root, const K& k, const V& v) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
-    //std::cout << byte_pos << ": " << std::hex << k << std::dec << std::endl;
-    if (c != nullptr && c->nt == Leaf &&
+    if (c != nullptr && c->is_leaf() &&
 	((leaf*) c)->find(k).has_value()) // already in the tree
       if (verlib::validate(p->lck, cptr, c) &&
 	  verlib::validate(p->lck, &p->removed, false))
@@ -351,56 +382,63 @@ struct Set {
 
     if (cptr != nullptr) {// child pointer exists, always true for full node
       if (p->lck.try_lock([=] {
-			    //			    std::cout << "h" << std::endl;
  	  // exit and retry if state has changed
 	  if (p->removed.load() || cptr->load() != c) return false;
 
 	  // fill a null pointer with the new leaf
 	  if (c == nullptr)
-	    (*cptr) = (node*) leaf_pool.new_obj(k, v);
-	  else if (c->nt == Leaf) {
-	    //std::cout << "in leaf" << std::endl;
+	    (*cptr) = (node*) small_leaf_pool.new_obj(k, v);
+	  else if (c->is_leaf()) {
 	    leaf* l = (leaf*) c;
-	    if (l->size < max_leaf_size) {
-	      *cptr = (node*) leaf_pool.new_obj(byte_pos, l, k, v);
-	      leaf_pool.retire(l);
+	    small_leaf* sl = (small_leaf*) c;
+	    big_leaf* bl = (big_leaf*) c;
+	    if (l->size < max_small_leaf_size) {
+	      *cptr = (node*) small_leaf_pool.new_obj(byte_pos, l, k, v);
+	      small_leaf_pool.retire(sl);
+	    } else if (l->size == max_small_leaf_size) {
+	      *cptr = (node*) big_leaf_pool.new_obj(byte_pos, l, k, v);
+	      small_leaf_pool.retire(sl);
+	    } else if (l->size < max_big_leaf_size) {
+	      *cptr = (node*) big_leaf_pool.new_obj(byte_pos, l, k, v);
+	      big_leaf_pool.retire(bl);
 	    } else { // too large
-	      int n = max_leaf_size + 1;
+	      int n = max_big_leaf_size + 1;
+
+	      // insert new key-value pair into l and put result into tmp
 	      KV tmp[n];
-	      for (int i=0; i < max_leaf_size; i++)
-		tmp[i] = l->key_vals[i];
-	      tmp[max_leaf_size] = KV{k,v};
+	      leaf::insert(l->key_vals, tmp, n - 1, k, v);
+	      // for (int i=0; i < max_big_leaf_size; i++)
+	      //  	tmp[i] = l->key_vals[i];
+	      // tmp[max_big_leaf_size] = KV{k,v};
+	      // std::sort(tmp, tmp + n, [&] (KV& a, KV& b) {return a.key < b.key;});
+
+	      // break tmp up into multiple leafs base on byte value at byte_pos
 	      auto gb = [&] (const KV& kv) {return String::get_byte(kv.key, byte_pos);};
-	      std::sort(tmp, tmp + n, [&] (KV& a, KV& b) {return gb(a) < gb(b);});
 	      int j = 0;
 	      int start = 0;
 	      int byteval = gb(tmp[0]);
 	      node* children[n];
-	      //std::cout << "mid: " << start << ", " << n << std::endl;
 	      for (int i=1; i < n; i++) {
 		if (gb(tmp[i]) != byteval) {
-		  //std::cout << "first" << std::endl;
-		  children[j++] = (node*) leaf_pool.new_obj(byte_pos+1, &tmp[start], &tmp[i]);
+		  children[j++] = new_leaf(byte_pos+1, &tmp[start], &tmp[i]);
 		  start = i;
 		  byteval = gb(tmp[i]);
 		}
 	      }
-	      //std::cout << "second: " << n << ", " << std::endl;
-	      children[j++] = (node*) leaf_pool.new_obj(byte_pos+1, &tmp[start], &tmp[n]);
-	      //std::cout << "mid2: " << start << ", " << n << ", " << j << std::endl;
+	      children[j++] = new_leaf(byte_pos+1, &tmp[start], &tmp[n]);
+
+	      // insert the new leaves into a sparse node
 	      *cptr = (node*) sparse_pool.new_obj(byte_pos, &children[0], &children[j]);
-	      leaf_pool.retire(l);
-	      //std::cout << "end" << std::endl;
+	      big_leaf_pool.retire(bl);
 	    }
 	  } else { // not a leaf
-	    node* new_l = (node*) leaf_pool.new_obj(k, v);
+	    node* new_l = (node*) small_leaf_pool.new_obj(k, v);
 	    *cptr = (node*) sparse_pool.new_obj(byte_pos, c, c->key,
 						new_l, k);
 	  }
 	  return true;})) return true;
     } else { // no child pointer, need to add
       bool x = add_child(gp, p, k, v);
-      //std::cout << "a: " << check(root) << std::endl;
       if (x) return true;
     }
     return {};
@@ -433,7 +471,7 @@ struct Set {
   std::optional<bool> try_remove(node* root, const K& k) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
-    if (c == nullptr || !(c->nt == Leaf && ((leaf*) c)->find(k).has_value()))
+    if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k).has_value()))
       if (((cptr == nullptr) || verlib::validate(p->lck, cptr, c)) &&
 	  verlib::validate(p->lck, &p->removed, false))
 	return false;
@@ -452,17 +490,24 @@ struct Set {
 	      *child_ptr = other_child;
 	      p->removed = true;
 	      sparse_pool.retire((sparse_node*) p);
-	      leaf_pool.retire(l);
+	      small_leaf_pool.retire((small_leaf*) l);
 	      return true;});
 	  } else { // just remove child
-	    *cptr = nullptr; 
-	    leaf_pool.retire(l);
+	    *cptr = nullptr;
+	    small_leaf_pool.retire((small_leaf*) l);
 	    return true;
 	  }
-	} else {
-	  // remove key from leaf
-	  *cptr = (node*) leaf_pool.new_obj(l, k);
-	  leaf_pool.retire(l);
+	} else { // at least 2 in leaf
+	  if (l->size > max_small_leaf_size + 1) {
+	    *cptr = (node*) big_leaf_pool.new_obj(l, k);
+	    big_leaf_pool.retire((big_leaf*) l);
+	  } else if (l->size == max_small_leaf_size + 1) {
+	    *cptr = (node*) small_leaf_pool.new_obj(l, k);
+	    big_leaf_pool.retire((big_leaf*) l);
+	  } else {
+	    *cptr = (node*) small_leaf_pool.new_obj(l, k);
+	    small_leaf_pool.retire((small_leaf*) l);
+	  }
 	  return true;
 	}})) return true;
     return {};
@@ -497,9 +542,15 @@ struct Set {
     if (a == nullptr) return;
     std::optional<K> empty;
     if (a->nt == Leaf) {
-      if ((!start.has_value() || start.value() <= a->key)
-	  && (!end.has_value() || end.value() >= a->key)) 
-	add(a->key, ((leaf*) a)->key_vals[0].value);
+      leaf* l = (leaf*) a;
+      int s = 0;
+      int e = a->size;
+      if (start.has_value())
+	while (l->key_vals[s].key < *start) s++;
+      if (end.has_value())
+	while (l->key_vals[e-1].key > *end) e--;
+      for (int i = s; i < e; i++)
+	add(l->key_vals[i].key, l->key_vals[i].value);
       return;
     }
     for (int i = pos; i < a->byte_num; i++) {
@@ -599,7 +650,11 @@ struct Set {
 
   void retire(node* p) {
     if (p == nullptr) return;
-    if (p->nt == Leaf) leaf_pool.retire((leaf*) p);
+    if (p->nt == Leaf) {
+      if (p->size > max_small_leaf_size)
+	big_leaf_pool.retire((big_leaf*) p);
+      else small_leaf_pool.retire((small_leaf*) p);
+    }
     else if (p->nt == Sparse) {
       auto pp = (sparse_node*) p;
       parlay::parallel_for(0, pp->size, [&] (size_t i) {retire(pp->ptr[i].load());});
@@ -620,7 +675,16 @@ struct Set {
     crec = [&] (node* p) -> size_t {
 	     if (p == nullptr) return 0;
 	     switch (p->nt) {
-	     case Leaf : return ((leaf*) p)->size;
+	     case Leaf : {
+	       leaf* l = (leaf*) p;
+	       for (int i = 1; i < l->size; i++)
+		 if (!(l->key_vals[i-1].key < l->key_vals[i].key)) {
+		   std::cout << "out of order at leaf: " << i << ", " << (int) l->size << ", " << std::hex << 
+		     l->key_vals[i-1].key << ", " << l->key_vals[i].key << std::dec << std::endl;
+		   abort();
+		 }
+	       return l->size;
+	     }
 	     case Full : {
 	       auto f_n = (full_node*) p;
 	       auto x = parlay::tabulate(256, [&] (size_t i) {
@@ -651,7 +715,8 @@ struct Set {
     full_pool.clear();
     indirect_pool.clear();
     sparse_pool.clear();
-    leaf_pool.clear();
+    small_leaf_pool.clear();
+    big_leaf_pool.clear();
   }
 
   void reserve(size_t n) {}
@@ -660,14 +725,16 @@ struct Set {
     full_pool.shuffle(n/100);
     indirect_pool.shuffle(n/10);
     sparse_pool.shuffle(n/5);
-    leaf_pool.shuffle(n);
+    small_leaf_pool.shuffle(n);
+    big_leaf_pool.shuffle(n);
   }
 
   void stats() {
     full_pool.stats();
     indirect_pool.stats();
     sparse_pool.stats();
-    leaf_pool.stats();
+    small_leaf_pool.stats();
+    big_leaf_pool.stats();
   }
   
 };

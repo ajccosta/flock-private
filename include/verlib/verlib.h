@@ -36,11 +36,18 @@ namespace verlib {
 
   template <typename T>
   using versioned_ptr = flck::atomic<T*>;
+  using atomic_bool = flck::atomic<bool>;
+  using flck::lock;
+  using flck::memory_pool;
+  template <typename A, typename B, typename C>
+  bool validate(const A& a, const B& b, const C& c) {return true;}
 
   template <typename F>
   auto with_snapshot(F f, bool unused_parameter=false) {
     return flck::with_epoch([&] { return f();});
   }
+  template <typename F>
+  auto do_now(F f) { return f();}  
 }
 
 #endif
