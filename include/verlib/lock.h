@@ -54,14 +54,15 @@ public:
 template <typename F>
 bool run_with_locks_rec(int i, trans_descriptor* descriptor, F f, bool do_help) {
   if (i == descriptor->lock_log.size()) return f();
-  if (strict_lock)
+  if (strict_lock) {
+    abort();
     return descriptor->lock_log[i]->with_lock([=] {
 	return run_with_locks_rec(i+1, descriptor, f, do_help);});
-  else
+  } else
     return descriptor->lock_log[i]->try_lock([=] {
 	return run_with_locks_rec(i+1, descriptor, f, do_help);}
 #ifndef NoHelp
-	     , do_help
+      , do_help
 #endif
     );
 }

@@ -43,18 +43,21 @@ namespace verlib {
   struct trans_descriptor {
     // originally "tbd", then "tbs", then either a real timestamp or "failed"
     flck::atomic_aba_free<TS> time_stamp;  
-
+    static constexpr int init_log_size = 8;
+    
     std::atomic<bool> acquired;   
 
     // the thread id the descriptor belongs to
     const int owner;
     const int round;  // for debugging
 
-    transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>,10> write_ptr_log;
-    transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>,20> validate_ptr_log;
-    transaction_log<bool*,10> retired_log;
-    transaction_log<bool*,10> allocated_log;
-    transaction_log<flck::internal::lock*,10> lock_log;
+    transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>,
+		    init_log_size> write_ptr_log;
+    transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>,
+		    4*init_log_size> validate_ptr_log;
+    transaction_log<bool*,init_log_size> retired_log;
+    transaction_log<bool*,init_log_size> allocated_log;
+    transaction_log<flck::internal::lock*,init_log_size> lock_log;
     
     void atomic_set_stamp(TS ts) {
       assert(time_stamp.load() != tbd);
@@ -76,6 +79,10 @@ namespace verlib {
   };
   thread_local trans_descriptor* current_transaction = nullptr;
 
-  flck::memory_pool<trans_descriptor> trans_descriptor_pool;
-  //flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
+#ifdef NoHelp
+  flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
+#else
+  flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
+  //flck::memory_pool<trans_descriptor> trans_descriptor_pool;
+#endif
 }

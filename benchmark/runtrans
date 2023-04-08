@@ -59,10 +59,10 @@ else :
     trees = ["arttree3", "leaftree", "btree", "hash_block", "arttree2"]
     tree_sizes = [1000,100000,10000000]
     zipfians = [0, .99]
-    trans_sizes = [0, 16]
+    trans_sizes = [0, 1, 16]
     mix_percents = [[5,0,0,0], [50,0,0,0]]
     #suffixes_all = ["", "_noundo", "_trans", "_validate"]
-    suffixes_all = ["_validate", "_validate_lf"]
+    suffixes_all = ["", "_validate", "_validate_lf"]
 
 if all :
     lists = lists + ["list_onelock"];

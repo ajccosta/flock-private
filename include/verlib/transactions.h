@@ -16,13 +16,14 @@ void validate_reads(trans_descriptor* descriptor) {
   descriptor->atomic_set_stamp(passed ? ts : failed);
 }
 
-bool commit_transaction (trans_descriptor* descriptor) {
-  bool passed = true;
+void commit_transaction (trans_descriptor* descriptor) {
+  if (is_helping()) trans_descriptor_pool.acquire(descriptor);
+  flck::skip_if_done([&] {
   assert(descriptor != nullptr);
-    
-  // Install writes at head of version lists
   auto& write_log = descriptor->write_ptr_log;
+  // Install writes at head of version lists
   std::pair<versioned*,versioned*> pointers[write_log.size()];
+
   for (int i=0; i < write_log.size(); i++) {
     auto [location, value] = write_log[i];
     pointers[i] = install_versioned_store(location, value, descriptor);
@@ -34,15 +35,13 @@ bool commit_transaction (trans_descriptor* descriptor) {
   // Validate the reads (not idempotent)
   flck::non_idempotent([=] {validate_reads(descriptor);}); 
   TS ts = descriptor->time_stamp.load();
-  passed = (ts != failed);
 
   // finalize logged writes (whether passed or failed)
   for (int i=0; i < write_log.size(); i++) {
     auto [location, old_value] = write_log[i];
     finalize_versioned_store(location, pointers[i], ts);
   }
-  
-  return passed;
+  });  
 }
 
 // wrapper for a transaction
@@ -62,9 +61,10 @@ auto with_transaction(F f) {
       current_transaction = nullptr;
 #ifdef Immediate // not up to date (don't use)
       bool passed = x.has_value() && !old_version_read;
-      if (passed)
-	if (descriptor->lock_log.size() > 0)
-	  passed = commit_transaction(descriptor);
+      if (passed && descriptor->lock_log.size() > 0) {
+	commit_transaction(descriptor);
+	passed = (descriptor->time_stamp.load() != failed);
+      }
       // unlock all acquired locks
       for (int i=0; i < descriptor->lock_log.size(); i++) {
 	assert(descriptor->lock_log[i]->is_self_locked());
@@ -80,7 +80,8 @@ auto with_transaction(F f) {
 	  std::sort(descriptor->lock_log.data(),
 		    descriptor->lock_log.data() + descriptor->lock_log.size());
 	  passed = run_with_locks_rec(0, descriptor, [=] {
-		       return commit_transaction(descriptor);}, use_help);
+	       commit_transaction(descriptor); return true;}, use_help);
+	  passed = passed && (descriptor->time_stamp.load() != failed);
 	}
       }
 #endif
