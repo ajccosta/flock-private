@@ -10,7 +10,7 @@ template <typename K,
       typename V,
       typename Compare = std::less<K>>
 struct Set {
-  static auto less = Compare{};
+  static constexpr auto less = Compare{};
   struct KV {K key; V value;};
 
   // ***************************************
