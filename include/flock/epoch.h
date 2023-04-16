@@ -286,17 +286,24 @@ public:
   }
 };
 
+  thread_local bool in_epoch = false;
 } // end namespace internal
 
 template <typename Thunk>
 auto with_epoch(Thunk f) {
-  internal::epoch.announce();
+  //bool am_in_epoch = internal::in_epoch;
+  //if (!am_in_epoch) {
+    internal::epoch.announce();
+    //internal::in_epoch = true;
+    //}
   if constexpr (std::is_void_v<std::invoke_result_t<Thunk>>) {
     f();
     internal::epoch.unannounce();
+    //internal::in_epoch = am_in_epoch;
   } else {
     auto v = f();
     internal::epoch.unannounce();
+    //internal::in_epoch = am_in_epoch;
     return v;
   }
 }

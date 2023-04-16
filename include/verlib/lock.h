@@ -9,8 +9,7 @@ private:
   flck::lock lck;
 public:
   bool is_locked() { return lck.is_locked();}
-  bool is_self_locked() { return lck.is_self_locked();}
-  
+  //bool is_self_locked() { return lck.is_self_locked();}
   template <typename Thunk>
   auto try_lock(Thunk f) {
 #ifdef Immediate
@@ -56,8 +55,8 @@ bool run_with_locks_rec(int i, trans_descriptor* descriptor, F f, bool do_help) 
   if (i == descriptor->lock_log.size()) return f();
   if (strict_lock) {
     abort();
-    return descriptor->lock_log[i]->with_lock([=] {
-	return run_with_locks_rec(i+1, descriptor, f, do_help);});
+    //return descriptor->lock_log[i]->with_lock([=] {
+    //return run_with_locks_rec(i+1, descriptor, f, do_help);});
   } else
     return descriptor->lock_log[i]->try_lock([=] {
 	return run_with_locks_rec(i+1, descriptor, f, do_help);}
@@ -71,12 +70,12 @@ template <typename F>
 bool run_with_logged_locks(trans_descriptor* descriptor, F f, bool do_help = true) {
   // sorting actually slows things down slightly (5%) under high contention
   std::sort(descriptor->lock_log.data(),
-	    descriptor->lock_log.data() + descriptor->lock_log.size());
-  if (false)
-    for (int i=0; i < descriptor->lock_log.size(); i++) {
-      if (descriptor->lock_log[i]->is_locked() &&
-	  !descriptor->lock_log[i]->is_self_locked())
-	return false;
-    }
+  	    descriptor->lock_log.data() + descriptor->lock_log.size());
+  // if (false)
+  //   for (int i=0; i < descriptor->lock_log.size(); i++) {
+  //     if (descriptor->lock_log[i]->is_locked() &&
+  // 	  !descriptor->lock_log[i]->is_self_locked())
+  // 	return false;
+  //   }
   return run_with_locks_rec(0, descriptor, f, do_help);
 }

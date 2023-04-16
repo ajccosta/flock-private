@@ -22,13 +22,12 @@ namespace verlib {
 #define init_ptr ((versioned*) 24ul)
 
   struct versioned {
-  public:
+  private:
     flck::atomic_aba_free<TS> stamp_or_descriptor;
     flck::atomic_write_once<versioned*> next_version;
 
     // tags second highest bit to mark as descriptor
     constexpr static int bit_num = 62;
-    static bool is_tagged(TS sd) {return (sd >> bit_num) & 1;}
     static TS tag_descriptor(trans_descriptor* ptr) {
       return (TS) ptr | (1ul << bit_num);}
     static trans_descriptor* untag_descriptor(TS sd) {
@@ -37,7 +36,10 @@ namespace verlib {
       return ptr;
     }
 
+    static bool is_tagged(TS sd) {return (sd >> bit_num) & 1;}
+
   public:
+    bool has_descriptor() { return is_tagged(stamp_or_descriptor.load());}
 
     std::pair<trans_descriptor*, TS> get_descriptor_and_stamp() {
       TS td = stamp_or_descriptor.load();
@@ -79,9 +81,11 @@ namespace verlib {
 
     // use when stamp is already set
     TS get_stamp() {
-      TS td = stamp_or_descriptor.load();
-      assert(!is_tagged(td));
-      return td;
+      auto [des, st] = get_descriptor_and_stamp();
+      if (des == nullptr) return st;
+      TS ts = des->time_stamp.load();
+      assert(ts != tbd && ts != tbd && ts != failed);
+      return ts;
     }
 
     // use when stamp could be descriptor
@@ -97,7 +101,7 @@ namespace verlib {
     versioned* get_next_version() {return next_version.load();}
     //void set_next_version(versioned* nv) { next_version = nv;}
     void init_next_version(versioned* nv) {
-      assert(next_version.load() == init_ptr);  
+      //assert(next_version.load() == init_ptr);  
       next_version = nv;}
 
     // once a next version is added, it becomes recorded

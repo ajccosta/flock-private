@@ -109,15 +109,16 @@ void run_mixed_operations(SetType& os,
       
     if (verbose) std::cout << "round " << i << std::endl;
     size_t initial_size;
+    int default_value = 3;
 
     // insert n distinct elements
     parlay::parallel_for(0, n, [&] (size_t i) {
-	os.insert(tr, unique[i], 123); }, 10, true);
+	os.insert(tr, unique[i], default_value); }, 10, true);
     
     // insert and delete for a while
     parlay::parallel_for(0, 4*n, [&] (size_t i) {
 	auto k = unique[parlay::hash64(i + i) % nn];
-	if(i%2==0) os.insert(tr, k, 123); 
+	if(i%2==0) os.insert(tr, k, default_value); 
 	else os.remove(tr, k); }, 10, true);
 
     if (do_check) {
@@ -132,13 +133,14 @@ void run_mixed_operations(SetType& os,
       }, 1);
 
     parlay::sequence<size_t> totals(p);
-    parlay::sequence<long> addeds(p);
+    parlay::sequence<long> added_counts(p);
     parlay::sequence<long> range_counts(p);
     parlay::sequence<long> range_sums(p);
     parlay::sequence<long> mfind_counts(p);
     parlay::sequence<long> retry_counts(p);
     parlay::sequence<long> update_counts(p);
     parlay::sequence<long> query_counts(p);
+    parlay::sequence<long> found_counts(p);
 
     t.start();
     auto start = std::chrono::system_clock::now();
@@ -151,16 +153,18 @@ void run_mixed_operations(SetType& os,
 	int current_id = flck::internal::current_id;
 	size_t j = i*mp;
 	size_t total = 0;
-	long added = 0;
+	long added_count = 0;
 	long range_count = 0;
 	long range_sum = 0;
 	long mfind_count = 0;
 	long retry_count = 0;
 	long update_count = 0;
 	long query_count = 0;
-	bool i_or_d = false;
-	volatile long keysum = 0;
+	long found_count = 0;
+
 	std::vector<K>& range_keys = range_buffers[i];
+
+	// main loop, iterates until time limit is over
 	while (true) {
 	  // every once in a while check if time is over
 	  if (cnt >= 100 || finish) { 
@@ -170,13 +174,14 @@ void run_mixed_operations(SetType& os,
 	    if (duration > 1000*trial_time || finish) {
 	      if(!finish) finish.store(true);
 	      totals[i] = total;
-	      addeds[i] = added;
+	      added_counts[i] = added_count; // inserted - deleted
 	      range_counts[i] = range_count;
 	      range_sums[i] = range_sum;
 	      mfind_counts[i] = mfind_count;
 	      retry_counts[i] = retry_count;
 	      update_counts[i] = update_count;
 	      query_counts[i] = query_count;
+	      found_counts[i] = found_count;
 	      return;
 	    }
 	  }
@@ -185,90 +190,50 @@ void run_mixed_operations(SetType& os,
 
 #ifdef Transactional
 	  if (trans_size > 0) {
-	    long tsize = std::min(j + trans_size, (i+1)*mp) - j;
-	    if (tsize > range_keys.size()) {
-	      std::cout << "transaction size too large" << std::endl;
-	      abort();
-	    }
-	    for (int k=0; k < tsize; k++) range_keys[k] = all[j+k];
-	    int loc_keysum;
-		       
-	    //std::sort(range_keys.begin(), range_keys.begin() + tsize);
-	    added += verlib::with_transaction([&] {
+	    long transaction_size = std::min(j + trans_size, (i+1)*mp) - j;
+
+	    // run transaction_size operations atomically in a transaction
+	    auto [added, queries, found] = verlib::with_transaction([&] {
                int loc_added = 0;
-	       loc_keysum = 0;
-	       for (int k=0; k < tsize; k++) {
-#ifdef TransUndo
+	       int loc_queries = 0;
+	       int loc_found = 0;
+	       for (int k=0; k < transaction_size; k++) {
 		 if (op_types[j+k] == Find) {
-		   auto x = os.try_find(tr, range_keys[k]);
-		   if (!x.has_value()) return std::optional<int>();
-		   loc_keysum += (*x).has_value();
+		   loc_queries += 1;
+		   auto val = os.find_(tr, all[j+k]);
+		   if (val.has_value()) loc_found += val.value();
 		 } else if (op_types[j+k] == Insert) {
-		   auto x = os.try_insert(tr, range_keys[k], 123);
-		   //if (!x.has_value() || verlib::trans_aborted) return std::optional<int>();
-		   if (!x.has_value()) return std::optional<int>();
-		   if (*x) loc_added++;
+		   if (os.insert_(tr, all[j+k], default_value)) loc_added++;
 		 } else if (op_types[j+k] == Remove) {
-		   auto x = os.try_remove(tr, range_keys[k]);
-		   //if (!x.has_value()  || verlib::trans_aborted) return std::optional<int>();
-		   if (!x.has_value()) return std::optional<int>();
-		   if (*x) loc_added--;
+		   if (os.remove_(tr, all[j+k])) loc_added--;
 		 }
-#else
-		 if (op_types[j+k] == Find) {
-		   loc_keysum += os.find_locked(tr, range_keys[k]).has_value();
-		 } else if (op_types[j+k] == Insert) {
-		   if (os.insert_(tr, range_keys[k], 123)) loc_added++;
-		 } else if (op_types[j+k] == Remove) {
-		   if (os.remove_(tr, range_keys[k])) loc_added--;
-		 }
-#endif
 	       }
-	       return std::optional<int>(loc_added);});
-	    keysum += loc_keysum;
-	    i_or_d = !i_or_d;
-	    j += tsize;
-	    if (j >= (i+1)*mp) j -= mp;
-	    cnt += tsize;
-	    total += tsize;
-	    continue;
-	  } else if (op_types[j] == Trans) {
-	    if (j < (i+1)*mp -2) {
-	      update_count += 2;
-	      added += verlib::with_transaction([&] {
-						  bool ins = (parlay::hash64(j + i) % 2) == 0;
-				if (ins) { 
-				  auto x = os.try_insert(tr, all[j], 123);
-				  if (!x.has_value()) return std::optional<int>();
-				  auto y = os.try_remove(tr2, all[j]);
-				  if (!y.has_value()) return std::optional<int>();
-				  return std::optional<int>(*x ? 1 : 0);
-				} else {
-				  auto x = os.try_remove(tr, all[j]);
-				  if (!x.has_value()) return std::optional<int>();
-				  auto y = os.try_insert(tr2, all[j], 123);
-				  if (!y.has_value()) return std::optional<int>();
-				  return std::optional<int>(*x ? -1 : 0);}});
-	      cnt += 2;
-	      total += 2;
-	    }
-	    j += 2;
-	    if (j >= (i+1)*mp) j -= mp;
+	       return std::optional{std::tuple{loc_added, loc_queries, loc_found}};});
+	    added_count += added;
+	    query_count += queries;
+	    found_count += found;
+	    update_count += transaction_size - query_count;
+	    j += transaction_size;
+	    if (j >= (i+1)*mp) j -= mp; // wrap around in overflow
+	    cnt += transaction_size;
+	    total += transaction_size;
 	    continue;
 	  } else
 #endif
+
 	  if (op_types[j] == Find) {
 	    query_count++;
 	    auto val = os.find(tr, all[j]);
-	    if(val.has_value()) keysum += val.value();
+	    if (val.has_value()) found_count += val.value();
 	  } else if (op_types[j] == Insert) {
 	    update_count++;
-	    if (os.insert(tr, all[j], 123)) added++;
+	    if (os.insert(tr, all[j], default_value)) added_count++;
 	  }
 	  else if (op_types[j] == Remove) {
 	    update_count++;
-	    if (os.remove(tr, all[j])) added--;
+	    if (os.remove(tr, all[j])) added_count--;
 	  }
+
 #ifdef Range_Search
 	  else if (op_types[j] == Range) {
 	    K end = ((all[j] > max_key - range_gap)
@@ -290,14 +255,14 @@ void run_mixed_operations(SetType& os,
 #endif
 	  else { // multifind
 	    mfind_count++;
-	    keysum += verlib::with_snapshot([&] {
-                long tmp_sum = 0;
+	    found_count += verlib::with_snapshot([&] {
+                long loc_found = 0;
                 long loc = j;
                 for (long k = 0; k < range_size; k++) {
                   auto val = os.find_(tr, all[loc]);
                   loc += 1;
-                  if (loc >= (i+1)*mp) loc -= mp;
-                  if(val.has_value()) tmp_sum += val.value();
+                  if (loc >= (i+1)*mp) loc -= mp; // wrap around if needed
+                  if(val.has_value()) loc_found += val.value();
 #ifdef LazyStamp
                   if (verlib::aborted) {
                     retry_count++;
@@ -305,7 +270,7 @@ void run_mixed_operations(SetType& os,
                   }
 #endif
                 }
-                return tmp_sum;});
+                return loc_found;});
 	    j += range_size;
 	    if (j >= (i+1)*mp) j -= mp;
 	    cnt += range_size;
@@ -360,7 +325,13 @@ void run_mixed_operations(SetType& os,
 
       if (do_check) {
 	size_t final_cnt = os.check(tr);
-	long updates = parlay::reduce(addeds);
+	long updates = parlay::reduce(added_counts);
+	double total_found = parlay::reduce(found_counts) / default_value;
+	long total_queries = parlay::reduce(query_counts);
+	double success_ratio = total_found / total_queries;
+	if (success_ratio < .45 || success_ratio > .55)
+	  std::cout << "bad success ratio on queries, should be .5 is "
+		    << success_ratio << std::endl;
 	if (multifind_percent > 0) {
 	  long mfind_sum = parlay::reduce(mfind_counts);
 	  long retry_sum = parlay::reduce(retry_counts);
@@ -424,10 +395,11 @@ void run_insert_find_remove(SetType& os,
     auto mops = [=] (double time) -> float {return m / (time * 1e6);};
     long len = parlay::remove_duplicates(all).size();
     parlay::sequence<bool> flags(m);
-  
+    int default_value = 1;
+    
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
-	flags[i] = os.insert(tr, all[i], 123);
+	flags[i] = os.insert(tr, all[i], default_value);
       });
 
     std::cout << "insert," << m << "," << mops(t.stop()) << std::endl;

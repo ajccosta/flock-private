@@ -57,7 +57,7 @@ namespace verlib {
 		    4*init_log_size> validate_ptr_log;
     transaction_log<bool*,init_log_size> retired_log;
     transaction_log<bool*,init_log_size> allocated_log;
-    transaction_log<flck::internal::lock*,init_log_size> lock_log;
+    transaction_log<flck::lock*,init_log_size> lock_log;
     
     void atomic_set_stamp(TS ts) {
       assert(time_stamp.load() != tbd);

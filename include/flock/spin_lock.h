@@ -88,7 +88,7 @@ public:
   }
   
   template <typename Thunk>
-  auto try_lock(Thunk f) {
+  auto try_lock(Thunk f, bool ignore=false) {
     auto result = try_lock_result(f);
     return result.has_value() && result.value();
   }

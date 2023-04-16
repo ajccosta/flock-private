@@ -75,8 +75,12 @@ private:
     return &locks[parlay::hash64_2((size_t) this) & mask];}
 public:
   template <typename F>
-  bool try_lock(F f) {
-    return get_lock()->try_lock(f);}
+  bool try_lock(F f, bool do_help=true) {
+    return get_lock()->try_lock(f, do_help);}
+  template <typename F>
+  auto try_lock_result(F f, bool* no_release=nullptr) -> decltype(f()) {
+    return get_lock()->try_lock_result(f, no_release);}
+  //  void unlock() {get_lock()->unlock();}
   void wait_lock() { get_lock()->wait_lock(); }
   bool is_locked() { return get_lock()->is_locked(); }
 };
