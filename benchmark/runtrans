@@ -57,7 +57,7 @@ else :
     lists_ro = []
     list_sizes = [100,1000]
     trees = ["arttree3", "leaftree", "btree", "hash_block"]
-    tree_sizes = [1000,100000,10000000]
+    tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0, 1, 16]
     mix_percents = [[5,0,0,0], [50,0,0,0]]
