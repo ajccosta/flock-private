@@ -1,49 +1,49 @@
 47fa2ae
-./arttree3,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,1806
-./arttree3,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,1038
+./arttree3,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,1806 : 30%
+./arttree3,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,1038 : 10%
 ./arttree3,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,1774
 ./arttree3,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,1052
 ./arttree3,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,1784
 ./arttree3,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,1029
-./arttree3,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,402.6
-./arttree3,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,276.1
+./arttree3,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,402.6 : 25%
+./arttree3,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,276.1 : 12%
 ./arttree3,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,406.4
 ./arttree3,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,281
 ./arttree3,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,401.6
 ./arttree3,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,273.7
 ...
-./arttree3,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,466.6
-./arttree3,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,669
+./arttree3,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,466.6 : 25%
+./arttree3,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,669 : 20%
 ./arttree3,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,467.8
 ./arttree3,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,670.4
 ./arttree3,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,467.3
 ./arttree3,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,670
-./arttree3,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,320.5
-./arttree3,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,318.1
+./arttree3,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,320.5 : 15%
+./arttree3,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,318.1 : 15%
 ./arttree3,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,320.7
 ./arttree3,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,319.2
 ./arttree3,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,321.2
 ./arttree3,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,321.7
 ...
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,1412
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,978.1
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,677.6
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,486.9
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,1333
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,634.2
-./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,339.8
-./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,287.7
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,1412 : 25%
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,978.1 : 12%
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,677.6 : 45%
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,486.9 : 18%
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,1333 : 20% 
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,634.2 : 3%
+./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,339.8 : 18% 
+./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,287.7 : 25%
 ./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,240.9
 ./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,196.9
 ./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,192.4
-./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,22.04
+./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,22.04 : 5%
 ...
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,366.5
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,546.3
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,287.5
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,366
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,366.1
-./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,474
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,366.5 : 6% (allignment?)
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,546.3 : 10%
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,287.5 : 12%
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,366 : 12%
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,366.1 : 8%
+./arttree3_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,474 : 8%
 ./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,268.5
 ./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,286.8
 ./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,195.8
@@ -51,12 +51,12 @@
 ./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,255.4
 ./arttree3_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,38.09
 ...
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,1302
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,769.6
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,643.8
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,478.3
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,1223
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,629.5
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,1302 : 28%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,769.6 : 10%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,643.8 : 40%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,478.3 : 25%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,1223 : 25%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,629.5 : 10%
 ./arttree3_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,266.7
 ./arttree3_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,163.5
 ./arttree3_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,208.1
@@ -64,12 +64,12 @@
 ./arttree3_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,99.38
 ./arttree3_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,15.4
 ...
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,359
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,518.3
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,283.2
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,355.1
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,352.9
-./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,455.6
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,359 : 6%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,518.3 : 12%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,283.2 : 15%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,355.1 : 20%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,352.9 : 7%
+./arttree3_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,455.6 : 11%
 ./arttree3_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,241.2
 ./arttree3_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,203.7
 ./arttree3_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,177.5
@@ -181,12 +181,12 @@
 ./btree,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,194.1
 ./btree,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,222.5
 ...
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,676.6
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,629.5
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,445.4
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,382.3
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,635.4
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,444.7
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,676.6 : 20%
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,629.5 : 18%
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,445.4 : 32%
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,382.3 : 22%
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,635.4 : 22%
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,444.7 : 10%
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,274.8
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,251.3
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,197.8
@@ -194,18 +194,18 @@
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,175.6
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,20.62
 ...
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,266
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,342.1
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,206.8
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,266 : 10%
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,342.1 : 18%
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,206.8 
 ./btree_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,257.5
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,247.7
-./btree_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,288.6
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,247.7 : 9%
+./btree_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,288.6 : 10%
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,181.3
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,204.9
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,145.5
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,150.8
 ./btree_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,166.9
-./btree_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,34.58
+./btree_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,34.58 : 20%
 ...
 ./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,619.2
 ./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,525.5
@@ -224,92 +224,92 @@
 ./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,313.8
 ./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,198
 ./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,243.6
-./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,225.2
-./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,273
+./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,225.2 : 5%
+./btree_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,273 : 12%
 ./btree_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,162.4
 ./btree_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,153.4
 ./btree_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,128.3
 ./btree_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,138
 ./btree_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,139.7
-./btree_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,25.9
+./btree_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,25.9 : 18%
 ...
-./hash_block,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,2830
-./hash_block,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,1233
+./hash_block,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,2830 : 40%
+./hash_block,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,1233 : 10%
 ./hash_block,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,2837
 ./hash_block,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,1241
 ./hash_block,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,2857
 ./hash_block,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,1235
-./hash_block,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,608.3
-./hash_block,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,334.3
+./hash_block,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,608.3 : 10%
+./hash_block,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,334.3 : 0%
 ./hash_block,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,608
 ./hash_block,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,321.3
 ./hash_block,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,608.1
 ./hash_block,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,345
 ...
-./hash_block,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,774.6
-./hash_block,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,976.2
+./hash_block,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,774.6 : 30%
+./hash_block,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,976.2 : 16%
 ./hash_block,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,772.4
 ./hash_block,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,968.4
 ./hash_block,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,774.9
 ./hash_block,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,967.7
-./hash_block,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,450.8
-./hash_block,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,377.8
+./hash_block,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,450.8 : 20%
+./hash_block,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,377.8 : 12%
 ./hash_block,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,449.5
 ./hash_block,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,375.6
 ./hash_block,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,450.4
 ./hash_block,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,371.3
 ...
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,2366
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,1171
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,774.4
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,509.9
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,2234
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,709.3
-./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,481
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,2366 : 40%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,1171 : 15%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,774.4 : 40%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,509.9 : 15%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,2234 : 30%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,709.3 : 1%
+./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,481 : 25%
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,340.8
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,273.8
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,205.1
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,468.6
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,23.83
 ...
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,682.6
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,897.6
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,327.6
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,426.3
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,671.5
-./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,668.2
-./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,359.7
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,682.6 : 35%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,897.6 : 28%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,327.6 : 22%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,426.3 : 15%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,671.5 : 15%
+./hash_block_validate,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,668.2 : 5%
+./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,359.7 : 20%
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,348.6
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,213.8
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,205.6
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,372.8
 ./hash_block_validate,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,42.69
 ...
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,2151
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,993.2
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,745.1
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,507.6
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,1916
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,731
-./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,394.8
-./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,221.1
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,2151 : 40%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,993.2 : 35%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,745.1 : 40%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,507.6 : 20%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,1916 : 40%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,731 : 6%
+./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0,394.8 : 20%
+./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=100000,p=127,z=0.99,221.1 : 10%
 ./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0,237.5
 ./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=100000,p=127,z=0.99,194.1
 ./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0,346.8
 ./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=100000,p=127,z=0.99,18.73
 ...
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,648.9
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,789.5
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,323.5
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,419.2
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,612.4
-./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,639.3
-./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,312.4
-./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,229.8
-./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,197.1
-./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,193.6
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,648.9 : 40%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,789.5 : 25%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,323.5 : 22%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,419.2 : 18%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,612.4 : 40%
+./hash_block_validate_lf,5%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,639.3 : 30%
+./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0,312.4 : 22%
+./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=0,n=10000000,p=127,z=0.99,229.8 : 12%
+./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0,197.1 : 20%
+./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=1,n=10000000,p=127,z=0.99,193.6 : 
 ./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0,288.8
-./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,33.02
+./hash_block_validate_lf,50%update,0%range,0%mfind,rs=0,trans=16,n=10000000,p=127,z=0.99,33.02 : 3%
 ...
 ./list,5%update,0%range,0%mfind,rs=0,trans=0,n=100,p=127,z=0,167.8
 ./list,5%update,0%range,0%mfind,rs=0,trans=0,n=100,p=127,z=0.99,165
