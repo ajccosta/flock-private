@@ -1,10 +1,6 @@
 #include <parlay/primitives.h>
 #include <verlib/verlib.h>
-#define Range_Search 1
-#define Dense_Keys 1
-#define HASH 1
-
-flck::atomic_write_once<bool> removed_hack = false;
+#define HASH 1 // indicates that Set needs a hash function
 
 template <typename K,
 	  typename V,
@@ -26,6 +22,7 @@ struct Set {
     Node(K k, V v) : cnt(1) { // could this overload with the other constructor if K is a pointer?
       entries[0] = KV{k,v};
     }
+    // insert into old
     Node(node* old, const K& k, const V& v) {
       if (old == nullptr) cnt = 1;
       else {
@@ -35,6 +32,7 @@ struct Set {
       }
       entries[cnt-1] = KV{k,v};
     }
+    // delete from old
     Node(node* old, const K& k) : cnt(old->cnt - 1) {
       for (int i=0, j=0; i < cnt; i++,j++) {
 	if (KeyEqual{}(k, old->entries[i].key)) j++;
@@ -43,7 +41,7 @@ struct Set {
     }
   };
   using node = Node<0>;
-
+  
 struct slot {
 #ifdef UseCAS
 #else
@@ -56,7 +54,6 @@ struct slot {
   struct Table {
     parlay::sequence<slot> table;
     slot* get_slot(const K& k) {
-      //size_t idx = (k * 0x9ddfea08eb382d69ULL) & (table.size()-1u);
       size_t idx = Hash{}(k)  & (table.size()-1u);
       return &table[idx];
     }
@@ -65,15 +62,6 @@ struct slot {
       table = parlay::sequence<slot>(2*size);
     }
   };
-
-  // void check_tags(Table& t) {
-  //   for (int i=0; i < t.table.size(); i++) {
-  //     verlib::versioned* foo = t.table[i].ptr.v.load();
-  //     if (foo != nullptr)
-  // 	if (verlib::strip_indirect(foo)->trans != nullptr)
-  // 	  std::cout << "trash at loc " << i << ": " << foo << ", " << foo->trans <<std::endl;
-  //   }
-  // }
 
   verlib::memory_pool<Node<1>> node_pool_1;
   verlib::memory_pool<Node<3>> node_pool_3;
@@ -105,8 +93,17 @@ struct slot {
     else abort();
   }
 
+  void destruct_node(node* old) {
+    if (old == nullptr);
+    else if (old->cnt == 1) node_pool_1.destruct((Node<1>*) old);
+    else if (old->cnt <= 3) node_pool_3.destruct((Node<3>*) old);
+    else if (old->cnt <= 7) node_pool_7.destruct((Node<7>*) old);
+    else if (old->cnt <= 31) node_pool_31.destruct((Node<31>*) old);
+    else abort();
+  }
+
   // should not require gcc attribute, but compiler screws up otherwise
-  __attribute__((always_inline))
+  //__attribute__((always_inline))
   std::optional<V> find_at(node* x, const K& k) {
     if (KeyEqual{}(x->entries[0].key, k))
       return x->entries[0].value;
@@ -120,6 +117,15 @@ struct slot {
     node* x = s->ptr.load();
     if (x == nullptr) return {};
     return find_at(x, k);
+  }
+
+  std::optional<V> find(Table& table, const K& k) {
+    slot* s = table.get_slot(k);
+    //__builtin_prefetch (s);
+    return verlib::with_epoch([&] {
+      node* x = s->ptr.load();
+      if (x == nullptr) return std::optional<V>();
+      return find_at(x, k);});
   }
 
   std::optional<V> find_locked(Table& table, const K& k) {
@@ -136,45 +142,30 @@ struct slot {
     return ot();
   }
 
-  std::optional<V> find(Table& table, const K& k) {
-    slot* s = table.get_slot(k);
-    __builtin_prefetch (s);
-    return verlib::with_epoch([&] {
-      node* x = s->ptr.load();
-      if (x == nullptr) return std::optional<V>();
-      return find_at(x, k);});
-  }
-
-  static constexpr int init_delay=200;
-  static constexpr int max_delay=2000;
-
   std::optional<bool> try_insert_at(slot* s, const K& k, const V& v) {
     node* x = s->ptr.load();
     if (x != nullptr && x->find(k) != -1)
       if (verlib::validate(s->lck, &(s->ptr), x))
 	return false;
       else return {};
-#ifdef UseCAS
     node* new_node = insert_to_node(x, k, v);
+#ifdef UseCAS
     if(s->ptr.cas(x, new_node)) {
       retire_node(x);
       return true;
-    } else retire_node(new_node); // TODO: could be destruct
+    } 
 #else  // use try_lock
     if (s->lck.try_lock([=] {
         if (s->ptr.load() != x) return false;
-	s->ptr = insert_to_node(x, k, v);
+	s->ptr = new_node;
 	retire_node(x);
 	return true;}))
       return true;
 #endif
+    destruct_node(new_node); 
     return {}; // failed
   }
     
-  std::optional<bool> try_insert(Table& table, const K& k, const V& v) {
-    return try_insert_at(table.get_slot(k), k, v);
-  }
-
   bool insert(Table& table, const K& k, const V& v) {
     slot* s = table.get_slot(k); 
     return verlib::with_epoch([&] {
@@ -192,25 +183,22 @@ struct slot {
 	if (verlib::validate(s->lck, &(s->ptr), x))
 	  return false;
 	else return {};
-#ifdef UseCAS
       node* new_node = remove_from_node(x, k);
+#ifdef UseCAS
       if(s->ptr.cas(x, new_node)) {
         retire_node(x);
         return true;
-      } else retire_node(new_node); // TODO: could be destruct
+      } 
 #else
       if (s->lck.try_lock([=] {
 	    if (s->ptr.load() != x) return false;
-	    s->ptr = remove_from_node(x, k);
+	    s->ptr = new_node;
 	    retire_node(x);
 	    return true;}))
 	return true;
-#endif      
+#endif
+      destruct_node(new_node);
       return {};
-  }
-
-  std::optional<bool> try_remove(Table& table, const K& k) {
-    return try_remove_at(table.get_slot(k), k);
   }
 
   bool remove(Table& table, const K& k) {
@@ -222,17 +210,6 @@ struct slot {
   bool remove_(Table& table, const K& k) {
     slot* s = table.get_slot(k); 
     return flck::try_loop([&] {return try_remove_at(s, k);});
-  }
-
-  template<typename AddF>
-  void range_(Table& table, AddF& add, const K& start, const K& end) {
-//       for (K k = start; k <= end; k++) {
-// 	auto x = find_(table, k);
-// #ifdef LazyStamp
-// 	if (verlib::aborted) return;
-// #endif
-// 	if (x.has_value()) add(k, x.value());
-//       }
   }
 
   Table empty(size_t n) {return Table(n);}

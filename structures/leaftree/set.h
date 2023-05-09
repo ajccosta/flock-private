@@ -101,12 +101,10 @@ struct Set {
     auto ptr = gp_left ? &(gp->left) : &(gp->right);
     if (l->is_sentinal || !equal(k, l->key))
 	// || (prev_leaf != nullptr && prev_leaf != l))
-      // The following breaks the code for validate?? FIX!!
-      // if (verlib::validate(p->lck, ptr, (node*) l) &&
-      //  	  verlib::validate(p->lck, &p->removed, false))
-      //  	return false;
-      // else return {};
-      return false;
+      if (verlib::validate(p->lck, ptr, (node*) l) &&
+	  verlib::validate(p->lck, &p->removed, false))
+	return false;
+      else return {};
     // prev_leaf = l;
     if (gp->lck.try_lock([=] {
       return p->lck.try_lock([=] {

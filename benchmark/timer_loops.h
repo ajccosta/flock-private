@@ -113,7 +113,9 @@ void run_mixed_operations(SetType& os,
 
     // insert n distinct elements
     parlay::parallel_for(0, n, [&] (size_t i) {
-	os.insert(tr, unique[i], default_value); }, 10, true);
+				 //std::cout << unique[i] << std::endl;
+	os.insert(tr, unique[i], default_value);
+			       }, 10, true);
     
     // insert and delete for a while
     parlay::parallel_for(0, 4*n, [&] (size_t i) {
@@ -200,7 +202,7 @@ void run_mixed_operations(SetType& os,
 	       for (int k=0; k < transaction_size; k++) {
 		 if (op_types[j+k] == Find) {
 		   loc_queries += 1;
-		   auto val = os.find_(tr, all[j+k]);
+		   auto val = os.find_locked(tr, all[j+k]);
 		   if (val.has_value()) loc_found += val.value();
 		 } else if (op_types[j+k] == Insert) {
 		   if (os.insert_(tr, all[j+k], default_value)) loc_added++;

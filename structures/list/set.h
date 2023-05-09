@@ -41,9 +41,6 @@ struct Set {
     return std::make_pair(cur, nxt);
   }
 
-  static constexpr int init_delay = 200;
-  static constexpr int max_delay = 2000;
-
   std::optional<bool> try_insert(node* root, const K& k, const V& v) {
     auto [cur, nxt] = find_location(root, k);
     if (!nxt->is_end && !less(k, nxt->key)) //already there

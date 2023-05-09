@@ -11,7 +11,6 @@
 #include "parse_command_line.h"
 #include "timer_loops.h"
 
-#define UseCAS // for hash_block
 #define CHARS
 
 #ifdef CHARS

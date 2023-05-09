@@ -145,19 +145,34 @@ struct Set {
   struct alignas(64) generic_leaf : header {
     using leaf_ptr = generic_leaf<0>*;
     KV key_vals[MaxSize];
-    // bool equal(const K& k1, const K& k2) {
-    //   if (String::length(k1) != String::length(k2)) return false;
-    //   for (int i = header::byte_num; i < String::length(k1); i++)
-    // 	if (String::get_byte(k1,i) != String::get_byte(k2,i)) return false;
-    //   return true;
-    // }
-    std::optional<V> find(const K& k) {
-      for (int i = 0; i < header::size; i++)
-	//if (equal(key_vals[i].key, k)) return key_vals[i].value;
-	//if (key_vals[i].key == k) return key_vals[i].value;
+
+    // starts comparing a and b at the start byte (prior bytes are equal)
+    // -1 if a < b, 0 if equal and 1 if a > b
+    static int cmp(const K& a, const K& b, int start_byte) {
+      int la = String::length(a);
+      int lb = String::length(b);
+      int l = std::min(la,lb);
+      int i = start_byte;
+      while (i < l && String::get_byte(a, i) == String::get_byte(b, i)) i++;
+      if (i == l) return (la < lb) ? -1 : ((la == lb) ? 0 : 1);
+      return (String::get_byte(a,i) < String::get_byte(b,i)) ? -1 : 1;
+    } 
+
+    std::optional<V> find(const K& k, int byte_pos) {
+      if (byte_pos < header::byte_num) return {};
+      for (int i = 0; i < header::size; i++) {
+	if constexpr (std::is_integral_v<K>) {
 	if (!(key_vals[i].key < k))
 	  if (k < key_vals[i].key) return {};
 	  else return key_vals[i].value;
+} else {
+	int x = cmp(key_vals[i].key, k, byte_pos);
+	if (x != -1)
+	  if (x == 1) return {};
+	  else return key_vals[i].value;
+	}
+
+      }
       return {};}
 
     static int first_diff(int byte_pos, KV* start, KV* end) {
@@ -373,8 +388,9 @@ struct Set {
   
   std::optional<bool> try_insert(node* root, const K& k, const V& v) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
+    //std::cout << byte_pos << std::endl;
     if (c != nullptr && c->is_leaf() &&
-	((leaf*) c)->find(k).has_value()) // already in the tree
+	((leaf*) c)->find(k, byte_pos).has_value()) // already in the tree
       if (verlib::validate(p->lck, cptr, c) &&
 	  verlib::validate(p->lck, &p->removed, false))
 	return false;
@@ -471,7 +487,7 @@ struct Set {
   std::optional<bool> try_remove(node* root, const K& k) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
-    if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k).has_value()))
+    if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value()))
       if (((cptr == nullptr) || verlib::validate(p->lck, cptr, c)) &&
 	  verlib::validate(p->lck, &p->removed, false))
 	return false;
@@ -519,7 +535,7 @@ struct Set {
     if (((cptr == nullptr) || verlib::validate(p->lck, cptr, l)) &&
 	verlib::validate(p->lck, &p->removed, false))
       if (l == nullptr) return ot(std::optional<V>());
-      else return ot(((leaf*) l)->find(k));
+      else return ot(((leaf*) l)->find(k, pos));
     else return ot();
   }
 
@@ -527,7 +543,7 @@ struct Set {
     auto [gp, p, cptr, l, pos] = find_location(root, k);
     auto ll = (leaf*) l;
     if (l == nullptr) return {};
-    else return ((leaf*) l)->find(k);
+    else return ((leaf*) l)->find(k, pos);
   }
 
   std::optional<V> find(node* root, const K& k) {
