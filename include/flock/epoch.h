@@ -51,11 +51,14 @@ struct alignas(64) epoch_s {
     announcements[id].last = e;
   }
 
-  void announce() {
+  bool announce() {
     size_t id = parlay::worker_id();
     long current_e = get_current();
+    long old = -1l;
+    //announcements[id].last.load(std::memory_order_relaxed) == -1l)
     // apparently an exchange is faster than a store (write and fence)
-    announcements[id].last.exchange(current_e, std::memory_order_acquire);
+    //announcements[id].last.exchange(current_e, std::memory_order_seq_cst);
+    return announcements[id].last.compare_exchange_strong(old, current_e);
   }
 
   void unannounce() {
@@ -291,19 +294,13 @@ public:
 
 template <typename Thunk>
 auto with_epoch(Thunk f) {
-  //bool am_in_epoch = internal::in_epoch;
-  //if (!am_in_epoch) {
-    internal::epoch.announce();
-    //internal::in_epoch = true;
-    //}
+  bool not_in_epoch = internal::epoch.announce();
   if constexpr (std::is_void_v<std::invoke_result_t<Thunk>>) {
     f();
-    internal::epoch.unannounce();
-    //internal::in_epoch = am_in_epoch;
+    if (not_in_epoch) internal::epoch.unannounce();
   } else {
     auto v = f();
-    internal::epoch.unannounce();
-    //internal::in_epoch = am_in_epoch;
+    if (not_in_epoch) internal::epoch.unannounce();
     return v;
   }
 }

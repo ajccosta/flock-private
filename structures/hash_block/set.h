@@ -1,3 +1,10 @@
+// A concurrent unordered_map using a hash table
+// Supports: insert, remove, find, print
+// Each bucket points to a structure (Node) containing an array of entries
+// Nodes come in varying sizes.
+// On update the node is copied
+// Works either with CAS or try_locks (based on UseCAS flag)
+
 #include <parlay/primitives.h>
 #include <verlib/verlib.h>
 #define HASH 1 // indicates that Set needs a hash function
@@ -6,7 +13,7 @@ template <typename K,
 	  typename V,
 	  class Hash = std::hash<K>,
 	  class KeyEqual = std::equal_to<K>>
-struct Set {
+struct unordered_map {
 
   template <int Size>
   struct Node : verlib::versioned {
@@ -22,6 +29,7 @@ struct Set {
     Node(K k, V v) : cnt(1) { // could this overload with the other constructor if K is a pointer?
       entries[0] = KV{k,v};
     }
+
     // insert into old
     Node(node* old, const K& k, const V& v) {
       if (old == nullptr) cnt = 1;
@@ -32,6 +40,7 @@ struct Set {
       }
       entries[cnt-1] = KV{k,v};
     }
+
     // delete from old
     Node(node* old, const K& k) : cnt(old->cnt - 1) {
       for (int i=0, j=0; i < cnt; i++,j++) {
@@ -43,8 +52,7 @@ struct Set {
   using node = Node<0>;
   
 struct slot {
-#ifdef UseCAS
-#else
+#ifndef UseCAS
   verlib::lock lck;
 #endif
     verlib::versioned_ptr<node> ptr;
@@ -63,12 +71,19 @@ struct slot {
     }
   };
 
-  verlib::memory_pool<Node<1>> node_pool_1;
-  verlib::memory_pool<Node<3>> node_pool_3;
-  verlib::memory_pool<Node<7>> node_pool_7;
-  verlib::memory_pool<Node<31>> node_pool_31;
+  Table hash_table;
+  unordered_map(size_t n) : hash_table(Table(n)) {}
 
-  node* insert_to_node(node* old, const K& k, const V& v) {
+  using Node1 = Node<1>;
+  using Node3 = Node<3>;
+  using Node7 = Node<7>;
+  using Node31 = Node<31>;
+  static verlib::memory_pool<Node1> node_pool_1;
+  static verlib::memory_pool<Node3> node_pool_3;
+  static verlib::memory_pool<Node7> node_pool_7;
+  static verlib::memory_pool<Node31> node_pool_31;
+
+  static node* insert_to_node(node* old, const K& k, const V& v) {
     if (old == nullptr) return (node*) node_pool_1.new_obj(k, v);
     if (old->cnt < 3) return (node*) node_pool_3.new_obj(old, k, v);
     else if (old->cnt < 7) return (node*) node_pool_7.new_obj(old, k, v);
@@ -76,7 +91,7 @@ struct slot {
     else abort();
   }
 
-  node* remove_from_node(node* old, const K& k) {
+  static node* remove_from_node(node* old, const K& k) {
     if (old->cnt == 1) return (node*) nullptr;
     if (old->cnt == 2) return (node*) node_pool_1.new_obj(old, k);
     else if (old->cnt <= 4) return (node*) node_pool_3.new_obj(old, k);
@@ -84,27 +99,26 @@ struct slot {
     else return (node*) node_pool_31.new_obj(old, k);
   }
 
-  void retire_node(node* old) {
+  static void retire_node(node* old) {
     if (old == nullptr);
-    else if (old->cnt == 1) node_pool_1.retire((Node<1>*) old);
-    else if (old->cnt <= 3) node_pool_3.retire((Node<3>*) old);
-    else if (old->cnt <= 7) node_pool_7.retire((Node<7>*) old);
-    else if (old->cnt <= 31) node_pool_31.retire((Node<31>*) old);
+    else if (old->cnt == 1) node_pool_1.retire((Node1*) old);
+    else if (old->cnt <= 3) node_pool_3.retire((Node3*) old);
+    else if (old->cnt <= 7) node_pool_7.retire((Node7*) old);
+    else if (old->cnt <= 31) node_pool_31.retire((Node31*) old);
     else abort();
   }
 
-  void destruct_node(node* old) {
+  static void destruct_node(node* old) {
     if (old == nullptr);
-    else if (old->cnt == 1) node_pool_1.destruct((Node<1>*) old);
-    else if (old->cnt <= 3) node_pool_3.destruct((Node<3>*) old);
-    else if (old->cnt <= 7) node_pool_7.destruct((Node<7>*) old);
-    else if (old->cnt <= 31) node_pool_31.destruct((Node<31>*) old);
+    else if (old->cnt == 1) node_pool_1.destruct((Node1*) old);
+    else if (old->cnt <= 3) node_pool_3.destruct((Node3*) old);
+    else if (old->cnt <= 7) node_pool_7.destruct((Node7*) old);
+    else if (old->cnt <= 31) node_pool_31.destruct((Node31*) old);
     else abort();
   }
 
-  // should not require gcc attribute, but compiler screws up otherwise
   //__attribute__((always_inline))
-  std::optional<V> find_at(node* x, const K& k) {
+  static std::optional<V> find_at(node* x, const K& k) {
     if (KeyEqual{}(x->entries[0].key, k))
       return x->entries[0].value;
     int i = x->find(k);
@@ -112,15 +126,15 @@ struct slot {
     else return x->entries[i].value;
   }
 
-  std::optional<V> find_(Table& table, const K& k) {
-    slot* s = table.get_slot(k);
+  std::optional<V> find_(const K& k) {
+    slot* s = hash_table.get_slot(k);
     node* x = s->ptr.load();
     if (x == nullptr) return {};
     return find_at(x, k);
   }
 
-  std::optional<V> find(Table& table, const K& k) {
-    slot* s = table.get_slot(k);
+  std::optional<V> find(const K& k) {
+    slot* s = hash_table.get_slot(k);
     //__builtin_prefetch (s);
     return verlib::with_epoch([&] {
       node* x = s->ptr.load();
@@ -128,13 +142,13 @@ struct slot {
       return find_at(x, k);});
   }
 
-  std::optional<V> find_locked(Table& table, const K& k) {
-    return flck::try_loop([&] {return try_find(table, k);});
+  std::optional<V> find_locked(const K& k) {
+    return flck::try_loop([&] {return try_find(k);});
   }
 
-  std::optional<std::optional<V>> try_find(Table& table, const K& k) {
+  std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
-    slot* s = table.get_slot(k);
+    slot* s = hash_table.get_slot(k);
     node* x = s->ptr.load();
     if (x == nullptr) return ot(std::optional<V>());
     if (verlib::validate(s->lck, &s->ptr, x))
@@ -142,7 +156,7 @@ struct slot {
     return ot();
   }
 
-  std::optional<bool> try_insert_at(slot* s, const K& k, const V& v) {
+  static std::optional<bool> try_insert_at(slot* s, const K& k, const V& v) {
     node* x = s->ptr.load();
     if (x != nullptr && x->find(k) != -1)
       if (verlib::validate(s->lck, &(s->ptr), x))
@@ -166,18 +180,18 @@ struct slot {
     return {}; // failed
   }
     
-  bool insert(Table& table, const K& k, const V& v) {
-    slot* s = table.get_slot(k); 
+  bool insert(const K& k, const V& v) {
+    slot* s = hash_table.get_slot(k); 
     return verlib::with_epoch([&] {
       return flck::try_loop([&] {return try_insert_at(s, k, v);});});
   }
 
-  bool insert_(Table& table, const K& k, const V& v) {
-    slot* s = table.get_slot(k); 
+  bool insert_(const K& k, const V& v) {
+    slot* s = hash_table.get_slot(k); 
     return flck::try_loop([&] {return try_insert_at(s, k, v);});
   }
   
-  std::optional<bool> try_remove_at(slot* s, const K& k) {
+  static std::optional<bool> try_remove_at(slot* s, const K& k) {
       node* x = s->ptr.load();
       if (x == nullptr || x->find(k) == -1)
 	if (verlib::validate(s->lck, &(s->ptr), x))
@@ -201,21 +215,19 @@ struct slot {
       return {};
   }
 
-  bool remove(Table& table, const K& k) {
-    slot* s = table.get_slot(k); 
+  bool remove(const K& k) {
+    slot* s = hash_table.get_slot(k); 
     return verlib::with_epoch([&] {
       return flck::try_loop([&] {return try_remove_at(s, k);});});
   }
 
-  bool remove_(Table& table, const K& k) {
-    slot* s = table.get_slot(k); 
+  bool remove_(const K& k) {
+    slot* s = hash_table.get_slot(k); 
     return flck::try_loop([&] {return try_remove_at(s, k);});
   }
 
-  Table empty(size_t n) {return Table(n);}
-
-  void print(Table& t) {
-    auto& table = t.table;
+  void print() {
+    auto& table = hash_table.table;
     for (size_t i=0; i < table.size(); i++) {
       node* x = table[i].ptr.load();
       if (x != nullptr)
@@ -225,15 +237,14 @@ struct slot {
     std::cout << std::endl;
   }
 
-  void retire(Table& t) {
-    auto& table = t.table;
+  ~unordered_map() {
+    auto& table = hash_table.table;
     parlay::parallel_for (0, table.size(), [&] (size_t i) {
       retire_node(table[i].ptr.load());});
-    table.clear();
   }
   
-  long check(Table& t) {
-    auto& table = t.table;
+  long check() {
+    auto& table = hash_table.table;
     auto s = parlay::tabulate(table.size(), [&] (size_t i) {
 	      node* x = table[i].ptr.load();
 	      if (x == nullptr) return 0;
@@ -241,18 +252,54 @@ struct slot {
     return parlay::reduce(s);
   }
 
-  void clear() {
+  static void clear() {
     node_pool_1.clear();
     node_pool_3.clear();
     node_pool_7.clear();
     node_pool_31.clear();
   }
-  void stats() {
+  static void stats() {
     node_pool_1.stats();
     node_pool_3.stats();
     node_pool_7.stats();
     node_pool_31.stats();
   }
-  void reserve(size_t n) {}
-  void shuffle(size_t n) {}
+  static void reserve(size_t n) {}
+  static void shuffle(size_t n) {}
+};
+
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::Node1> unordered_map<K,V,H,E>::node_pool_1;
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::Node3> unordered_map<K,V,H,E>::node_pool_3;
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::Node7> unordered_map<K,V,H,E>::node_pool_7;
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::Node31> unordered_map<K,V,H,E>::node_pool_31;
+
+// glue used for testing harness
+template <typename K,
+	  typename V,
+	  class Hash = std::hash<K>,
+	  class KeyEqual = std::equal_to<K>>
+struct Set {
+  using mp = unordered_map<K,V,Hash,KeyEqual>;
+  static mp empty(size_t n) { return mp(n);}
+  static bool insert(mp& map, const K& key, const V& value) {
+    return map.insert(key,value);}
+  static bool remove(mp& map, const K& key) {
+    return map.remove(key);}
+  static std::optional<V> find(mp& map, const K& key) {
+    return map.find(key);}
+  static std::optional<V> find_(mp& map, const K& key) {
+    return map.find_(key);}
+  static std::optional<V> find_locked(mp& map, const K& key) {
+    return map.find_locked(key);}
+  static size_t check(mp& map) { return map.check(); }
+  static void print(mp& map) { return map.print(); }
+  static void retire(mp& map) {}
+  static void reserve(size_t n) {}
+  static void shuffle(size_t n) {}
+  static void clear() { mp::clear(); }
+  static void stats() { mp::stats(); }
 };
