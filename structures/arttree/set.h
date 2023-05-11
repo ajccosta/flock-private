@@ -159,19 +159,19 @@ struct Set {
     } 
 
     std::optional<V> find(const K& k, int byte_pos) {
-      if (byte_pos < header::byte_num) return {};
-      for (int i = 0; i < header::size; i++) {
-	if constexpr (std::is_integral_v<K>) {
-	if (!(key_vals[i].key < k))
-	  if (k < key_vals[i].key) return {};
-	  else return key_vals[i].value;
-} else {
-	int x = cmp(key_vals[i].key, k, byte_pos);
-	if (x != -1)
-	  if (x == 1) return {};
-	  else return key_vals[i].value;
+      if constexpr (std::is_integral_v<K>) {
+        for (int i = 0; i < header::size; i++) 
+	  if (!(key_vals[i].key < k))
+	    if (k < key_vals[i].key) return {};
+	    else return key_vals[i].value;
+      } else {
+	if (byte_pos < header::byte_num) return {};
+	for (int i = 0; i < header::size; i++) {
+	  int x = cmp(key_vals[i].key, k, byte_pos);
+	  if (x != -1)
+	    if (x == 1) return {};
+	    else return key_vals[i].value;
 	}
-
       }
       return {};}
 

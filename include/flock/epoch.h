@@ -8,8 +8,22 @@
 #pragma once
 
 #ifndef NDEBUG
+// checks for corruption of bytes before and after the structure, as well as double frees
+// requires some extra memory to pad front and back
 #define EpochMemCheck 1
 #endif
+
+// If defined allows with_epoch to be nested (only outermost will set the epoch).
+// Incurs slight overhead due to extra test, but allows wrapping a with_epoch
+// around multiple operations which each do a with_epoch.
+// This saves time since setting epoch number only needs to be fenced once on the outside.
+#define NestedEpochs 1
+
+// Supports before_epoch_hooks and after_epoch_hooks, which are thunks
+// that get run just before incrementing the epoch number and just after.
+// The user set them with:
+//    flck::internal::epoch.before_epoch_hooks.push_back(<mythunk>);
+//    flck::internal::epoch.after_epoch_hooks.push_back(<myotherthunk>);
 
 // ***************************
 // epoch structure
@@ -54,11 +68,14 @@ struct alignas(64) epoch_s {
   bool announce() {
     size_t id = parlay::worker_id();
     long current_e = get_current();
-    long old = -1l;
-    //announcements[id].last.load(std::memory_order_relaxed) == -1l)
     // apparently an exchange is faster than a store (write and fence)
-    //announcements[id].last.exchange(current_e, std::memory_order_seq_cst);
+#ifdef NestedEpochs
+    long old = -1l;
     return announcements[id].last.compare_exchange_strong(old, current_e);
+#else
+    announcements[id].last.exchange(current_e, std::memory_order_seq_cst);
+    return true;
+#endif
   }
 
   void unannounce() {
@@ -297,10 +314,14 @@ auto with_epoch(Thunk f) {
   bool not_in_epoch = internal::epoch.announce();
   if constexpr (std::is_void_v<std::invoke_result_t<Thunk>>) {
     f();
+#ifdef NestedEpochs
     if (not_in_epoch) internal::epoch.unannounce();
+#endif
   } else {
     auto v = f();
+#ifdef NestedEpochs
     if (not_in_epoch) internal::epoch.unannounce();
+#endif
     return v;
   }
 }
