@@ -347,7 +347,6 @@ namespace verlib {
 
       
     V* load() {  
-      assert(this != nullptr);
       assert(!is_helping() || current_transaction == nullptr);
       if (local_stamp != -1) return read_snapshot();
       if (current_transaction != nullptr) {
@@ -380,7 +379,6 @@ namespace verlib {
     V* operator=(V* b) {store(b); return b; }
 
     bool validate(V* expected) {
-      assert(this != nullptr);
       // check if in write log.  if so no need to validate
       std::optional<int> lid = find_in_write_log();
       if (lid.has_value())

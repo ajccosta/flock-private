@@ -161,16 +161,18 @@ struct Set {
     std::optional<V> find(const K& k, int byte_pos) {
       if constexpr (std::is_integral_v<K>) {
         for (int i = 0; i < header::size; i++) 
-	  if (!(key_vals[i].key < k))
+	  if (!(key_vals[i].key < k)) {
 	    if (k < key_vals[i].key) return {};
 	    else return key_vals[i].value;
+	  }
       } else {
 	if (byte_pos < header::byte_num) return {};
 	for (int i = 0; i < header::size; i++) {
 	  int x = cmp(key_vals[i].key, k, byte_pos);
-	  if (x != -1)
+	  if (x != -1) {
 	    if (x == 1) return {};
 	    else return key_vals[i].value;
+	  }
 	}
       }
       return {};}
@@ -250,20 +252,22 @@ struct Set {
   // dispatch based on node type
   // A returned nullptr means no child matching the key
   inline node_ptr* get_child(node* x, const K& k) {
+    assert(x->nt != Leaf);
     switch (x->nt) {
     case Full : return ((full_node*) x)->get_child(k);
     case Indirect : return ((indirect_node*) x)->get_child(k);
-    case Sparse : return ((sparse_node*) x)->get_child(k);
+    default : return ((sparse_node*) x)->get_child(k);
     }
     return nullptr;
   }
 
   // dispatch based on node type
   inline bool is_full(node* p) {
+    assert(p->nt != Leaf);
     switch (p->nt) {
     case Full : return ((full_node*) p)->is_full(); // never full
     case Indirect : return ((indirect_node*) p)->is_full();
-    case Sparse : return ((sparse_node*) p)->is_full();
+    default : return ((sparse_node*) p)->is_full();
     }
     return false;
   }
@@ -390,14 +394,15 @@ struct Set {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     //std::cout << byte_pos << std::endl;
     if (c != nullptr && c->is_leaf() &&
-	((leaf*) c)->find(k, byte_pos).has_value()) // already in the tree
+	((leaf*) c)->find(k, byte_pos).has_value()) { // already in the tree
       if (verlib::validate(p->lck, cptr, c) &&
 	  verlib::validate(p->lck, &p->removed, false))
 	return false;
       else return {};
+    }
 
     if (cptr != nullptr) {// child pointer exists, always true for full node
-      if (p->lck.try_lock([=] {
+      if (p->lck.try_lock([=, p=p, cptr=cptr, c=c, byte_pos=byte_pos] {
  	  // exit and retry if state has changed
 	  if (p->removed.load() || cptr->load() != c) return false;
 
@@ -468,9 +473,10 @@ struct Set {
     node* result = nullptr;
     for (int i=0; i < ps->size; i++) {
       node* oc = ps->ptr[i].load();
-      if (oc != nullptr && oc != c)
+      if (oc != nullptr && oc != c) {
 	if (result != nullptr) return nullptr; // quit if second child
 	else result = oc; // set first child
+      }
     }
     return result;
   }
@@ -487,12 +493,13 @@ struct Set {
   std::optional<bool> try_remove(node* root, const K& k) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
-    if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value()))
+    if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value())) {
       if (((cptr == nullptr) || verlib::validate(p->lck, cptr, c)) &&
 	  verlib::validate(p->lck, &p->removed, false))
 	return false;
       else return {};
-    if (p->lck.try_lock([=] {
+    }
+    if (p->lck.try_lock([=, gp=gp, p=p, cptr=cptr, c=c, byte_pos=byte_pos] {
         if (p->removed.load() || cptr->load() != c) return false;
 	leaf* l = (leaf*) c;
 	if (l->size == 1) {

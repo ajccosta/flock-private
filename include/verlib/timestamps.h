@@ -47,7 +47,7 @@ struct alignas(64) timestamp_write_hw {
 };
 
 
-struct alignas(64) timestamp_read {
+struct alignas(128) timestamp_read {
   std::atomic<TS> stamp;
   alignas(128) int delay;
 
