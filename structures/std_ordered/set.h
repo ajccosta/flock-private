@@ -1,0 +1,41 @@
+#include <map>
+
+template <typename K,
+	  typename V,
+	  typename Compare = std::less<K>>
+struct Set {
+
+  using Table = std::map<K, V, Compare>;
+
+  std::optional<V> find(Table& table, const K& k) {
+    auto r = table.find(k);
+    if (r != table.end()) return (*r).second;
+    else return std::optional<V>();
+    
+  }
+
+  std::optional<V> find_(Table& table, const K& k) {
+    return find(table, k);
+  }
+
+  bool insert(Table& table, const K& k, const V& v) {
+    return table.insert(std::make_pair(k, v)).second;    
+  }
+
+  bool remove(Table& table, const K& k) {
+    return table.erase(k) == 1;
+  }
+
+  Table empty(size_t n) {
+    Table map;
+    return map;
+  }
+
+  void print(Table& t) {}
+  void retire(Table& t) {}
+  long check(Table& t) {return t.size();}
+  void clear() {}
+  void stats() {}
+  void reserve(size_t n) {}
+  void shuffle(size_t n) {}
+};

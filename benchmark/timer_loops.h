@@ -41,7 +41,12 @@ void run_mixed_operations(SetType& os,
   int multifind_percent = P.getOptionIntValue("-mfind",0);
   int trans_size = P.getOptionIntValue("-trans", 0);
   int trans_percent = P.getOptionIntValue("-tp", 0);
-
+  int latency = P.getOptionIntValue("-latency", 0); // in microseconds
+#ifndef Latency
+  if (latency > 0)
+    std::cout << "not compiled for the -latency argument, ignoring" << std::endl;
+#endif
+  
   // mix of threads
   int range_query_threads = P.getOptionIntValue("-rqthreads", 0);
   
@@ -143,6 +148,7 @@ void run_mixed_operations(SetType& os,
     parlay::sequence<long> update_counts(p);
     parlay::sequence<long> query_counts(p);
     parlay::sequence<long> found_counts(p);
+    parlay::sequence<long> within_latencies(p);
 
     t.start();
     auto start = std::chrono::system_clock::now();
@@ -163,8 +169,10 @@ void run_mixed_operations(SetType& os,
 	long update_count = 0;
 	long query_count = 0;
 	long found_count = 0;
+	long within_latency = 0;
 
 	std::vector<K>& range_keys = range_buffers[i];
+	auto start_time = std::chrono::system_clock::now();
 
 	// main loop, iterates until time limit is over
 	while (true) {
@@ -184,12 +192,18 @@ void run_mixed_operations(SetType& os,
 	      update_counts[i] = update_count;
 	      query_counts[i] = query_count;
 	      found_counts[i] = found_count;
+	      within_latencies[i] = within_latency;
 	      return;
 	    }
 	  }
 	  // check that no overflow
 	  assert(j < (i+1)*mp);
 
+
+#ifdef LATENCY
+	  if (latency > 0) start_time = std::chrono::system_clock::now();
+#endif
+	
 #ifdef Transactional
 	  if (trans_size > 0) {
 	    long transaction_size = std::min(j + trans_size, (i+1)*mp) - j;
@@ -211,6 +225,13 @@ void run_mixed_operations(SetType& os,
 		 }
 	       }
 	       return std::optional{std::tuple{loc_added, loc_queries, loc_found}};});
+#ifdef LATENCY
+	    if (latency > 0) {
+	      auto ct = std::chrono::system_clock::now();
+	      double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ct - start_time).count();
+	      if (duration < ((double) latency)) within_latency++;
+	    }
+#endif
 	    added_count += added;
 	    query_count += queries;
 	    found_count += found;
@@ -279,6 +300,13 @@ void run_mixed_operations(SetType& os,
 	    total += range_size;
 	    continue;
 	  }
+#ifdef Latency
+	  if (latency > 0) {
+	    auto ct = std::chrono::system_clock::now();
+	    double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ct - start_time).count();
+	    if (duration < ((double) latency)) within_latency++;
+	  }
+#endif
 	  if (++j >= (i+1)*mp) j -= mp;
 	  cnt++;
 	  total++;
@@ -296,6 +324,10 @@ void run_mixed_operations(SetType& os,
 		  << duration << " seconds" << std::endl;
 
       size_t num_ops = parlay::reduce(totals);
+      if (latency > 0) {
+	size_t within_latency = parlay::reduce(within_latencies);
+	std::cout << "percent within latency = " << (100.0*within_latency)/num_ops << std::endl;
+      }
 
       if(range_query_threads == 0) {
 	std::cout << std::setprecision(4)

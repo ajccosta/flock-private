@@ -54,6 +54,8 @@ foreach(bench ${OTHER_LIST_BENCH})
 endforeach()
 
 add_benchmark(libcuckoo ${STRUCT_DIR}/libcuckoo "")
+add_benchmark(std_unordered ${STRUCT_DIR}/std_unordered "")
+add_benchmark(std_ordered ${STRUCT_DIR}/std_ordered "")
 
 add_tbb_benchmark(tbbhash ${STRUCT_DIR}/tbbhash "")
 # add_tbb_benchmark(unsafetbbhash ${STRUCT_DIR}/unsafetbbhash "")
