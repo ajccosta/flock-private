@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # run all tests
 #
@@ -118,7 +118,7 @@ def getProcessors() :
     elif maxcpus == 144:
         processors = [1,4,16,32,72,144]
     else:
-        processors = [1,4,16]+range(16,maxcpus+1,16)
+        processors = [1,4,16]+list(range(16,maxcpus+1,16))
     return processors
 
 def runstring(op) :
