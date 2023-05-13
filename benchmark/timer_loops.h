@@ -200,7 +200,7 @@ void run_mixed_operations(SetType& os,
 	  assert(j < (i+1)*mp);
 
 
-#ifdef LATENCY
+#ifdef Latency
 	  if (latency > 0) start_time = std::chrono::system_clock::now();
 #endif
 	
@@ -225,7 +225,7 @@ void run_mixed_operations(SetType& os,
 		 }
 	       }
 	       return std::optional{std::tuple{loc_added, loc_queries, loc_found}};});
-#ifdef LATENCY
+#ifdef Latency
 	    if (latency > 0) {
 	      auto ct = std::chrono::system_clock::now();
 	      double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ct - start_time).count();

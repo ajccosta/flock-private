@@ -22,7 +22,7 @@ set(FLOCK_BENCH_USE_CAS)
 set(FLOCK_BENCH_RECORDED_ONCE)
 set(OTHER_LIST_BENCH)
 
-set(COMMON_DEFS "HashLock")
+set(COMMON_DEFS "HashLock") #  "Latency")
 
 function(add_benchmark NAME STRUCT_NAME DEFS)
   add_executable(${NAME} ${SOURCES})
