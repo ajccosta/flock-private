@@ -219,9 +219,9 @@ void run_mixed_operations(SetType& os,
 		   auto val = os.find_locked(tr, all[j+k]);
 		   if (val.has_value()) loc_found += val.value();
 		 } else if (op_types[j+k] == Insert) {
-		   if (os.insert(tr, all[j+k], default_value)) loc_added++;
+		   if (os.insert_(tr, all[j+k], default_value)) loc_added++;
 		 } else if (op_types[j+k] == Remove) {
-		   if (os.remove(tr, all[j+k])) loc_added--;
+		   if (os.remove_(tr, all[j+k])) loc_added--;
 		 }
 	       }
 	       return std::optional{std::tuple{loc_added, loc_queries, loc_found}};});

@@ -229,10 +229,10 @@ struct slot {
       return flck::try_loop([&] {return try_insert_at(s, k, v, true);});});
   }
 
-  // bool insert_(const K& k, const V& v) {
-  //   slot* s = hash_table.get_slot(k); 
-  //   return flck::try_loop([&] {return try_insert_at(s, k, v);});
-  // }
+   bool insert_(const K& k, const V& v) {
+     slot* s = hash_table.get_slot(k); 
+     return flck::try_loop([&] {return try_insert_at(s, k, v, false);});
+   }
   
   static std::optional<bool> try_remove_at(slot* s, const K& k) {
       node* x = s->ptr.load();
@@ -264,10 +264,10 @@ struct slot {
       return flck::try_loop([&] {return try_remove_at(s, k);});});
   }
 
-  // bool remove_(const K& k) {
-  //   slot* s = hash_table.get_slot(k); 
-  //   return flck::try_loop([&] {return try_remove_at(s, k);});
-  // }
+   bool remove_(const K& k) {
+     slot* s = hash_table.get_slot(k); 
+     return flck::try_loop([&] {return try_remove_at(s, k);});
+   }
 
   void print() {
     auto& table = hash_table.table;

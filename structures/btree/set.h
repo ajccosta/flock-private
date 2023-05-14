@@ -10,10 +10,14 @@ struct Set {
   static mp empty(size_t n) { return mp(n);}
   static bool insert(mp& map, const K& key, const V& value) {
     return map.insert(key,value);}
+  static bool insert_(mp& map, const K& key, const V& value) {
+    return map.insert_(key,value);}
   //static bool upsert(mp& map, const K& key, const V& value) {
   //  return map.upsert(key,value);}
   static bool remove(mp& map, const K& key) {
     return map.remove(key);}
+  static bool remove_(mp& map, const K& key) {
+    return map.remove_(key);}
   static std::optional<V> find(mp& map, const K& key) {
     return map.find(key);}
   static std::optional<V> find_(mp& map, const K& key) {
