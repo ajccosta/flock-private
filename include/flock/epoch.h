@@ -17,7 +17,7 @@
 // Incurs slight overhead due to extra test, but allows wrapping a with_epoch
 // around multiple operations which each do a with_epoch.
 // This saves time since setting epoch number only needs to be fenced once on the outside.
-//#define NestedEpochs 1
+#define NestedEpochs 1
 
 // Supports before_epoch_hooks and after_epoch_hooks, which are thunks
 // that get run just before incrementing the epoch number and just after.

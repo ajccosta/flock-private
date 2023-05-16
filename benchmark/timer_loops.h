@@ -18,12 +18,47 @@
 // run_insert_find_remove:
 // inserts, then finds, then removes the given keys
 //
+
+  struct statistics {
+    long total;
+    long added_count; // inserted - deleted
+    long range_count;
+    long range_sum;
+    long mfind_count;
+    long retry_count;
+    long update_count;
+    long query_count;
+    long found_count;
+    long within_latency;
+    statistics() :
+      total(0), added_count(0), range_count(0), range_sum(0), mfind_count(0), retry_count(0), 
+      update_count(0), query_count(0), found_count(0), within_latency(0) {}
+  };
+
+  // for adding across processors
+  statistics adds(statistics s1, statistics s2) {
+    statistics r;
+    r.total = s1.total + s2.total;
+    r.added_count = s1.added_count + s2.added_count;
+    r.range_count = s1.range_count + s2.range_count;
+    r.range_sum = s1.range_sum + s2.range_sum;
+    r.mfind_count = s1.mfind_count + s2.mfind_count;
+    r.retry_count = s1.retry_count + s2.retry_count;
+    r.update_count = s1.update_count + s2.update_count;
+    r.query_count = s1.query_count + s2.query_count;
+    r.found_count = s1.found_count + s2.found_count;
+    r.within_latency = s1.within_latency + s2.within_latency;
+    return r;
+  }    
+
+
 template<typename K, typename SetType>
 void run_mixed_operations(SetType& os,
 			  parlay::sequence<K>& all,
 			  const parlay::sequence<K>& unique,
 			  float zipfian_param,
 			  commandLine P) {
+
   int m = all.size();
   int nn = unique.size();
   int n = nn/2;
@@ -139,194 +174,201 @@ void run_mixed_operations(SetType& os,
 	for(int j = i*mp; j < (i+1)*mp; j++) op_types[j] = Range;
       }, 1);
 
-    parlay::sequence<size_t> totals(p);
-    parlay::sequence<long> added_counts(p);
-    parlay::sequence<long> range_counts(p);
-    parlay::sequence<long> range_sums(p);
-    parlay::sequence<long> mfind_counts(p);
-    parlay::sequence<long> retry_counts(p);
-    parlay::sequence<long> update_counts(p);
-    parlay::sequence<long> query_counts(p);
-    parlay::sequence<long> found_counts(p);
-    parlay::sequence<long> within_latencies(p);
+    
+    parlay::sequence<statistics> processor_stats(p);
 
     t.start();
     auto start = std::chrono::system_clock::now();
     std::atomic<bool> finish = false;
     auto range_buffers = parlay::tabulate(p, [&] (size_t i) {
 	   return std::vector<K>(100ul + 2*std::max(range_size, trans_size));});
-					     
-    parlay::parallel_for(0, p, [&] (size_t i) {
-	int cnt = 0;
-	int current_id = flck::internal::current_id;
-	size_t j = i*mp;
-	size_t total = 0;
-	long added_count = 0;
-	long range_count = 0;
-	long range_sum = 0;
-	long mfind_count = 0;
-	long retry_count = 0;
-	long update_count = 0;
-	long query_count = 0;
-	long found_count = 0;
-	long within_latency = 0;
 
-	std::vector<K>& range_keys = range_buffers[i];
-	auto start_time = std::chrono::system_clock::now();
+    auto get_time = [] () {return std::chrono::system_clock::now();};
+    auto time_diff = [] (auto start_time) {
+      auto current = std::chrono::system_clock::now();
+      using nano = std::chrono::nanoseconds;
+      return std::chrono::duration_cast<nano>(current - start_time).count();
+    };
+    
+    // every once in a while check if time is over
+    auto check_end = [&] (long& cnt, statistics& local_stats,
+			  int proc_id, const auto& start_time) -> bool {
+      if (cnt >= 100 || finish) {
+	double duration = time_diff(start_time);
+	if (duration > 1000000000 * trial_time || finish) {
+	  if (!finish) finish.store(true);
+	  processor_stats[proc_id] = local_stats;
+	  return true;
+	}
+	cnt = 0;
+      }
+      return false;
+    };
 
-	// main loop, iterates until time limit is over
-	while (true) {
-	  // every once in a while check if time is over
-	  if (cnt >= 100 || finish) { 
-	    cnt = 0;
-	    auto current = std::chrono::system_clock::now();
-	    double duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count();
-	    if (duration > 1000*trial_time || finish) {
-	      if(!finish) finish.store(true);
-	      totals[i] = total;
-	      added_counts[i] = added_count; // inserted - deleted
-	      range_counts[i] = range_count;
-	      range_sums[i] = range_sum;
-	      mfind_counts[i] = mfind_count;
-	      retry_counts[i] = retry_count;
-	      update_counts[i] = update_count;
-	      query_counts[i] = query_count;
-	      found_counts[i] = found_count;
-	      within_latencies[i] = within_latency;
-	      return;
-	    }
-	  }
-	  // check that no overflow
-	  assert(j < (i+1)*mp);
-
-
-#ifdef Latency
-	  if (latency > 0) start_time = std::chrono::system_clock::now();
-#endif
-	
 #ifdef Transactional
-	  if (trans_size > 0) {
-	    long transaction_size = std::min(j + trans_size, (i+1)*mp) - j;
+    // Run a loop with just transactions
+    auto run_transactions = [&] (long start, long end, long proc_id) {
+      long cnt = 0;
+      long j = start;
+      statistics local_stats;
+      auto start_time = get_time();
+      auto start_op_time = start_time;
 
-	    // run transaction_size operations atomically in a transaction
-	    auto [added, queries, found] = verlib::with_transaction([&] {
-               int loc_added = 0;
-	       int loc_queries = 0;
-	       int loc_found = 0;
-	       for (int k=0; k < transaction_size; k++) {
-		 if (op_types[j+k] == Find) {
-		   loc_queries += 1;
-		   auto val = os.find_locked(tr, all[j+k]);
-		   if (val.has_value()) loc_found += val.value();
-		 } else if (op_types[j+k] == Insert) {
-		   if (os.insert_(tr, all[j+k], default_value)) loc_added++;
-		 } else if (op_types[j+k] == Remove) {
-		   if (os.remove_(tr, all[j+k])) loc_added--;
-		 }
-	       }
-	       return std::optional{std::tuple{loc_added, loc_queries, loc_found}};});
+      while (true) {
+	if (check_end(cnt, local_stats, proc_id, start_time)) return;
+
 #ifdef Latency
-	    if (latency > 0) {
-	      auto ct = std::chrono::system_clock::now();
-	      double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ct - start_time).count();
-	      if (duration < ((double) latency)) within_latency++;
-	    }
+	if (latency > 0) start_op_time = get_time();
 #endif
-	    added_count += added;
-	    query_count += queries;
-	    found_count += found;
-	    update_count += transaction_size - query_count;
-	    j += transaction_size;
-	    if (j >= (i+1)*mp) j -= mp; // wrap around in overflow
-	    cnt += transaction_size;
-	    total += transaction_size;
-	    continue;
-	  } else
+	long transaction_size = std::min(j + trans_size, end) - j;
+
+	// run transaction_size operations atomically in a transaction
+	auto [added, queries, found] = verlib::with_transaction([&] {
+	  int loc_added = 0;
+	  int loc_queries = 0;
+	  int loc_found = 0;
+	  for (int k=0; k < transaction_size; k++) {
+	    if (op_types[j+k] == Find) {
+	      loc_queries += 1;
+	      auto val = os.find_locked(tr, all[j+k]);
+	      if (val.has_value()) loc_found += val.value();
+	    } else if (op_types[j+k] == Insert) {
+	      if (os.insert_(tr, all[j+k], default_value)) loc_added++;
+	    } else if (op_types[j+k] == Remove) {
+	      if (os.remove_(tr, all[j+k])) loc_added--;
+	    }
+	  }
+	  return std::optional{std::tuple{loc_added, loc_queries, loc_found}};});
+#ifdef Latency
+	if (latency > 0)
+	  if (time_diff(start_op_time) < ((double) latency))
+	    within_latency++;
+#endif
+	local_stats.added_count += added;
+	local_stats.query_count += queries;
+	local_stats.found_count += found;
+	local_stats.update_count += transaction_size - local_stats.query_count;
+	j += transaction_size;
+	if (j >= end) j = start; // wrap around in overflow
+	cnt += transaction_size;
+	local_stats.total += transaction_size;
+      } 
+    };
 #endif
 
-	  if (op_types[j] == Find) {
-	    query_count++;
-	    auto val = os.find(tr, all[j]);
-	    if (val.has_value()) found_count += val.value();
-	  } else if (op_types[j] == Insert) {
-	    update_count++;
-	    if (os.insert(tr, all[j], default_value)) added_count++;
-	  }
-	  else if (op_types[j] == Remove) {
-	    update_count++;
-	    if (os.remove(tr, all[j])) added_count--;
-	  }
+    // **********************
+    // Run a loop with operation mix
+    // **********************
+    auto run_operations = [&] (long start, long end, long proc_id) {
+      long cnt = 0;
+      long j = start;
+      statistics local_stats;
+      auto start_time = get_time();
+      auto start_op_time = start_time;
+      std::vector<K>& range_keys = range_buffers[i];
+
+      while (true) {
+	if (check_end(cnt, local_stats, proc_id, start_time)) return;
+
+#ifdef Latency
+	if (latency > 0) start_op_time = get_time();
+#endif
+	if (op_types[j] == Find) {
+	  local_stats.query_count++;
+	  auto val = os.find(tr, all[j]);
+	  if (val.has_value()) local_stats.found_count += val.value();
+	} else if (op_types[j] == Insert) {
+	  local_stats.update_count++;
+	  if (os.insert(tr, all[j], default_value)) local_stats.added_count++;
+	}
+	else if (op_types[j] == Remove) {
+	  local_stats.update_count++;
+	  if (os.remove(tr, all[j])) local_stats.added_count--;
+	}
 
 #ifdef Range_Search
-	  else if (op_types[j] == Range) {
-	    K end = ((all[j] > max_key - range_gap)
-		     ? max_key : all[j] + range_gap);
-	    range_count++;
-	    bool use_speculative = true; //(range_size < 2048);
-	    range_sum += verlib::with_snapshot([&] {
-                long cnt=0;
-                auto addf = [&] (K k, V v) {
-                  assert(cnt < range_keys.size());
-                  range_keys[cnt++] = k;
-                };
-                os.range_(tr, addf, all[j], end);
+	else if (op_types[j] == Range) {
+	  K end = ((all[j] > max_key - range_gap)
+		   ? max_key : all[j] + range_gap);
+	  local_stats.range_count++;
+	  bool use_speculative = true; //(range_size < 2048);
+	  local_stats.range_sum += verlib::with_snapshot([&] {
+	    long cnt=0;
+	    auto addf = [&] (K k, V v) {
+	      assert(cnt < range_keys.size());
+	      range_keys[cnt++] = k;
+	    };
+	    os.range_(tr, addf, all[j], end);
 #ifdef LazyStamp
-                if (verlib::aborted) {retry_count++;}
+	    if (verlib::aborted) {local_stats.retry_count++;}
 #endif
-                return cnt;}, use_speculative);
-	  }
-#endif
-	  else { // multifind
-	    mfind_count++;
-	    found_count += verlib::with_snapshot([&] {
-                long loc_found = 0;
-                long loc = j;
-                for (long k = 0; k < range_size; k++) {
-                  auto val = os.find_(tr, all[loc]);
-                  loc += 1;
-                  if (loc >= (i+1)*mp) loc -= mp; // wrap around if needed
-                  if(val.has_value()) loc_found += val.value();
-#ifdef LazyStamp
-                  if (verlib::aborted) {
-                    retry_count++;
-                    return 0l;
-                  }
-#endif
-                }
-                return loc_found;});
-	    j += range_size;
-	    if (j >= (i+1)*mp) j -= mp;
-	    cnt += range_size;
-	    total += range_size;
-	    continue;
-	  }
-#ifdef Latency
-	  if (latency > 0) {
-	    auto ct = std::chrono::system_clock::now();
-	    double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ct - start_time).count();
-	    if (duration < ((double) latency)) within_latency++;
-	  }
-#endif
-	  if (++j >= (i+1)*mp) j -= mp;
-	  cnt++;
-	  total++;
+	    return cnt;}, use_speculative);
 	}
-      }, 1);
+#endif
+	else { // multifind
+	  local_stats.mfind_count++;
+	  local_stats.found_count += verlib::with_snapshot([&] {
+	    long loc_found = 0;
+	    long loc = j;
+	    for (long k = 0; k < range_size; k++) {
+	      auto val = os.find_(tr, all[loc]);
+	      loc += 1;
+	      if (loc >= end) loc -= start; // wrap around if needed
+	      if(val.has_value()) loc_found += val.value();
+#ifdef LazyStamp
+	      if (verlib::aborted) {
+		local_stats.retry_count++;
+		return 0l;
+	      }
+#endif
+	    }
+	    return loc_found;});
+	  j += range_size;
+	  if (j >= end) j = start;
+	  cnt += range_size;
+	  local_stats.total += range_size;
+	  continue;
+	}
+#ifdef Latency
+	if (latency > 0)
+	  if (time_diff(start_op_time) < ((double) latency))
+	    within_latency++;
+#endif
+	if (++j >= end) j = start;
+	cnt++;
+	local_stats.total++;
+      }
+    };
+
+    // loop across the processors
+    parlay::parallel_for(0, p, [&] (size_t proc_id) {
+      	long start = proc_id * mp;
+	long end = (proc_id + 1) * mp;
+
+#ifdef Transactional
+	if (trans_size > 0) 
+	  run_transactions(start,end,proc_id);
+	else
+	  run_operations(start,end,proc_id);
+#else
+	run_operations(start,end,proc_id);
+#endif
+    }, 1);
 
     double duration = t.stop();
-    //os.print(tr);
     if (duration > 1.1 * trial_time)
       std::cout << "duration: " << duration << std::endl;
 
+    statistics overall_stats = parlay::reduce(processor_stats, parlay::binary_op(adds, statistics()));
+    
     if (i != 0) { // don't report zeroth round -- warmup
       if (finish && (duration < trial_time/4))
 	std::cout << "warning out of samples, finished in "
 		  << duration << " seconds" << std::endl;
 
-      size_t num_ops = parlay::reduce(totals);
+      size_t num_ops = overall_stats.total;
       if (latency > 0) {
-	size_t within_latency = parlay::reduce(within_latencies);
-	std::cout << "percent within latency = " << (100.0*within_latency)/num_ops << std::endl;
+	std::cout << "percent within latency = " << (100.0*overall_stats.within_latency)/num_ops << std::endl;
       }
 
       if(range_query_threads == 0) {
@@ -353,31 +395,31 @@ void run_mixed_operations(SetType& os,
 		  << "p=" << p << ","
 		  << "rq_threads=" << range_query_threads << ","
 		  << "z=" << zipfian_param << ","
-		  << "rq_throughput=" << parlay::reduce(range_counts) / (duration * 1e6) << ","
-		  << "update_throughput=" << parlay::reduce(update_counts) / (duration * 1e6) << std::endl;
+		  << "rq_throughput=" << overall_stats.range_count / (duration * 1e6) << ","
+		  << "update_throughput=" << overall_stats.update_count / (duration * 1e6) << std::endl;
       }
 
       if (do_check) {
 	size_t final_cnt = os.check(tr);
-	long updates = parlay::reduce(added_counts);
-	double total_found = parlay::reduce(found_counts) / default_value;
-	long total_queries = parlay::reduce(query_counts);
+	long updates = overall_stats.added_count;
+	double total_found = overall_stats.found_count / default_value;
+	long total_queries = overall_stats.query_count;
 	double success_ratio = total_found / total_queries;
 	if (success_ratio < .45 || success_ratio > .55)
 	  std::cout << "bad success ratio on queries, should be .5 is "
 		    << success_ratio << std::endl;
 	if (multifind_percent > 0) {
-	  long mfind_sum = parlay::reduce(mfind_counts);
-	  long retry_sum = parlay::reduce(retry_counts);
+	  long mfind_sum = overall_stats.mfind_count;
+	  long retry_sum = overall_stats.retry_count;
 #ifdef LazyStamp
 	  std::cout << "retry percent = " << (double) 100 * retry_sum / mfind_sum
 		    << std::endl;
 #endif
 	}
 	if (range_percent > 0 || range_query_threads > 0) {
-	  long range_sum = parlay::reduce(range_sums);
-	  long retry_sum = parlay::reduce(retry_counts);
-	  long num_queries = parlay::reduce(range_counts);
+	  long range_sum = overall_stats.range_sum;
+	  long retry_sum = overall_stats.retry_count;
+	  long num_queries = overall_stats.range_count;
 	  std::cout << "average range size = " << ((float) range_sum) / num_queries
 #ifdef LazyStamp
 		    << ", retry percent = " << (double) 100 * retry_sum / num_queries 
