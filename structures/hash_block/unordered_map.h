@@ -168,7 +168,7 @@ struct slot {
 
   std::optional<V> find(const K& k) {
     slot* s = hash_table.get_slot(k);
-    //__builtin_prefetch (s);
+    __builtin_prefetch (s);
     return verlib::with_epoch([&] {
       node* x = s->ptr.load();
       if (x == nullptr) return std::optional<V>();
@@ -218,7 +218,8 @@ struct slot {
   }
     
   bool insert(const K& k, const V& v) {
-    slot* s = hash_table.get_slot(k); 
+    slot* s = hash_table.get_slot(k);
+    __builtin_prefetch (s);
     return verlib::with_epoch([&] {
       return flck::try_loop([&] {return try_insert_at(s, k, v, false);});});
   }
@@ -259,7 +260,8 @@ struct slot {
   }
 
   bool remove(const K& k) {
-    slot* s = hash_table.get_slot(k); 
+    slot* s = hash_table.get_slot(k);
+    __builtin_prefetch (s);
     return verlib::with_epoch([&] {
       return flck::try_loop([&] {return try_remove_at(s, k);});});
   }
