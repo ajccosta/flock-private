@@ -6,7 +6,7 @@ template <typename K,
 	  typename V,
 	  class Hash = std::hash<K>,
 	  class KeyEqual = std::equal_to<K>>
-struct Set {
+struct unordered_map {
 
   struct HashCompare {
     static size_t hash(const K& k) { return Hash{}(k);}
@@ -14,35 +14,35 @@ struct Set {
   };
 
   using Table = tbb::concurrent_hash_map<K, V, HashCompare>;
+  Table table;
 
-  std::optional<V> find(Table& table, const K& k) {
+  std::optional<V> find(const K& k) {
     typename Table::accessor a;
     if (table.find(a, k)) return a->second;
     else return std::optional<V>();
   }
 
-  std::optional<V> find_(Table& table, const K& k) {
-    return find(table, k);
+  std::optional<V> find_(const K& k) {
+    return find(k);
   }
 
-  bool insert(Table& table, const K& k, const V& v) {
+  bool insert(const K& k, const V& v) {
     return table.insert(std::make_pair(k, v));    
   }
 
-  bool remove(Table& table, const K& k) {
+  bool remove(const K& k) {
     return table.erase(k);
   }
 
-  Table empty(size_t n) {
+  unordered_map(size_t n) {
     Table map(n);
-    return map;
+    table = map;
   }
 
-  void print(Table& t) {}
-  void retire(Table& t) {}
-  long check(Table& t) {return t.size();}
-  void clear() {}
-  void stats() {}
-  void reserve(size_t n) {}
-  void shuffle(size_t n) {}
+  void print() {}
+  long check() {return table.size();}
+  static void clear() {}
+  static void stats() {}
+  static void reserve(size_t n) {}
+  static void shuffle(size_t n) {}
 };

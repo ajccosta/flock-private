@@ -19,42 +19,40 @@
 // inserts, then finds, then removes the given keys
 //
 
-  struct statistics {
-    long total;
-    long added_count; // inserted - deleted
-    long range_count;
-    long range_sum;
-    long mfind_count;
-    long retry_count;
-    long update_count;
-    long query_count;
-    long found_count;
-    long within_latency;
-    statistics() :
-      total(0), added_count(0), range_count(0), range_sum(0), mfind_count(0), retry_count(0), 
-      update_count(0), query_count(0), found_count(0), within_latency(0) {}
-  };
+struct statistics {
+  long total;
+  long added_count; // inserted - deleted
+  long range_count;
+  long range_sum;
+  long mfind_count;
+  long retry_count;
+  long update_count;
+  long query_count;
+  long found_count;
+  long within_latency;
+  statistics() :
+    total(0), added_count(0), range_count(0), range_sum(0), mfind_count(0), retry_count(0), 
+    update_count(0), query_count(0), found_count(0), within_latency(0) {}
+};
 
-  // for adding across processors
-  statistics adds(statistics s1, statistics s2) {
-    statistics r;
-    r.total = s1.total + s2.total;
-    r.added_count = s1.added_count + s2.added_count;
-    r.range_count = s1.range_count + s2.range_count;
-    r.range_sum = s1.range_sum + s2.range_sum;
-    r.mfind_count = s1.mfind_count + s2.mfind_count;
-    r.retry_count = s1.retry_count + s2.retry_count;
-    r.update_count = s1.update_count + s2.update_count;
-    r.query_count = s1.query_count + s2.query_count;
-    r.found_count = s1.found_count + s2.found_count;
-    r.within_latency = s1.within_latency + s2.within_latency;
-    return r;
-  }    
+// for adding across processors
+statistics adds(statistics s1, statistics s2) {
+  statistics r;
+  r.total = s1.total + s2.total;
+  r.added_count = s1.added_count + s2.added_count;
+  r.range_count = s1.range_count + s2.range_count;
+  r.range_sum = s1.range_sum + s2.range_sum;
+  r.mfind_count = s1.mfind_count + s2.mfind_count;
+  r.retry_count = s1.retry_count + s2.retry_count;
+  r.update_count = s1.update_count + s2.update_count;
+  r.query_count = s1.query_count + s2.query_count;
+  r.found_count = s1.found_count + s2.found_count;
+  r.within_latency = s1.within_latency + s2.within_latency;
+  return r;
+}    
 
-
-template<typename K, typename SetType>
-void run_mixed_operations(SetType& os,
-			  parlay::sequence<K>& all,
+template<typename SetType, typename K>
+void run_mixed_operations(parlay::sequence<K>& all,
 			  const parlay::sequence<K>& unique,
 			  float zipfian_param,
 			  commandLine P) {
@@ -132,14 +130,14 @@ void run_mixed_operations(SetType& os,
       else return Find; });
     
   parlay::internal::timer t;
-  if (shuffle) os.shuffle(n);
+  if (shuffle) SetType::shuffle(n);
 
   for (int i = 0; i < rounds+1; i++) {
-    auto tr = os.empty(buckets);
-    auto tr2 = os.empty(buckets);
+    {
+    auto tr = SetType(buckets);
     long len;
     if (do_check) {
-      size_t len = os.check(tr);
+      size_t len = tr.check();
       if (len != 0) {
 	std::cout << "BAD LENGTH = " << len << std::endl;
       } else if(verbose) {
@@ -154,17 +152,17 @@ void run_mixed_operations(SetType& os,
     // insert n distinct elements
     parlay::parallel_for(0, n, [&] (size_t i) {
 				 //std::cout << unique[i] << std::endl;
-	os.insert(tr, unique[i], default_value);
-			       }, 10, true);
+      tr.insert(unique[i], default_value);
+    }, 10, true);
     
     // insert and delete for a while
     parlay::parallel_for(0, 4*n, [&] (size_t i) {
 	auto k = unique[parlay::hash64(i + i) % nn];
-	if(i%2==0) os.insert(tr, k, default_value); 
-	else os.remove(tr, k); }, 10, true);
+	if(i%2==0) tr.insert(k, default_value); 
+	else tr.remove(k); }, 10, true);
 
     if (do_check) {
-      initial_size = os.check(tr);
+      initial_size = tr.check();
       if (verbose) std::cout << "initial size = " << initial_size << std::endl;
     }
 
@@ -230,12 +228,12 @@ void run_mixed_operations(SetType& os,
 	  for (int k=0; k < transaction_size; k++) {
 	    if (op_types[j+k] == Find) {
 	      loc_queries += 1;
-	      auto val = os.find_locked(tr, all[j+k]);
+	      auto val = tr.find_locked(all[j+k]);
 	      if (val.has_value()) loc_found += val.value();
 	    } else if (op_types[j+k] == Insert) {
-	      if (os.insert_(tr, all[j+k], default_value)) loc_added++;
+	      if (tr.insert_(all[j+k], default_value)) loc_added++;
 	    } else if (op_types[j+k] == Remove) {
-	      if (os.remove_(tr, all[j+k])) loc_added--;
+	      if (tr.remove_(all[j+k])) loc_added--;
 	    }
 	  }
 	  return std::optional{std::tuple{loc_added, loc_queries, loc_found}};});
@@ -275,15 +273,15 @@ void run_mixed_operations(SetType& os,
 #endif
 	if (op_types[j] == Find) {
 	  local_stats.query_count++;
-	  auto val = os.find(tr, all[j]);
+	  auto val = tr.find(all[j]);
 	  if (val.has_value()) local_stats.found_count += val.value();
 	} else if (op_types[j] == Insert) {
 	  local_stats.update_count++;
-	  if (os.insert(tr, all[j], default_value)) local_stats.added_count++;
+	  if (tr.insert(all[j], default_value)) local_stats.added_count++;
 	}
 	else if (op_types[j] == Remove) {
 	  local_stats.update_count++;
-	  if (os.remove(tr, all[j])) local_stats.added_count--;
+	  if (tr.remove(all[j])) local_stats.added_count--;
 	}
 
 #ifdef Range_Search
@@ -298,7 +296,7 @@ void run_mixed_operations(SetType& os,
 	      assert(cnt < range_keys.size());
 	      range_keys[cnt++] = k;
 	    };
-	    os.range_(tr, addf, all[j], end);
+	    tr.range_(addf, all[j], end);
 #ifdef LazyStamp
 	    if (verlib::aborted) {local_stats.retry_count++;}
 #endif
@@ -311,7 +309,7 @@ void run_mixed_operations(SetType& os,
 	    long loc_found = 0;
 	    long loc = j;
 	    for (long k = 0; k < range_size; k++) {
-	      auto val = os.find_(tr, all[loc]);
+	      auto val = tr.find_(all[loc]);
 	      loc += 1;
 	      if (loc >= end) loc -= start; // wrap around if needed
 	      if(val.has_value()) loc_found += val.value();
@@ -400,7 +398,7 @@ void run_mixed_operations(SetType& os,
       }
 
       if (do_check) {
-	size_t final_cnt = os.check(tr);
+	size_t final_cnt = tr.check();
 	long updates = overall_stats.added_count;
 	double total_found = overall_stats.found_count / default_value;
 	long total_queries = overall_stats.query_count;
@@ -443,15 +441,14 @@ void run_mixed_operations(SetType& os,
       // }
     }
     parlay::parallel_for(0, nn, [&] (size_t i) {
-	  os.remove(tr, unique[i]); });
-    os.retire(tr);
-    if (clear) os.clear();
+      tr.remove(unique[i]); });
+    }
+    if (clear) SetType::clear();
   }
 }
 
-template<typename K, typename SetType>
-void run_insert_find_remove(SetType& os,
-			    const parlay::sequence<K>& all,
+template<typename SetType, typename K>
+void run_insert_find_remove(const parlay::sequence<K>& all,
 			    long unique_count,
 			    commandLine P) {
   long m = all.size();
@@ -463,7 +460,8 @@ void run_insert_find_remove(SetType& os,
   bool stats = P.getOption("-stats");
 
   for (int i = 1; i < rounds+1; i++) {
-    auto tr = os.empty(buckets);
+    {
+    auto tr = SetType(buckets);
     if (verbose) std::cout << "round " << i << std::endl;
     parlay::internal::timer t;
 
@@ -475,14 +473,14 @@ void run_insert_find_remove(SetType& os,
     
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
-	flags[i] = os.insert(tr, all[i], default_value);
+	flags[i] = tr.insert(all[i], default_value);
       });
 
     std::cout << "insert," << m << "," << mops(t.stop()) << std::endl;
 
     if (do_check) {
       long total = parlay::count(flags, true);
-      long lenc = os.check(tr);
+      long lenc = tr.check();
       if (lenc != len || total != len) {
 	std::cout << "incorrect size after insert: inserted="
 		  << len << " succeeded=" << total << " found=" << lenc
@@ -492,13 +490,13 @@ void run_insert_find_remove(SetType& os,
     if (stats) {
       //descriptor_pool.stats();
       //log_array_pool.stats();
-      os.stats();
+      SetType::stats();
     }
 
     auto search_seq = parlay::random_shuffle(all, parlay::random(1));
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
-	if (!os.find(tr, search_seq[i]).has_value()) {
+	if (!tr.find(search_seq[i]).has_value()) {
 	  std::cout << "key not found, i = " << i << ", key = " << search_seq[i] << std::endl;
 	  abort();
 	}});
@@ -507,12 +505,12 @@ void run_insert_find_remove(SetType& os,
     auto delete_seq = parlay::random_shuffle(all, parlay::random(2));
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
-	os.remove(tr, delete_seq[i]);
+	tr.remove(delete_seq[i]);
       });
 
     std::cout << "remove," << m << "," << mops(t.stop()) << std::endl;
     if (do_check) {
-      len = os.check(tr);
+      len = tr.check();
       if (len != 0) {
 	std::cout << "BAD LENGTH = " << len << std::endl;
       } else if(verbose) {
@@ -521,14 +519,13 @@ void run_insert_find_remove(SetType& os,
     }
     //if (stats) os.stats();
 
-    os.retire(tr); // free the ord_set (should be empty, but not with arttree)
+  }
     if (clear) {
-      os.clear();
+      SetType::clear();
     }
     if (stats) {
       if (clear) std::cout << "the following should be zero if no memory leak" << std::endl;
-      os.stats();
+      SetType::stats();
     }
   }
-
 }

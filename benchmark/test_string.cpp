@@ -30,16 +30,15 @@ using V = unsigned long;
 
 #include "set.h"
 
-
 int main(int argc, char* argv[]) {
     commandLine P(argc,argv,"[-r <rounds>] [-threads <num threads>] [-u <update percent>] [-mfind <multifind percent>] [-rs <multifind size>] [-verbose] [-shuffle] [-stats] [-no_check] <filename>");
 
 #ifdef RADIX
-  Set<K,V,RadixString<K>> os;
+    using SetType = ordered_map<K,V,RadixString<K>>;
 #elif HASH
-  Set<K,V,parlay::hash<K>> os;
+    using SetType = unordered_map<K,V,parlay::hash<K>>;
 #else // Comparison
-  Set<K,V> os;
+    using SetType = ordered_map<K,V>;
 #endif
 
   auto filename = P.getArgument(0);
@@ -61,5 +60,5 @@ int main(int argc, char* argv[]) {
   std::cout << "total strings = " << a.size()
 	    << ", unique strings = " << unique.size() << std::endl;
 
-  run_mixed_operations(os, a, unique, 0.0, P);
+  run_mixed_operations<SetType>(a, unique, 0.0, P);
 }

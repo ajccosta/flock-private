@@ -27,9 +27,9 @@ void print_array(bool* a, int N) {
 }
 
 template <typename SetType>
-void test_persistence_concurrent(SetType& os) {
+void test_persistence_concurrent() {
   int N = 1000;
-  auto tr = os.empty(N);
+  auto tr = SetType(N);
 
   auto a = parlay::random_shuffle(parlay::tabulate(N, [&] (size_t i) {return i+1;}));
   std::atomic<bool> done = false;
@@ -41,11 +41,11 @@ void test_persistence_concurrent(SetType& os) {
       std::cout << "starting to insert" << std::endl;
       for(int i = 0; i < N; i++) {
         // std::cout << "inserting " << i << " " << a[i] << std::endl;
-        os.insert(tr, a[i], i+1);
+        tr.insert(a[i], i+1);
       }
       std::cout << "starting to delete" << std::endl;
       for(int i = N-1; i >= 0; i--)
-        os.remove(tr, a[i]);
+        tr.remove(a[i]);
       std::cout << "done updating" << std::endl;
       done = true;
     } 
@@ -60,7 +60,7 @@ void test_persistence_concurrent(SetType& os) {
           max_seen = -1;
           for(int i = 1; i <= N; i++) seen[i] = false;
           for(int i = 1; i <= N; i++) {
-            auto val = os.find_(tr, i);
+            auto val = tr.find_(i);
             if(val.has_value()) {
               seen[val.value()] = true;
               max_seen = std::max(max_seen, (int) val.value());
@@ -84,12 +84,11 @@ void test_persistence_concurrent(SetType& os) {
       }
     } 
   }, 1);
-  os.retire(tr);
 // #endif
 }
 
 template <typename SetType>
-void test_sets(SetType& os, size_t default_size, commandLine P) {
+void test_sets(size_t default_size, commandLine P) {
   // processes to run experiments with
   int p = P.getOptionIntValue("-p", parlay::num_workers());  
 
@@ -137,36 +136,35 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
 
   if (init_test) {  // trivial test inserting 4 elements and deleting one
     std::cout << "running sanity checks" << std::endl;
-    auto tr = os.empty(4);
-    os.print(tr);
-    os.insert(tr, 3, 123);
-    os.print(tr);
-    os.insert(tr, 7, 123);
-    os.print(tr);
-    os.insert(tr, 1, 123);
-    // os.print(tr);
-    os.insert(tr, 11, 123);
-    // os.print(tr);
-    os.remove(tr, 3);
-    // os.print(tr);
-    assert_key_exists(os.find(tr, 7).has_value());
-    assert_key_exists(os.find(tr, 1).has_value());
-    assert_key_exists(os.find(tr, 11).has_value());
-    assert(!os.find(tr, 10).has_value());
-    assert(!os.find(tr, 3).has_value());
+    auto tr = SetType(4);
+    tr.print();
+    tr.insert(3, 123);
+    tr.print();
+    tr.insert(7, 123);
+    tr.print();
+    tr.insert(1, 123);
+    // tr.print();
+    tr.insert(11, 123);
+    // tr.print();
+    tr.remove(3);
+    // tr.print();
+    assert_key_exists(tr.find(7).has_value());
+    assert_key_exists(tr.find(1).has_value());
+    assert_key_exists(tr.find(11).has_value());
+    assert(!tr.find(10).has_value());
+    assert(!tr.find(3).has_value());
 
     verlib::with_snapshot([&] {
-	assert_key_exists(os.find_(tr, 7).has_value());
-	assert_key_exists(os.find_(tr, 1).has_value());
-	assert_key_exists(os.find_(tr, 11).has_value());
-	assert(!os.find_(tr, 10).has_value());
-	assert(!os.find_(tr, 3).has_value());
+	assert_key_exists(tr.find_(7).has_value());
+	assert_key_exists(tr.find_(1).has_value());
+	assert_key_exists(tr.find_(11).has_value());
+	assert(!tr.find_(10).has_value());
+	assert(!tr.find_(3).has_value());
       });
 
-    os.retire(tr);
 
     // run persistence tests
-    test_persistence_concurrent(os);
+    test_persistence_concurrent<SetType>();
     
   } else {  // main test
     using key_type = unsigned long;
@@ -197,10 +195,10 @@ void test_sets(SetType& os, size_t default_size, commandLine P) {
       b = parlay::tabulate(m, [&] (int i) {return a[parlay::hash64(i) % nn]; });
 
     if (fixed_time) {
-      run_mixed_operations(os, b, a, zipfian_param, P);
+      run_mixed_operations<SetType>(b, a, zipfian_param, P);
 
     } else {
-      run_insert_find_remove(os, b, nn, P);
+      run_insert_find_remove<SetType>(b, nn, P);
     }
   }
 }

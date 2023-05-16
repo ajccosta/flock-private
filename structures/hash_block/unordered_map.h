@@ -271,6 +271,12 @@ struct slot {
      return flck::try_loop([&] {return try_remove_at(s, k);});
    }
 
+  ~unordered_map() {
+    auto& table = hash_table.table;
+    parlay::parallel_for (0, table.size(), [&] (size_t i) {
+      retire_node(table[i].ptr.load());});
+  }
+  
   void print() {
     auto& table = hash_table.table;
     for (size_t i=0; i < table.size(); i++) {
@@ -282,12 +288,6 @@ struct slot {
     std::cout << std::endl;
   }
 
-  ~unordered_map() {
-    auto& table = hash_table.table;
-    parlay::parallel_for (0, table.size(), [&] (size_t i) {
-      retire_node(table[i].ptr.load());});
-  }
-  
   long check() {
     auto& table = hash_table.table;
     auto s = parlay::tabulate(table.size(), [&] (size_t i) {

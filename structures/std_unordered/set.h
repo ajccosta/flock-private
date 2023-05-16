@@ -6,39 +6,39 @@ template <typename K,
 	  typename V,
 	  class Hash = std::hash<K>,
 	  class KeyEqual = std::equal_to<K>>
-struct Set {
+struct unordered_map {
 
   using Table = std::unordered_map<K, V, Hash, KeyEqual>;
+  Table table;
 
-  std::optional<V> find(Table& table, const K& k) {
+  std::optional<V> find(const K& k) {
     auto r = table.find(k);
     if (r != table.end()) return (*r).second;
     else return std::optional<V>();
     
   }
 
-  std::optional<V> find_(Table& table, const K& k) {
-    return find(table, k);
+  std::optional<V> find_(const K& k) {
+    return find(k);
   }
 
-  bool insert(Table& table, const K& k, const V& v) {
+  bool insert(const K& k, const V& v) {
     return table.insert(std::make_pair(k, v)).second;    
   }
 
-  bool remove(Table& table, const K& k) {
+  bool remove(const K& k) {
     return table.erase(k) == 1;
   }
 
-  Table empty(size_t n) {
+  unordered_map(size_t n) {
     Table map(n);
-    return map;
+    table = map;
   }
 
-  void print(Table& t) {}
-  void retire(Table& t) {}
-  long check(Table& t) {return t.size();}
-  void clear() {}
-  void stats() {}
-  void reserve(size_t n) {}
-  void shuffle(size_t n) {}
+  void print() {}
+  long check() {return table.size();}
+  static void clear() {}
+  static void stats() {}
+  static void reserve(size_t n) {}
+  static void shuffle(size_t n) {}
 };

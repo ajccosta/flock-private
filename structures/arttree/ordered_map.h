@@ -694,7 +694,7 @@ struct ordered_map {
       full_pool.retire(pp);
     }
   }
-  void retire() { retire_recursive(root);}
+  ~ordered_map() { retire_recursive(root);}
   
   long check() {
     std::function<size_t(node*)> crec;

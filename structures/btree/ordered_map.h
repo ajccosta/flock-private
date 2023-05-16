@@ -685,7 +685,8 @@ struct ordered_map {
       node_pool.retire(p);
     }
   }
-  void retire() {retire_rec(root);}
+
+  ~ordered_map() {retire_recursive(root);}
 
   double total_height() {
     std::function<size_t(node*, size_t)> hrec;
