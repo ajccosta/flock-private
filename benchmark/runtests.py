@@ -1,0 +1,140 @@
+import os
+import sys
+import socket
+from datetime import date
+
+def getOption(str) :                                                                                
+    return sys.argv.count(str) > 0                                                                  
+                                                                                                    
+def getArg(str, default) :                                                                          
+  a = sys.argv                                                                                      
+  l = len(a)                                                                                        
+  for i in range(1, l) :                                                                            
+    if (a[i] == str and  (i+1 != l)) :                                                              
+        return sys.argv[i+1]                                                                        
+  return default
+
+rounds = int(getArg("-r", 0));
+
+time = float(getArg("-t", 0.0));
+
+shuffle = getOption("-shuffle");
+
+test_only = getOption("-test")
+
+class parameters :
+    time = 1
+    rounds = 1
+    zipfians = []
+    file_suffix = ""
+    lists = []
+    lists_ro = []
+    list_sizes = []
+    trees = []
+    trees_ro = []
+    tree_sizes = []
+    suffixes_all = [""]
+    suffixes_ro = []
+    mix_percents = [[5,0,0,0]]
+    trans_sizes = [1]
+    
+today = date.today().strftime("%m_%d_%y")
+hostname = socket.gethostname()
+
+print(hostname)
+print(today)
+filename = "../../timings/" + hostname[0:5] + "_trans" + "_" + today
+    
+if os.path.exists(filename) :
+    os.remove(filename)
+    
+def detectCPUs():
+    """
+     Detects the number of CPUs on a system. Cribbed from pp.
+     """
+    # Linux, Unix and MacOS:
+    if hasattr(os, "sysconf"):
+       if "SC_NPROCESSORS_ONLN" in os.sysconf_names :
+           # Linux & Unix:
+           ncpus = os.sysconf("SC_NPROCESSORS_ONLN")
+           if isinstance(ncpus, int) and ncpus > 0:
+               return ncpus
+       else: # OSX:
+           return int(os.popen2("sysctl -n hw.ncpu")[1].read())
+    # Windows:
+    if os.environ.has_key("NUMBER_OF_PROCESSORS"):
+           ncpus = int(os.environ["NUMBER_OF_PROCESSORS"]);
+           if ncpus > 0:
+               return ncpus
+    return 1 # Default
+
+maxcpus = detectCPUs()
+
+def getProcessors() :
+    if maxcpus == 40:
+        processors = [1,4,16,20,40]
+    elif maxcpus == 144:
+        processors = [1,4,16,32,72,144]
+    else:
+        processors = [1,4,16]+list(range(16,maxcpus+1,16))
+    return processors
+
+def runstring(op) :
+    if test_only :
+        cmd = op
+    else :
+        cmd = op + " >> " + filename
+    os.system("echo \"" + cmd + "\"")
+    x = os.system(cmd)
+    if (x) :
+        if (os.WEXITSTATUS(x) == 0) : raise NameError("  aborted: " + op)
+        if not(test_only) :
+            os.system("echo \"Failed: " + op + "\" >> " + filename)
+        os.system("echo Failed")
+
+rounds = 0
+
+def runtest(test,procs,n,z,mix,ts,params) :
+    num_threads = maxcpus-1
+    str_mix = "-u " + str(mix[0]) + " -mfind " + str(mix[1]) + " -range " + str(mix[2]) + " "
+    str_rs = "-rs " + str(mix[3]) + " "
+    str_zipfians = "-z " + str(z) + " "
+    str_trans_size = "-trans " + str(ts) + " "
+    num_rounds = rounds
+    if (num_rounds == 0) :
+        num_rounds = params.rounds
+    str_rounds = "-r " + str(num_rounds) + " "
+    run_time = time
+    if (run_time == 0.0) : run_time = params.time
+    str_time = "-tt " + str(run_time) + " "
+    str_n = "-n " + str(n) + " "
+    if shuffle : str_other = "-shuffle "
+    else : str_other = ""
+    runstring("PARLAY_NUM_THREADS=" + str(num_threads) + " numactl -i all ./" + test + " " + str_time + str_rounds + str_n + str_mix + str_rs + str_zipfians + str_trans_size + str_other)
+
+def run_tests(tests, sizes, params) :
+    for test in tests :
+        for suffix in params.suffixes_all:
+            for n in sizes :
+                for mix in params.mix_percents :
+                    for ts in params.trans_sizes :
+                        for z in params.zipfians :
+                            runtest(test + suffix, maxcpus, n, z, mix, ts, params)
+                with open(filename, "a") as f:
+                    f.write("...\n")
+
+
+def run_all(params) :
+    if test_only :
+        params.time = .2
+        params.zipfians = [.99]
+        params.tree_sizes = [1,1000,100000]
+        params.list_sizes = [1, 100]
+        params.trans_sizes = [16]
+        params.mix_percents = [[50,0,0,0]]
+    processors = getProcessors()
+    os.system("pushd ..; make -j")
+    runstring("git rev-parse --short HEAD")
+    run_tests(params.trees, params.tree_sizes, params)
+    run_tests(params.lists, params.list_sizes, params)            
+                    
