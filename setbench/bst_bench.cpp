@@ -27,7 +27,7 @@ using V = unsigned long;
 
 int main(int argc, char* argv[]) {
   commandLine P(argc,argv,"[-n <size>] [-r <rounds>] [-p <procs>] [-z <zipfian_param>] [-u <update percent>] [-insert_find_delete] [-no_help] [-strict_lock]");
-  ordered_set<K,V,allocator_parlay<K>> tree;
+  using SetType = ordered_map<K,V,allocator_parlay<K>>;
   size_t default_size = 100000000;
-  test_sets(tree, default_size, P);
+  test_sets<SetType>(default_size, P);
 }
