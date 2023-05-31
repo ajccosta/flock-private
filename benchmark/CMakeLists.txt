@@ -12,15 +12,12 @@ foreach(file ${BENCH_FILES})
 endforeach()
 
 set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
-set(OTHER_LIST_DIR ${PROJECT_SOURCE_DIR}/otherStructures)
 #set(FLOCK_BENCH "leaftree" "blockleaftree" "arttree" "btree" "dlist" "list" "list_onelock" "hash" "avltree") 
 #set(FLOCK_BENCH_USE_CAS "hash_block")
 #set(FLOCK_BENCH_RECORDED_ONCE "btree" "list")
-#set(OTHER_LIST_BENCH "harris_list" "harris_list_opt")
 set(FLOCK_BENCH "btree" "list" "hash_block" "arttree")
 set(FLOCK_BENCH_USE_CAS)
 set(FLOCK_BENCH_RECORDED_ONCE)
-set(OTHER_LIST_BENCH "harris_list" "harris_list_opt")
 
 set(COMMON_DEFS "HashLock") #  "Latency")
 
@@ -32,16 +29,6 @@ function(add_benchmark NAME STRUCT_NAME DEFS)
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
 endfunction()
 
-find_package(TBB)
-function(add_tbb_benchmark NAME STRUCT_NAME DEFS)
-  add_executable(${NAME} ${SOURCES})
-  target_compile_definitions(${NAME} PRIVATE ${COMMON_DEFS})
-  target_compile_definitions(${NAME} PRIVATE ${DEFS})
-  target_link_libraries(${NAME} PRIVATE verlib)
-  target_link_libraries(${NAME} PRIVATE TBB::tbb)
-  target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
-endfunction()
-
 foreach(bench ${FLOCK_BENCH_RECORDED_ONCE})
   add_benchmark(${bench}_ver_ro_ls ${STRUCT_DIR}/${bench} "Versioned;Recorded_Once;LazyStamp")
   add_benchmark(${bench}_ver_ro_rs ${STRUCT_DIR}/${bench} "Versioned;Recorded_Once;LazyStamp")
@@ -49,17 +36,6 @@ foreach(bench ${FLOCK_BENCH_RECORDED_ONCE})
     add_benchmark(${bench}_ver_ro_rs_ss ${STRUCT_DIR}/${bench} "Versioned;Recorded_Once;ReadStamp;SlowStore")
 endforeach()
 
-foreach(bench ${OTHER_LIST_BENCH})
-  add_benchmark(${bench} ${OTHER_LIST_DIR}/${bench} "")
-endforeach()
-
-add_benchmark(libcuckoo ${STRUCT_DIR}/libcuckoo "")
-add_benchmark(std_unordered ${STRUCT_DIR}/std_unordered "")
-add_benchmark(std_ordered ${STRUCT_DIR}/std_ordered "")
-add_benchmark(sharded_hash ${STRUCT_DIR}/sharded_hash "")
-
-add_tbb_benchmark(tbbhash ${STRUCT_DIR}/tbbhash "")
-# add_tbb_benchmark(unsafetbbhash ${STRUCT_DIR}/unsafetbbhash "")
 add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
 
 foreach(bench ${FLOCK_BENCH})
@@ -97,31 +73,20 @@ foreach(bench ${FLOCK_BENCH_USE_CAS})
   add_benchmark(${bench}_lf_ver_nohelp_ls ${STRUCT_DIR}/${bench} "UseCAS;Versioned;LazyStamp")
 endforeach()
 
+# *************************
+#    Strings
+# *************************
 set(STRING_SOURCES test_string.cpp)
 
 function(add_string_benchmark NAME STRUCT_NAME DEFS)
   add_executable(${NAME} ${STRING_SOURCES})
-  target_compile_definitions(${NAME} PRIVATE ${COMMON_DEFS})
-  target_compile_definitions(${NAME} PRIVATE ${DEFS})
+  target_compile_definitions(${NAME} PRIVATE ${COMMON_DEFS} ${DEFS})
   target_link_libraries(${NAME} PRIVATE verlib)
-  target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
-endfunction()
-
-function(add_tbb_string_benchmark NAME STRUCT_NAME DEFS)
-  add_executable(${NAME} ${STRING_SOURCES})
-  target_compile_definitions(${NAME} PRIVATE ${COMMON_DEFS})
-  target_compile_definitions(${NAME} PRIVATE ${DEFS})
-  target_link_libraries(${NAME} PRIVATE verlib)
-  target_link_libraries(${NAME} PRIVATE TBB::tbb)
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
 endfunction()
 
 #set(STRING_BENCH "btree" "list" "dlist" "leaftree" "blockleaftree" "arttree" "hash_block" "hash")
 set(STRING_BENCH "btree" "hash_block" "arttree")
-add_string_benchmark(libcuckoo_string ${STRUCT_DIR}/libcuckoo "")
-add_string_benchmark(std_unordered_string ${STRUCT_DIR}/std_unordered "")
-add_string_benchmark(std_ordered_string ${STRUCT_DIR}/std_ordered "")
-add_tbb_string_benchmark(tbbhash_string ${STRUCT_DIR}/tbbhash "")
 
 foreach(bench ${STRING_BENCH})
 #  add_string_benchmark(${bench}_string_lf ${STRUCT_DIR}/${bench} "Versioned;HWWriteStamp")
@@ -131,10 +96,39 @@ foreach(bench ${STRING_BENCH})
   add_string_benchmark(${bench}_string  ${STRUCT_DIR}/${bench} "NoHelp")
 endforeach()
 
-add_executable(sharded_abseil_hash ${SOURCES})
-target_link_libraries(sharded_abseil_hash PRIVATE verlib absl::flat_hash_map)
-target_include_directories(sharded_abseil_hash PRIVATE ${STRUCT_DIR}/sharded_abseil_hash)
+# *************************
+#    Other Benchmarks
+# *************************
 
-add_executable(abseil_unordered ${SOURCES})
-target_link_libraries(abseil_unordered PRIVATE verlib absl::flat_hash_map)
-target_include_directories(abseil_unordered PRIVATE ${STRUCT_DIR}/abseil_unordered)
+set(OTHER_STRUCT_DIR ${PROJECT_SOURCE_DIR}/otherStructures)
+
+function(add_linked_benchmark NAME LINK)
+  add_executable(${NAME} ${SOURCES})
+  target_link_libraries(${NAME} PRIVATE verlib ${LINK})
+  target_include_directories(${NAME} PRIVATE ${OTHER_STRUCT_DIR}/${NAME})
+endfunction()
+
+function(add_linked_string_benchmark NAME LINK)
+  add_executable(${NAME}_string ${STRING_SOURCES})
+  target_link_libraries(${NAME}_string PRIVATE verlib ${LINK})
+  target_include_directories(${NAME}_string PRIVATE ${OTHER_STRUCT_DIR}/${NAME})
+endfunction()
+
+find_package(TBB)
+add_linked_benchmark(tbbhash TBB::tbb)
+add_linked_string_benchmark(tbbhash TBB::tbb)
+
+add_linked_benchmark(sharded_abseil_hash absl::flat_hash_map)
+add_linked_benchmark(abseil_unordered absl::flat_hash_map)
+
+set(OTHER_STRUCT_BENCH "harris_list" "harris_list_opt" "libcuckoo" "std_unordered" "std_ordered" "sharded_hash")
+set(OTHER_STRUCT_STRING_BENCH "libcuckoo" "std_unordered" "std_ordered" "sharded_hash")
+
+foreach(bench ${OTHER_STRUCT_BENCH})
+  add_linked_benchmark(${bench} "")
+endforeach()
+
+foreach(bench ${OTHER_STRUCT_STRING_BENCH})
+  add_linked_string_benchmark(${bench} "")
+endforeach()
+
