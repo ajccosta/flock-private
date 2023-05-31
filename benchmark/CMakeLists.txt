@@ -56,9 +56,11 @@ endforeach()
 add_benchmark(libcuckoo ${STRUCT_DIR}/libcuckoo "")
 add_benchmark(std_unordered ${STRUCT_DIR}/std_unordered "")
 add_benchmark(std_ordered ${STRUCT_DIR}/std_ordered "")
+add_benchmark(sharded_hash ${STRUCT_DIR}/sharded_hash "")
 
 add_tbb_benchmark(tbbhash ${STRUCT_DIR}/tbbhash "")
 # add_tbb_benchmark(unsafetbbhash ${STRUCT_DIR}/unsafetbbhash "")
+add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
 
 foreach(bench ${FLOCK_BENCH})
   add_benchmark(${bench}_lf ${STRUCT_DIR}/${bench} "Versioned;HWWriteStamp")
@@ -128,3 +130,11 @@ foreach(bench ${STRING_BENCH})
 #  add_string_benchmark(${bench}_string_versioned ${STRUCT_DIR}/${bench} "NoHelp;Versioned;HWWriteStamp")
   add_string_benchmark(${bench}_string  ${STRUCT_DIR}/${bench} "NoHelp")
 endforeach()
+
+# add_executable(sharded_abseil_hash ${SOURCES})
+# target_link_libraries(sharded_abseil_hash PRIVATE verlib absl::flat_hash_map)
+# target_include_directories(sharded_abseil_hash PRIVATE ${STRUCT_DIR}/sharded_abseil_hash)
+
+# add_executable(abseil_unordered ${SOURCES})
+# target_link_libraries(abseil_unordered PRIVATE verlib absl::flat_hash_map)
+# target_include_directories(abseil_unordered PRIVATE ${STRUCT_DIR}/abseil_unordered)

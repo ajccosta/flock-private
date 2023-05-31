@@ -196,9 +196,14 @@ struct slot {
     if (found)
       if (upsert)
 	new_node = update_node(x, k, v);
+#ifndef UseCAS
       else if (verlib::validate(s->lck, &(s->ptr), x))
 	return false;
       else return {};
+#else
+      else return false;
+#endif
+
     else new_node = insert_to_node(x, k, v);
 #ifdef UseCAS
     if(s->ptr.cas(x, new_node)) {
@@ -238,9 +243,14 @@ struct slot {
   static std::optional<bool> try_remove_at(slot* s, const K& k) {
       node* x = s->ptr.load();
       if (x == nullptr || x->find(k) == -1)
+#ifndef UseCAS
 	if (verlib::validate(s->lck, &(s->ptr), x))
 	  return false;
-	else return {};
+      	else return {};
+#else
+        return false;
+#endif
+
       node* new_node = remove_from_node(x, k);
 #ifdef UseCAS
       if(s->ptr.cas(x, new_node)) {
