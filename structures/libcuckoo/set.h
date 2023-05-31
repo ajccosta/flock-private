@@ -1,6 +1,5 @@
 #include <parlay/primitives.h>
 #include <verlib/verlib.h>
-#define Dense_Keys 1
 #define HASH 1
 
 #include "cuckoohash_map.hh"
@@ -33,9 +32,7 @@ struct unordered_map {
   }
 
   unordered_map(size_t n) {
-    Table map;
-    map.reserve(n);
-    table = map;
+    table.reserve(n);
   }
 
   void print() {}

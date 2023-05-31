@@ -128,7 +128,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
       else if (h < 2*(update_percent + range_percent + multifind_percent + trans_percent))
 	return Trans;
       else return Find; });
-    
+
   parlay::internal::timer t;
   if (shuffle) SetType::shuffle(n);
 
@@ -144,7 +144,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	std::cout << "CHECK PASSED" << std::endl;
       }
     }
-      
+
     if (verbose) std::cout << "round " << i << std::endl;
     size_t initial_size;
     int default_value = 3;
