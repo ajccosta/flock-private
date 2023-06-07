@@ -157,9 +157,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
     
     // insert and delete for a while
     parlay::parallel_for(0, 4*n, [&] (size_t i) {
-	auto k = unique[parlay::hash64(i + i) % nn];
-	if(i%2==0) tr.insert(k, default_value); 
-	else tr.remove(k); }, 10, true);
+    	auto k = unique[parlay::hash64(i + i) % nn];
+    	if(i%2==0) tr.insert(k, default_value); 
+    	else tr.remove(k); }, 10, true);
 
     if (do_check) {
       initial_size = tr.check();
@@ -208,6 +208,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
     auto run_transactions = [&] (long start, long end, long proc_id) {
       long cnt = 0;
       long j = start;
+      long jj = start;
       statistics local_stats;
       auto start_time = get_time();
       auto start_op_time = start_time;
@@ -218,21 +219,22 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #ifdef Latency
 	if (latency > 0) start_op_time = get_time();
 #endif
-	long transaction_size = std::min(j + trans_size, end) - j;
+	if (j + trans_size > end) j = start;
+	if (jj + trans_size > end) jj = start;
 
-	// run transaction_size operations atomically in a transaction
+	// run trans_size operations atomically in a transaction
 	auto [added, queries, found] = verlib::with_transaction([&] {
 	  int loc_added = 0;
 	  int loc_queries = 0;
 	  int loc_found = 0;
-	  for (int k=0; k < transaction_size; k++) {
-	    if (op_types[j+k] == Find) {
+	  for (int k=0; k < trans_size; k++) {
+	    if (op_types[jj+k] == Find) {
 	      loc_queries += 1;
 	      auto val = tr.find_locked(all[j+k]);
 	      if (val.has_value()) loc_found += val.value();
-	    } else if (op_types[j+k] == Insert) {
+	    } else if (op_types[jj+k] == Insert) {
 	      if (tr.insert_(all[j+k], default_value)) loc_added++;
-	    } else if (op_types[j+k] == Remove) {
+	    } else if (op_types[jj+k] == Remove) {
 	      if (tr.remove_(all[j+k])) loc_added--;
 	    }
 	  }
@@ -245,11 +247,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	local_stats.added_count += added;
 	local_stats.query_count += queries;
 	local_stats.found_count += found;
-	local_stats.update_count += transaction_size - local_stats.query_count;
-	j += transaction_size;
-	if (j >= end) j = start; // wrap around in overflow
-	cnt += transaction_size;
-	local_stats.total += transaction_size;
+	local_stats.update_count += trans_size - local_stats.query_count;
+	j += trans_size;
+	cnt += trans_size;
+	local_stats.total += trans_size;
       } 
     };
 #endif
@@ -260,6 +261,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
     auto run_operations = [&] (long start, long end, long proc_id) {
       long cnt = 0;
       long j = start;
+      long jj = start;
       statistics local_stats;
       auto start_time = get_time();
       auto start_op_time = start_time;
@@ -271,21 +273,27 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #ifdef Latency
 	if (latency > 0) start_op_time = get_time();
 #endif
-	if (op_types[j] == Find) {
+	if (op_types[jj] == Find) {
 	  local_stats.query_count++;
 	  auto val = tr.find(all[j]);
-	  if (val.has_value()) local_stats.found_count += val.value();
-	} else if (op_types[j] == Insert) {
+	  if (val.has_value()) {
+	  //   if (val.value() != default_value) {
+	  //     std::cout << all[j] << ", " << val.value() << std::endl;
+	  //     abort();
+	  //   }
+	    local_stats.found_count += val.value();
+	  }
+	} else if (op_types[jj] == Insert) {
 	  local_stats.update_count++;
 	  if (tr.insert(all[j], default_value)) local_stats.added_count++;
 	}
-	else if (op_types[j] == Remove) {
+	else if (op_types[jj] == Remove) {
 	  local_stats.update_count++;
 	  if (tr.remove(all[j])) local_stats.added_count--;
 	}
 
 #ifdef Range_Search
-	else if (op_types[j] == Range) {
+	else if (op_types[jj] == Range) {
 	  K end = ((all[j] > max_key - range_gap)
 		   ? max_key : all[j] + range_gap);
 	  local_stats.range_count++;
@@ -323,6 +331,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	    return loc_found;});
 	  j += range_size;
 	  if (j >= end) j = start;
+	  jj += range_size;
+	  if (jj >= end) jj = start+1;
 	  cnt += range_size;
 	  local_stats.total += range_size;
 	  continue;
@@ -333,6 +343,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	    within_latency++;
 #endif
 	if (++j >= end) j = start;
+	if (++jj >= end) jj = start+1;
 	cnt++;
 	local_stats.total++;
       }
@@ -444,7 +455,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
       tr.remove(unique[i]); });
     }
     if (clear) SetType::clear();
+    if (stats) SetType::stats();
   }
+  SetType::clear();
 }
 
 template<typename SetType, typename K>
@@ -458,7 +471,7 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
   bool verbose = P.getOption("-verbose");
   bool do_check = ! P.getOption("-no_check");
   bool stats = P.getOption("-stats");
-
+  
   for (int i = 1; i < rounds+1; i++) {
     {
     auto tr = SetType(buckets);
@@ -469,12 +482,12 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
     auto mops = [=] (double time) -> float {return m / (time * 1e6);};
     long len = parlay::remove_duplicates(all).size();
     parlay::sequence<bool> flags(m);
-    int default_value = 1;
+    int default_value = 123;
     
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
 	flags[i] = tr.insert(all[i], default_value);
-      });
+			       });
 
     std::cout << "insert," << m << "," << mops(t.stop()) << std::endl;
 
@@ -482,8 +495,8 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
       long total = parlay::count(flags, true);
       long lenc = tr.check();
       if (lenc != len || total != len) {
-	std::cout << "incorrect size after insert: inserted="
-		  << len << " succeeded=" << total << " found=" << lenc
+	std::cout << "incorrect size after insert: distinct keys inserted = "
+		  << len << " succeeded = " << total << " found = " << lenc
 		  << std::endl;
       }
     }
@@ -496,10 +509,15 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
     auto search_seq = parlay::random_shuffle(all, parlay::random(1));
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
-	if (!tr.find(search_seq[i]).has_value()) {
+	auto x = tr.find(search_seq[i]); 				 
+	if (!x.has_value()) {
 	  std::cout << "key not found, i = " << i << ", key = " << search_seq[i] << std::endl;
 	  abort();
-	}});
+	} else if (*x != default_value) {
+	  std::cout << "bad value " << *x << " at key " << search_seq[i] << std::endl;
+	  abort();
+	}
+	});
     std::cout << "find," << m << "," << mops(t.stop()) << std::endl;
 
     auto delete_seq = parlay::random_shuffle(all, parlay::random(2));

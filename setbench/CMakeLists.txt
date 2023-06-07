@@ -7,7 +7,8 @@ set(SET_BENCH "leis_olc_art" "ellen_ext_bst_lf" "brown_ext_chromatic_lf" "bronso
 execute_process(COMMAND find ${SET_BENCH_DIR}/common -type d OUTPUT_VARIABLE INCL_STRING)
 string(REPLACE "\n" ";" INCL_LIST ${INCL_STRING})
 
-set(DEBRA_OPTIONS -DRECLAIM_TYPE=debra -DUSE_TREE_STATS -DMAX_THREADS_POW2=512 -DCPU_FREQ_GHZ=2.4  -DMEMORY_STATS=if\(0\) -DMEMORY_STATS2=if\(0\) -DDEBRA_ORIGINAL_FREE)
+#set(DEBRA_OPTIONS -DRECLAIM_TYPE=debra -DUSE_TREE_STATS -DMAX_THREADS_POW2=512 -DCPU_FREQ_GHZ=2.4 -DMEMORY_STATS=if\(0\) -DMEMORY_STATS2=if\(0\) -DDEBRA_ORIGINAL_FREE)
+set(DEBRA_OPTIONS -DUSE_TREE_STATS) # tree stats used for size
 
 foreach(bench ${SET_BENCH})
   add_executable(${bench} ${SOURCES})
@@ -15,5 +16,5 @@ foreach(bench ${SET_BENCH})
   target_include_directories(${bench} PRIVATE ${SET_BENCH_DIR}/ds/${bench})
   target_include_directories(${bench} PRIVATE ${INCL_LIST})
   target_compile_options(${bench} PRIVATE -fpermissive ${DEBRA_OPTIONS})
-  set_target_properties(${bench} PROPERTIES LINKER_LANGUAGE CXX)
+#  set_target_properties(${bench} PROPERTIES LINKER_LANGUAGE CXX)
 endforeach()

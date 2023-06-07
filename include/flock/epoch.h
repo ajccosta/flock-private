@@ -17,7 +17,7 @@
 // Incurs slight overhead due to extra test, but allows wrapping a with_epoch
 // around multiple operations which each do a with_epoch.
 // This saves time since setting epoch number only needs to be fenced once on the outside.
-#define NestedEpochs 1
+//#define NestedEpochs 1
 
 // Supports before_epoch_hooks and after_epoch_hooks, which are thunks
 // that get run just before incrementing the epoch number and just after.
@@ -31,6 +31,8 @@
 
 namespace flck {
 namespace internal {
+
+  thread_local int my_id = -1;
 
 struct alignas(64) epoch_s {
 	
@@ -55,36 +57,40 @@ struct alignas(64) epoch_s {
     return current_epoch.load();
   }
 
+  static int get_my_id() {
+    if (my_id == -1) my_id = parlay::worker_id();
+    return my_id;
+  }
+
   long get_my_epoch() {
-    size_t id = parlay::worker_id();
+    size_t id = get_my_id();
     return announcements[id].last;
   }
 
   void set_my_epoch(long e) {
-    size_t id = parlay::worker_id();
+    size_t id = get_my_id();
     announcements[id].last = e;
   }
 
-  bool announce() {
-    size_t id = parlay::worker_id();
+  std::pair<bool,int> announce() {
+    size_t id = get_my_id();
     long current_e = get_current();
-    // apparently an exchange is faster than a store (write and fence)
 #ifdef NestedEpochs
     long old = -1l;
-    return announcements[id].last.compare_exchange_strong(old, current_e);
+    return std::pair(announcements[id].last.compare_exchange_strong(old, current_e),id);
 #else
+    // apparently an exchange is faster than a store (write and fence)
     announcements[id].last.exchange(current_e, std::memory_order_seq_cst);
-    return true;
+    return std::pair(true, id);
 #endif
   }
 
-  void unannounce() {
-    size_t id = parlay::worker_id();
+  void unannounce(int id) {
     announcements[id].last.store(-1l, std::memory_order_release);
   }
 
   void update_epoch() {
-    size_t id = parlay::worker_id();
+    size_t id = get_my_id();
     int workers = parlay::num_workers();
     long current_e = get_current();
     bool all_there = true;
@@ -152,8 +158,13 @@ private:
   std::vector<old_current> pools;
   int workers;
 
+  static int get_my_id() {
+    if (my_id == -1) my_id = parlay::worker_id();
+    return my_id;
+  }
+
   bool* add_to_current_list(void* p) {
-    auto i = parlay::worker_id();
+    auto i = get_my_id();
     auto &pid = pools[i];
     advance_epoch(i, pid);
     Link* lnk = list_allocator::alloc();
@@ -311,17 +322,19 @@ public:
 
 template <typename Thunk>
 auto with_epoch(Thunk f) {
-  bool not_in_epoch = internal::epoch.announce();
+  auto [not_in_epoch, id] = internal::epoch.announce();
   if constexpr (std::is_void_v<std::invoke_result_t<Thunk>>) {
     f();
 #ifdef NestedEpochs
-    if (not_in_epoch) internal::epoch.unannounce();
+    if (not_in_epoch) 
 #endif
+      internal::epoch.unannounce(id);
   } else {
     auto v = f();
 #ifdef NestedEpochs
-    if (not_in_epoch) internal::epoch.unannounce();
+    if (not_in_epoch) 
 #endif
+      internal::epoch.unannounce(id);
     return v;
   }
 }

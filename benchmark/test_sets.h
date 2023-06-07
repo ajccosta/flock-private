@@ -191,6 +191,7 @@ void test_sets(size_t default_size, commandLine P) {
     if (use_zipfian) { 
       Zipfian z(nn, zipfian_param);
       b = parlay::tabulate(m, [&] (int i) { return a[z(i)]; });
+      a = parlay::random_shuffle(a);
     } else
       b = parlay::tabulate(m, [&] (int i) {return a[parlay::hash64(i) % nn]; });
 
