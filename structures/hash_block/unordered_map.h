@@ -1,9 +1,14 @@
-// A concurrent unordered_map using a hash table
-// Supports: insert, remove, find, print
+// MIT license (https://opensource.org/license/mit/)
+// Initial Author: Guy Blelloch
+
+// A lock free concurrent unordered_map using a hash table
+// Supports: fast atomic insert, upsert, remove, and  find
+// along with a non-atomic, and slow, size
 // Each bucket points to a structure (Node) containing an array of entries
-// Nodes come in varying sizes.
-// On update the node is copied
-// Works either with CAS or try_locks (based on UseCAS flag)
+// Nodes come in varying sizes and on update the node is copied.
+// Allows arbitrary growing, but only efficient if not much larger
+// than the original given size (i.e. number of buckets is fixes, but
+// number of entries per bucket can grow).
 
 #include <parlay/primitives.h>
 #include <verlib/verlib.h>
@@ -13,32 +18,34 @@ template <typename K,
 	  class Hash = std::hash<K>,
 	  class KeyEqual = std::equal_to<K>>
 struct unordered_map {
-
+private:
   struct KV {K key; V value;};
 
   template <typename Range>
   static int find_key(const Range& entries, long cnt, const K& k) {
     for (int i=0; i < cnt; i++)
-      if (entries[i].key == k) return i;
+      if (KeyEqual{}(entries[i].key, k)) return i;
     return -1;
   }
 
+  // copy entries and insert k,v at end
   template <typename Range, typename RangeIn>
   static void insert(Range& out, const RangeIn& entries, long cnt, const K& k, const V& v) {
     for (int i=0; i < cnt; i++) out[i] = entries[i];
     out[cnt] = KV{k,v};
   }
 
-  template <typename Range, typename RangeIn>
-  static void update(Range& out, const RangeIn& entries, long cnt, const K& k, const V& v) {
+  // copy entries and update entry with key k to have value v
+  template <typename Range, typename RangeIn, typename F>
+  static void update(Range& out, const RangeIn& entries, long cnt, const K& k, const F& f) {
     int i = 0;
-    while (!KeyEqual{}(k, entries[i].key)) {
+    while (!KeyEqual{}(k, entries[i].key) && i < cnt) {
       assert(i < cnt);
       out[i] = entries[i];
       i++;
     }
     out[i].key = entries[i].key;
-    out[i].value = v;
+    out[i].value = f(entries[i].value);
     i++;
     while (i < cnt) {
       out[i] = entries[i];
@@ -46,6 +53,7 @@ struct unordered_map {
     }
   }
 
+  // copy entries and remove entry with key k
   template <typename Range, typename RangeIn>
   static void remove(Range& out, const RangeIn& entries, long cnt, const K& k) {
     int i = 0;
@@ -60,23 +68,23 @@ struct unordered_map {
     }
   }
 
-  // what each slot in table points to
+  // what each bucket in table points to (if not bignode)
   template <int Size>
   struct Node : verlib::versioned {
     using node = Node<0>;
     int cnt;
     KV entries[Size];
-    int find(const K& k) {
+    int find_index(const K& k) {
       if (cnt <= 31) return find_key(entries, cnt, k);
       else return find_key(((BigNode*) this)->entries, cnt, k);
     }
 
-    std::optional<V> find_value(const K& k) {
-      if (cnt <= 31) {
-	int i = find(k);
+    std::optional<V> find(const K& k) {
+      if (cnt <= 31) { // regular node
+	int i = find_index(k);
 	if (i == -1) return {};
 	else return entries[i].value;
-      } else {
+      } else { // big node
 	int i = find_key(((BigNode*) this)->entries, cnt, k);
 	if (i == -1) return {};
 	else return ((BigNode*) this)->entries[i].value;
@@ -88,9 +96,10 @@ struct unordered_map {
       insert(entries, old->entries, cnt-1, k, v);
     }
 
-    Node(node* old, const K& k, const V& v, bool x) : cnt(old->cnt) {
+    template <typename F>
+    Node(node* old, const K& k, const F& f) : cnt(old->cnt) {
       assert(old != nullptr);
-      update(entries, old->entries, cnt, k, v);
+      update(entries, old->entries, cnt, k, f);
     }
 
     Node(node* old, const K& k) : cnt(old->cnt - 1) {
@@ -100,49 +109,58 @@ struct unordered_map {
   };
   using node = Node<0>;
 
+  // If a node overflows (cnt > 31), then it becomes a big node and its content
+  // is stored indirectly in a parlay sequence.
   struct BigNode : verlib::versioned {
+    using entries_type = parlay::sequence<KV>;
     int cnt;
-    parlay::sequence<KV> entries;
+    entries_type entries;
 
     BigNode(node* old, const K& k, const V& v) : cnt(old->cnt + 1) {
-      entries = parlay::sequence<KV>(cnt);
+      entries = entries_type(cnt);
       if (old->cnt == 31) insert(entries, old->entries, old->cnt, k, v);
       else insert(entries, ((BigNode*) old)->entries, old->cnt, k, v);
     }
 
-    BigNode(node* old, const K& k, const V& v, bool x) : cnt(old->cnt) {
-      entries = parlay::sequence<KV>(cnt);
-      update(entries, ((BigNode*) old)->entries, cnt, k, v);  }
+        template <typename F>
+    BigNode(node* old, const K& k, const F& f) : cnt(old->cnt) {
+      entries = entries_type(cnt);
+      update(entries, ((BigNode*) old)->entries, cnt, k, f);  }
 
     BigNode(node* old, const K& k) : cnt(old->cnt - 1) {
-      entries = parlay::sequence<KV>(cnt);
+      entries = entries_type(cnt);
       remove(entries, ((BigNode*) old)->entries, cnt+1, k); }
   };
 
-struct slot {
+  struct bucket
+// #ifndef UseCAS
+//     : verlib::lock
+// #endif
+  {
 #ifndef UseCAS
-  verlib::lock lck;
+    verlib::lock lck;
 #endif
+    node* load() {return ptr.load();}
     verlib::versioned_ptr<node> ptr;
-    slot() : ptr(nullptr) {}
+    bucket() : ptr(nullptr) {}
   };
 
+
   struct Table {
-    parlay::sequence<slot> table;
-    long size;
-    slot* get_slot(const K& k) {
+    parlay::sequence<bucket> table;
+    size_t size;
+    bucket* get_bucket(const K& k) {
       size_t idx = Hash{}(k)  & (size-1u);
       return &table[idx];
     }
     Table(size_t n) {
       int bits = 1 + parlay::log2_up(n);
       size = 1ul << bits;
-      table = parlay::sequence<slot>(size);
+      table = parlay::sequence<bucket>(size);
     }
   };
 
   Table hash_table;
-  unordered_map(size_t n) : hash_table(Table(n)) {}
 
   using Node1 = Node<1>;
   using Node3 = Node<3>;
@@ -162,12 +180,13 @@ struct slot {
     else return (node*) big_node_pool.new_obj(old, k, v);
   }
 
-  static node* update_node(node* old, const K& k, const V& v) {
-    if (old == nullptr) return (node*) node_pool_1.new_obj(old, k, v, true);
-    if (old->cnt < 3) return (node*) node_pool_3.new_obj(old, k, v, true);
-    else if (old->cnt < 7) return (node*) node_pool_7.new_obj(old, k, v, true);
-    else if (old->cnt < 31) return (node*) node_pool_31.new_obj(old, k, v, true);
-    else return (node*) big_node_pool.new_obj(old, k, v, true);
+  template <typename F>
+  static node* update_node(node* old, const K& k, const F& f) {
+    if (old == nullptr) return (node*) node_pool_1.new_obj(old, k, f);
+    if (old->cnt < 3) return (node*) node_pool_3.new_obj(old, k, f);
+    else if (old->cnt < 7) return (node*) node_pool_7.new_obj(old, k, f);
+    else if (old->cnt < 31) return (node*) node_pool_31.new_obj(old, k, f);
+    else return (node*) big_node_pool.new_obj(old, k, f);
   }
 
   static node* remove_from_node(node* old, const K& k) {
@@ -197,143 +216,161 @@ struct slot {
     else big_node_pool.destruct((BigNode*) old);
   }
 
-  //__attribute__((always_inline))
-  static std::optional<V> find_at(node* x, const K& k) {
-    if (KeyEqual{}(x->entries[0].key, k))
-      return x->entries[0].value;
-    return x->find_value(k);
+  // try to install a new node in bucket s
+  static std::optional<bool> try_update(bucket* s, node* old_node, node* new_node, bool ret_val) {
+#ifdef UseCAS
+    if (s->load() == old_node &&
+	s->ptr.cas(old_node, new_node)) 
+#else  // use try_lock
+    if (s->lck.try_lock([=] {
+	    if (s->load() != old_node) return false;
+	    s->ptr = new_node;
+	    return true;})) 
+#endif
+    {
+      retire_node(old_node);
+      return ret_val;
+    } 
+    destruct_node(new_node);
+    return {};
+  }
+
+  static std::optional<bool> try_insert_at(bucket* s, const K& k, const V& v) {
+    node* old_node = s->load();
+    if (old_node != nullptr && old_node->find_index(k) != -1)
+#ifndef UseCAS
+      if (verlib::validate(s->lck, &(s->ptr), old_node)) return false;
+      else return {};
+#else
+      return false;
+#endif
+    return try_update(s, old_node, insert_to_node(old_node, k, v), true);
+  }
+
+  template <typename F>
+  static std::optional<bool> try_upsert_at(bucket* s, const K& k, F& f) {
+    node* old_node = s->load();
+    bool found = old_node != nullptr && old_node->find_index(k) != -1;
+    if (!found)
+      try_update(s, old_node, insert_to_node(old_node, k, f(std::optional<V>())), true);
+    else
+#ifdef UseCAS
+    return try_update(s, old_node, update_node(old_node, k, f), false);
+#else  // use try_lock
+    if (s->lck.try_lock([=] {
+        if (s->load() != old_node) return false;
+	*s = update_node(old_node, k, f); // f applied within lock
+	return true;})) {
+      retire_node(old_node);
+      return false;
+    } else return {};
+#endif
+  }
+
+  static std::optional<bool> try_remove_at(bucket* s, const K& k) {
+    node* old_node = s->load();
+    if (old_node == nullptr || old_node->find_index(k) == -1)
+#ifndef UseCAS
+      {if (verlib::validate(s->lck, &(s->ptr), old_node)) return false;
+	else return {};}
+#else
+      return false;
+#endif
+    return try_update(s, old_node, remove_from_node(old_node, k), true);
+  }
+
+public:
+  unordered_map(size_t n) : hash_table(Table(n)) {}
+  ~unordered_map() {
+    auto& table = hash_table.table;
+    parlay::parallel_for (0, table.size(), [&] (size_t i) {
+      retire_node(table[i].load());});
+  }
+  
+  std::optional<V> find(const K& k) {
+    bucket* s = hash_table.get_bucket(k);
+    __builtin_prefetch (s);
+    return verlib::with_epoch([&] {
+      node* x = s->load();
+      if (x == nullptr) return std::optional<V>();
+      return std::optional<V>(x->find(k));
+    });
   }
 
   std::optional<V> find_(const K& k) {
-    slot* s = hash_table.get_slot(k);
-    node* x = s->ptr.load();
-    if (x == nullptr) return {};
-    return find_at(x, k);
+    bucket* s = hash_table.get_bucket(k);
+    node* x = s->load();
+    if (x == nullptr) return std::optional<V>();
+    return std::optional<V>(x->find(k));
   }
 
-  std::optional<V> find(const K& k) {
-    slot* s = hash_table.get_slot(k);
-    __builtin_prefetch (s);
-    return verlib::with_epoch([&] {
-      node* x = s->ptr.load();
-      if (x == nullptr) return std::optional<V>();
-      if (KeyEqual{}(x->entries[0].key, k))
-	return std::optional<V>(x->entries[0].value);
-      return std::optional<V>(x->find_value(k));});
-  }
-
-  std::optional<V> find_locked(const K& k) {
-    return flck::try_loop([&] {return try_find(k);});
+  static std::optional<V> find_at(node* x, const K& k) {
+    if (KeyEqual{}(x->entries[0].key, k))
+      return x->entries[0].value;
+    return x->find(k);
   }
 
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
-    slot* s = hash_table.get_slot(k);
-    node* x = s->ptr.load();
+    bucket* s = hash_table.get_bucket(k);
+    node* x = s->load();
     if (x == nullptr) return ot(std::optional<V>());
     if (verlib::validate(s->lck, &s->ptr, x))
       return ot(find_at(x, k));
     return ot();
   }
 
-  static std::optional<bool> try_insert_at(slot* s, const K& k, const V& v, bool upsert) {
-    node* x = s->ptr.load();
-    node* new_node;
-    bool found = x != nullptr && x->find(k) != -1;
-    if (found)
-      if (upsert)
-	new_node = update_node(x, k, v);
-#ifndef UseCAS
-      else if (verlib::validate(s->lck, &(s->ptr), x))
-	return false;
-      else return {};
-#else
-      else return false;
-#endif
-
-    else new_node = insert_to_node(x, k, v);
-#ifdef UseCAS
-    if(s->ptr.cas(x, new_node)) {
-      retire_node(x);
-      return true;
-    } 
-#else  // use try_lock
-    if (s->lck.try_lock([=] {
-        if (s->ptr.load() != x) return false;
-	s->ptr = new_node;
-	retire_node(x);
-	return true;}))
-      return !found;
-#endif
-    destruct_node(new_node); 
-    return {}; // failed
+  std::optional<V> find_locked(const K& k) {
+    return flck::try_loop([&] {return try_find(k);});
   }
-    
+
   bool insert(const K& k, const V& v) {
-    slot* s = hash_table.get_slot(k);
+    bucket* s = hash_table.get_bucket(k);
     __builtin_prefetch (s);
     return verlib::with_epoch([&] {
-      return flck::try_loop([&] {return try_insert_at(s, k, v, false);});});
+      return flck::try_loop([&] {return try_insert_at(s, k, v);});});
   }
 
-  bool upsert(const K& k, const V& v) {
-    slot* s = hash_table.get_slot(k); 
+  bool insert_(const K& k, const V& v) {
+    bucket* s = hash_table.get_bucket(k);
+    return flck::try_loop([&] {return try_insert_at(s, k, v);});
+  }
+
+  template <typename F>
+  bool upsert(const K& k, const F& f) {
+    bucket* s = hash_table.get_bucket(k);
+    __builtin_prefetch (s);
     return verlib::with_epoch([&] {
-      return flck::try_loop([&] {return try_insert_at(s, k, v, true);});});
+      return flck::try_loop([&] {return try_update_at(s, k, f);});});
   }
 
-   bool insert_(const K& k, const V& v) {
-     slot* s = hash_table.get_slot(k); 
-     return flck::try_loop([&] {return try_insert_at(s, k, v, false);});
-   }
-  
-  static std::optional<bool> try_remove_at(slot* s, const K& k) {
-      node* x = s->ptr.load();
-      if (x == nullptr || x->find(k) == -1)
-#ifndef UseCAS
-	if (verlib::validate(s->lck, &(s->ptr), x))
-	  return false;
-      	else return {};
-#else
-        return false;
-#endif
-
-      node* new_node = remove_from_node(x, k);
-#ifdef UseCAS
-      if(s->ptr.cas(x, new_node)) {
-        retire_node(x);
-        return true;
-      } 
-#else
-      if (s->lck.try_lock([=] {
-	    if (s->ptr.load() != x) return false;
-	    s->ptr = new_node;
-	    retire_node(x);
-	    return true;}))
-	return true;
-#endif
-      destruct_node(new_node);
-      return {};
+  template <typename F>
+  bool upsert_(const K& k, const F& f) {
+    bucket* s = hash_table.get_bucket(k);
+    return flck::try_loop([&] {return try_update_at(s, k, f);});
   }
 
   bool remove(const K& k) {
-    slot* s = hash_table.get_slot(k);
+    bucket* s = hash_table.get_bucket(k);
     __builtin_prefetch (s);
     return verlib::with_epoch([&] {
       return flck::try_loop([&] {return try_remove_at(s, k);});});
   }
 
-   bool remove_(const K& k) {
-     slot* s = hash_table.get_slot(k); 
-     return flck::try_loop([&] {return try_remove_at(s, k);});
-   }
-
-  ~unordered_map() {
-    auto& table = hash_table.table;
-    parlay::parallel_for (0, table.size(), [&] (size_t i) {
-      retire_node(table[i].ptr.load());});
+  bool remove_(const K& k) {
+    bucket* s = hash_table.get_bucket(k);
+    return flck::try_loop([&] {return try_remove_at(s, k);});
   }
-  
+
+  long size() {
+    auto& table = hash_table.table;
+    auto s = parlay::tabulate(table.size(), [&] (size_t i) {
+	      node* x = table[i].load();
+	      if (x == nullptr) return 0;
+	      else return x->cnt;});
+    return parlay::reduce(s);
+  }
+
   void print() {
     auto& table = hash_table.table;
     for (size_t i=0; i < table.size(); i++) {
@@ -347,14 +384,7 @@ struct slot {
     std::cout << std::endl;
   }
 
-  long check() {
-    auto& table = hash_table.table;
-    auto s = parlay::tabulate(table.size(), [&] (size_t i) {
-	      node* x = table[i].ptr.load();
-	      if (x == nullptr) return 0;
-	      else return x->cnt;});
-    return parlay::reduce(s);
-  }
+  long check() { return size();}
 
   static void clear() {
     node_pool_1.clear();
@@ -372,6 +402,7 @@ struct slot {
   }
   static void reserve(size_t n) {}
   static void shuffle(size_t n) {}
+
 };
 
 template <typename K, typename V, typename H, typename E>
