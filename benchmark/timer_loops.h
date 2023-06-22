@@ -27,12 +27,14 @@ struct statistics {
   long mfind_count;
   long retry_count;
   long update_count;
+  long update_success_count;
   long query_count;
-  long found_count;
+  long query_total_value;
   long within_latency;
   statistics() :
     total(0), added_count(0), range_count(0), range_sum(0), mfind_count(0), retry_count(0), 
-    update_count(0), query_count(0), found_count(0), within_latency(0) {}
+    update_count(0), update_success_count(0),
+    query_count(0), query_total_value(0), within_latency(0) {}
 };
 
 // for adding across processors
@@ -45,8 +47,9 @@ statistics adds(statistics s1, statistics s2) {
   r.mfind_count = s1.mfind_count + s2.mfind_count;
   r.retry_count = s1.retry_count + s2.retry_count;
   r.update_count = s1.update_count + s2.update_count;
+  r.update_success_count = s1.update_success_count + s2.update_success_count;
   r.query_count = s1.query_count + s2.query_count;
-  r.found_count = s1.found_count + s2.found_count;
+  r.query_total_value = s1.query_total_value + s2.query_total_value;
   r.within_latency = s1.within_latency + s2.within_latency;
   return r;
 }    
@@ -140,8 +143,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
       size_t len = tr.check();
       if (len != 0) {
 	std::cout << "BAD LENGTH = " << len << std::endl;
-      } else if(verbose) {
-	std::cout << "CHECK PASSED" << std::endl;
       }
     }
 
@@ -163,7 +164,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
     if (do_check) {
       initial_size = tr.check();
-      if (verbose) std::cout << "initial size = " << initial_size << std::endl;
     }
 
     size_t mp = m/p;
@@ -220,25 +220,26 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	if (latency > 0) start_op_time = get_time();
 #endif
 	if (j + trans_size > end) j = start;
-	if (jj + trans_size > end) jj = start;
+	if (jj + trans_size > end) jj = start + trans_size;
 
 	// run trans_size operations atomically in a transaction
-	auto [added, queries, found] = verlib::with_transaction([&] {
+	auto [added, queries, found, update_success] = verlib::with_transaction([&] {
 	  int loc_added = 0;
 	  int loc_queries = 0;
 	  int loc_found = 0;
+	  int loc_update_success = 0;
 	  for (int k=0; k < trans_size; k++) {
 	    if (op_types[jj+k] == Find) {
 	      loc_queries += 1;
 	      auto val = tr.find_locked(all[j+k]);
 	      if (val.has_value()) loc_found += val.value();
 	    } else if (op_types[jj+k] == Insert) {
-	      if (tr.insert_(all[j+k], default_value)) loc_added++;
+	      if (tr.insert_(all[j+k], default_value)) {loc_added++; loc_update_success++;}
 	    } else if (op_types[jj+k] == Remove) {
-	      if (tr.remove_(all[j+k])) loc_added--;
+	      if (tr.remove_(all[j+k])) {loc_added--; loc_update_success++;}
 	    }
 	  }
-	  return std::optional{std::tuple{loc_added, loc_queries, loc_found}};});
+	  return std::optional{std::tuple{loc_added, loc_queries, loc_found, loc_update_success}};});
 #ifdef Latency
 	if (latency > 0)
 	  if (time_diff(start_op_time) < ((double) latency))
@@ -246,9 +247,11 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #endif
 	local_stats.added_count += added;
 	local_stats.query_count += queries;
-	local_stats.found_count += found;
-	local_stats.update_count += trans_size - local_stats.query_count;
+	local_stats.query_total_value += found;
+	local_stats.update_count += trans_size - queries;
+	local_stats.update_success_count += update_success;
 	j += trans_size;
+	jj += trans_size;
 	cnt += trans_size;
 	local_stats.total += trans_size;
       } 
@@ -277,19 +280,21 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	  local_stats.query_count++;
 	  auto val = tr.find(all[j]);
 	  if (val.has_value()) {
-	  //   if (val.value() != default_value) {
-	  //     std::cout << all[j] << ", " << val.value() << std::endl;
-	  //     abort();
-	  //   }
-	    local_stats.found_count += val.value();
+	    local_stats.query_total_value += val.value();
 	  }
 	} else if (op_types[jj] == Insert) {
 	  local_stats.update_count++;
-	  if (tr.insert(all[j], default_value)) local_stats.added_count++;
+	  if (tr.insert(all[j], default_value)) {
+	    local_stats.added_count++;
+	    local_stats.update_success_count++;
+	  }
 	}
 	else if (op_types[jj] == Remove) {
 	  local_stats.update_count++;
-	  if (tr.remove(all[j])) local_stats.added_count--;
+	  if (tr.remove(all[j])) {
+	    local_stats.added_count--;
+	    local_stats.update_success_count++;
+	  }
 	}
 
 #ifdef Range_Search
@@ -313,7 +318,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #endif
 	else { // multifind
 	  local_stats.mfind_count++;
-	  local_stats.found_count += verlib::with_snapshot([&] {
+	  local_stats.query_total_value += verlib::with_snapshot([&] {
 	    long loc_found = 0;
 	    long loc = j;
 	    for (long k = 0; k < range_size; k++) {
@@ -332,7 +337,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	  j += range_size;
 	  if (j >= end) j = start;
 	  jj += range_size;
-	  if (jj >= end) jj = start+1;
+	  if (jj >= end) jj = start+7;
 	  cnt += range_size;
 	  local_stats.total += range_size;
 	  continue;
@@ -343,7 +348,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	    within_latency++;
 #endif
 	if (++j >= end) j = start;
-	if (++jj >= end) jj = start+1;
+	if (++jj >= end) jj = start+7;
 	cnt++;
 	local_stats.total++;
       }
@@ -410,13 +415,30 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
       if (do_check) {
 	size_t final_cnt = tr.check();
-	long updates = overall_stats.added_count;
-	double total_found = overall_stats.found_count / default_value;
+	long total_added = overall_stats.added_count;
+	long total_updates = overall_stats.update_count;
+	double update_successes = overall_stats.update_success_count;
+	double update_success_ratio = update_successes / total_updates;
 	long total_queries = overall_stats.query_count;
+	double total_found = overall_stats.query_total_value / default_value;
 	double success_ratio = total_found / total_queries;
+	if (verbose) {
+	  std::cout << "total updates =     " << total_updates 
+		    << "\nsuccesful updates = " << (long) update_successes
+		    << "\ntotal queries =     " << total_queries 
+		    << "\nsuccesful queries = " << (long) total_found
+		    << "\ninitial size =      " << initial_size
+		    << "\ntotal added =       " << total_added
+		    << "\nfinal size =        " << final_cnt 
+		    << std::endl;
+	}
+		    
 	if (success_ratio < .45 || success_ratio > .55)
-	  std::cout << "bad success ratio on queries, should be .5 is "
+	  std::cout << "bad query success ratio, should be .5 is "
 		    << success_ratio << std::endl;
+	if (update_success_ratio < .3 || update_success_ratio > .55)
+	  std::cout << "bad update success ratio, should be .5 is "
+		    << update_success_ratio << std::endl;
 	if (multifind_percent > 0) {
 	  long mfind_sum = overall_stats.mfind_count;
 	  long retry_sum = overall_stats.retry_count;
@@ -436,13 +458,11 @@ void run_mixed_operations(parlay::sequence<K>& all,
 		    << std::endl;
 	}
 
-	if (initial_size + updates != final_cnt) {
+	if (initial_size + total_added != final_cnt) {
 	  std::cout << "bad size: initial size = " << initial_size 
-		    << ", added " << updates
+		    << ", added " << total_added
 		    << ", final size = " << final_cnt 
 		    << std::endl;
-	} else if(verbose) {
-	  std::cout << "CHECK PASSED" << std::endl;
 	}
       }
       // if (stats) {

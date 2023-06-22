@@ -39,6 +39,7 @@ namespace verlib {
     static bool is_tagged(TS sd) {return (sd >> bit_num) & 1;}
 
   public:
+    bool simple_stamp() { return stamp_or_descriptor.load() < failed;}
     bool has_descriptor() { return is_tagged(stamp_or_descriptor.load());}
 
     std::pair<trans_descriptor*, TS> get_descriptor_and_stamp() {
@@ -345,30 +346,37 @@ namespace verlib {
       else return (V*) ((ver_link*) ptr_)->value;
     }
 
-      
+
     V* load() {  
       assert(!is_helping() || current_transaction == nullptr);
-      if (local_stamp != -1) return read_snapshot();
-      if (current_transaction != nullptr) {
-	// first see if it is in the write log
-	std::optional<int> lid = find_in_write_log();
-	if (lid.has_value())
-	  return (V*) current_transaction->write_ptr_log[*lid].second;
+      if (local_stamp != -1)  return read_snapshot();
+      if (current_transaction == nullptr) {
+	versioned* ptr = v.load();
+	// skip get_value in common case
+	if (ptr != nullptr && !strip_indirect(ptr)->simple_stamp())
+	  ptr = get_value(ptr);
+	return get_ptr_shortcut(ptr);
+      } else return load_transactional();
+    }
+    
+    V* load_transactional() {
+      // first see if it is in the write log
+      std::optional<int> lid = find_in_write_log();
+      if (lid.has_value())
+	return (V*) current_transaction->write_ptr_log[*lid].second;
 
-	// if not then get the value and add to validate log if in a lock
-	versioned* cur = get_value(v.load());
-	if (in_lock) 
-	  current_transaction->validate_ptr_log.add(std::tuple(&v, cur));
+      // if not then get the value and add to validate log if in a lock
+      versioned* ptr = get_value(v.load());
+      if (in_lock) 
+	current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
 
-	// returns version at start_stamp for opacity
-	return get_version(cur, start_stamp);
-      }
-      return get_ptr_shortcut(get_value(v.load()));
+      // returns version at start_stamp for opacity
+      return get_version(ptr, start_stamp);
     }
 
     void store(V* ptr) { 
       if (current_transaction != nullptr) {
-	// check if it is in the write log: update if so, otherwise add
+	// check if it is in the write log: update if so, otherwise add to write log
 	std::optional<int> lid = find_in_write_log();
 	if (lid.has_value()) current_transaction->write_ptr_log[*lid].second = ptr;
 	else current_transaction->write_ptr_log.add(std::pair(&v,ptr));
