@@ -22,22 +22,24 @@ private:
   struct KV {K key; V value;};
 
   template <typename Range>
-  static int find_key(const Range& entries, long cnt, const K& k) {
+  static int find_in_range(const Range& entries, long cnt, const K& k) {
     for (int i=0; i < cnt; i++)
       if (KeyEqual{}(entries[i].key, k)) return i;
     return -1;
   }
 
-  // copy entries and insert k,v at end
+  // The following three functions copy a range and
+  // insert/update/remove the specified key.  No ordering is assumed
+  // within the range.  Insert assumes k does not appear, while
+  // update/remove assume it does appear.
   template <typename Range, typename RangeIn>
-  static void insert(Range& out, const RangeIn& entries, long cnt, const K& k, const V& v) {
+  static void copy_and_insert(Range& out, const RangeIn& entries, long cnt, const K& k, const V& v) {
     for (int i=0; i < cnt; i++) out[i] = entries[i];
     out[cnt] = KV{k,v};
   }
 
-  // copy entries and update entry with key k to have value v
   template <typename Range, typename RangeIn, typename F>
-  static void update(Range& out, const RangeIn& entries, long cnt, const K& k, const F& f) {
+  static void copy_and_update(Range& out, const RangeIn& entries, long cnt, const K& k, const F& f) {
     int i = 0;
     while (!KeyEqual{}(k, entries[i].key) && i < cnt) {
       assert(i < cnt);
@@ -53,9 +55,8 @@ private:
     }
   }
 
-  // copy entries and remove entry with key k
   template <typename Range, typename RangeIn>
-  static void remove(Range& out, const RangeIn& entries, long cnt, const K& k) {
+  static void copy_and_remove(Range& out, const RangeIn& entries, long cnt, const K& k) {
     int i = 0;
     while (!KeyEqual{}(k, entries[i].key)) {
       assert(i < cnt);
@@ -68,43 +69,51 @@ private:
     }
   }
 
-  // what each bucket in table points to (if not bignode)
+  // Each bucket points to a Node of some Size, or to a BigNode (defined below)
+  // A node contains an array of up to Size entries (actual # of entries given by cnt)
+  // Sizes are 1, 3, 7, 31
   template <int Size>
   struct Node : verlib::versioned {
     using node = Node<0>;
     int cnt;
     KV entries[Size];
+
+    // return index of key in entries, or -1 if not found
     int find_index(const K& k) {
-      if (cnt <= 31) return find_key(entries, cnt, k);
-      else return find_key(((BigNode*) this)->entries, cnt, k);
+      if (cnt <= 31) return find_in_range(entries, cnt, k);
+      else return find_in_range(((BigNode*) this)->entries, cnt, k);
     }
 
+    // return optional value found in entries given a key
     std::optional<V> find(const K& k) {
       if (cnt <= 31) { // regular node
 	int i = find_index(k);
 	if (i == -1) return {};
 	else return entries[i].value;
       } else { // big node
-	int i = find_key(((BigNode*) this)->entries, cnt, k);
+	int i = find_in_range(((BigNode*) this)->entries, cnt, k);
 	if (i == -1) return {};
 	else return ((BigNode*) this)->entries[i].value;
       }
     }
 
+    // copy and insert
     Node(node* old, const K& k, const V& v) {
       cnt = (old == nullptr) ? 1 : old->cnt + 1;
-      insert(entries, old->entries, cnt-1, k, v);
+      copy_and_insert(entries, old->entries, cnt-1, k, v);
     }
 
+    // copy and update
     template <typename F>
     Node(node* old, const K& k, const F& f) : cnt(old->cnt) {
       assert(old != nullptr);
-      update(entries, old->entries, cnt, k, f);
+      copy_and_update(entries, old->entries, cnt, k, f);
     }
 
+    // copy and remove
     Node(node* old, const K& k) : cnt(old->cnt - 1) {
-      if (cnt == 31) remove(entries, ((BigNode*) old)->entries, cnt+1, k);
-      else remove(entries, old->entries, cnt+1, k);
+      if (cnt == 31) copy_and_remove(entries, ((BigNode*) old)->entries, cnt+1, k);
+      else copy_and_remove(entries, old->entries, cnt+1, k);
     }
   };
   using node = Node<0>;
@@ -116,30 +125,31 @@ private:
     int cnt;
     entries_type entries;
 
+    // copy and insert
     BigNode(node* old, const K& k, const V& v) : cnt(old->cnt + 1) {
       entries = entries_type(cnt);
-      if (old->cnt == 31) insert(entries, old->entries, old->cnt, k, v);
-      else insert(entries, ((BigNode*) old)->entries, old->cnt, k, v);
+      if (old->cnt == 31) copy_and_insert(entries, old->entries, old->cnt, k, v);
+      else copy_and_insert(entries, ((BigNode*) old)->entries, old->cnt, k, v);
     }
 
-        template <typename F>
+    // copy and update
+    template <typename F>
     BigNode(node* old, const K& k, const F& f) : cnt(old->cnt) {
       entries = entries_type(cnt);
-      update(entries, ((BigNode*) old)->entries, cnt, k, f);  }
+      copy_and_update(entries, ((BigNode*) old)->entries, cnt, k, f);  }
 
+    // copy and remove
     BigNode(node* old, const K& k) : cnt(old->cnt - 1) {
       entries = entries_type(cnt);
-      remove(entries, ((BigNode*) old)->entries, cnt+1, k); }
+      copy_and_remove(entries, ((BigNode*) old)->entries, cnt+1, k); }
   };
 
+  // structure for each bucket
   struct bucket
-// #ifndef UseCAS
-//     : verlib::lock
-// #endif
+ #ifndef UseCAS
+     : verlib::lock
+ #endif
   {
-#ifndef UseCAS
-    verlib::lock lck;
-#endif
     node* load() {return ptr.load();}
     verlib::versioned_ptr<node> ptr;
     bucket() : ptr(nullptr) {}
@@ -222,7 +232,7 @@ private:
     if (s->load() == old_node &&
 	s->ptr.cas(old_node, new_node)) 
 #else  // use try_lock
-    if (s->lck.try_lock([=] {
+    if (s->try_lock([=] {
 	    if (s->load() != old_node) return false;
 	    s->ptr = new_node;
 	    return true;})) 
@@ -239,7 +249,7 @@ private:
     node* old_node = s->load();
     if (old_node != nullptr && old_node->find_index(k) != -1)
 #ifndef UseCAS
-      if (verlib::validate(s->lck, &(s->ptr), old_node)) return false;
+      if (verlib::validate(*((verlib::lock*) s), &(s->ptr), old_node)) return false;
       else return {};
 #else
       return false;
@@ -257,7 +267,7 @@ private:
 #ifdef UseCAS
     return try_update(s, old_node, update_node(old_node, k, f), false);
 #else  // use try_lock
-    if (s->lck.try_lock([=] {
+    if (s->try_lock([=] {
         if (s->load() != old_node) return false;
 	*s = update_node(old_node, k, f); // f applied within lock
 	return true;})) {
@@ -271,12 +281,20 @@ private:
     node* old_node = s->load();
     if (old_node == nullptr || old_node->find_index(k) == -1)
 #ifndef UseCAS
-      {if (verlib::validate(s->lck, &(s->ptr), old_node)) return false;
+      {if (verlib::validate(*((verlib::lock*) s), &(s->ptr), old_node)) return false;
 	else return {};}
 #else
       return false;
 #endif
     return try_update(s, old_node, remove_from_node(old_node, k), true);
+  }
+
+  // find a key at the given bucket
+  static std::optional<V> find_at(node* x, const K& k) {
+    if (x == nullptr) return std::optional<V>();
+    if (KeyEqual{}(x->entries[0].key, k))
+      return x->entries[0].value;
+    return x->find(k);
   }
 
 public:
@@ -291,31 +309,19 @@ public:
     bucket* s = hash_table.get_bucket(k);
     __builtin_prefetch (s);
     return verlib::with_epoch([&] {
-      node* x = s->load();
-      if (x == nullptr) return std::optional<V>();
-      return std::optional<V>(x->find(k));
-    });
+		return find_at(s->load(), k);});
   }
 
   std::optional<V> find_(const K& k) {
     bucket* s = hash_table.get_bucket(k);
-    node* x = s->load();
-    if (x == nullptr) return std::optional<V>();
-    return std::optional<V>(x->find(k));
-  }
-
-  static std::optional<V> find_at(node* x, const K& k) {
-    if (KeyEqual{}(x->entries[0].key, k))
-      return x->entries[0].value;
-    return x->find(k);
+    return find_at(s->load(), k);
   }
 
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     bucket* s = hash_table.get_bucket(k);
     node* x = s->load();
-    if (x == nullptr) return ot(std::optional<V>());
-    if (verlib::validate(s->lck, &s->ptr, x))
+    if (verlib::validate(*((verlib::lock*) s), &s->ptr, x))
       return ot(find_at(x, k));
     return ot();
   }

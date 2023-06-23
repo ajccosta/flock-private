@@ -37,6 +37,8 @@ foreach(bench ${FLOCK_BENCH_RECORDED_ONCE})
 endforeach()
 
 add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
+#add_benchmark(hash_grow ${STRUCT_DIR}/hash_grow "NoHelp")
+#add_benchmark(hash_grow_test ${STRUCT_DIR}/hash_grow_test "NoHelp")
 
 foreach(bench ${FLOCK_BENCH})
   add_benchmark(${bench} ${STRUCT_DIR}/${bench} "NoHelp")

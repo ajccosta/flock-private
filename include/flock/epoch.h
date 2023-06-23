@@ -74,15 +74,19 @@ struct alignas(64) epoch_s {
 
   std::pair<bool,int> announce() {
     size_t id = get_my_id();
-    long current_e = get_current();
+    while (true) {
+      long current_e = get_current();
 #ifdef NestedEpochs
-    long old = -1l;
-    return std::pair(announcements[id].last.compare_exchange_strong(old, current_e),id);
+      long old = -1l;
+      bool succeeded = announcements[id].last.compare_exchange_strong(old, current_e);
+      if (get_current() == current_e) return std::pair(succeeded, id);
 #else
-    // apparently an exchange is faster than a store (write and fence)
-    announcements[id].last.exchange(current_e, std::memory_order_seq_cst);
-    return std::pair(true, id);
+      long tmp = current_e;
+      // apparently an exchange is faster than a store (write and fence)
+      announcements[id].last.exchange(tmp, std::memory_order_seq_cst);
+      if (get_current() == current_e) return std::pair(true, id);
 #endif
+    }
   }
 
   void unannounce(int id) {
@@ -95,7 +99,7 @@ struct alignas(64) epoch_s {
     long current_e = get_current();
     bool all_there = true;
     // check if everyone is done with earlier epochs
-    for (int j=0; j<2; j++) //do twice
+    for (int j=0; j<1; j++) //do twice
       for (int i=0; i < workers; i++)
       	if ((announcements[i].last != -1l) && announcements[i].last < current_e) 
       	  all_there = false;
