@@ -97,19 +97,19 @@ struct alignas(64) epoch_s {
     size_t id = get_my_id();
     int workers = parlay::num_workers();
     long current_e = get_current();
-    bool all_there = true;
     // check if everyone is done with earlier epochs
-    for (int j=0; j<1; j++) //do twice
+    for (int j=0; j< 2; j++)
+      // Loop is applied twice since when using lock-free locks an
+      // epoch number can be copied down in the array and then removed
+      // from the higher slot. This is due to inhereting the epoch of
+      // a thunk you are helping, which can then finish before you do.
       for (int i=0; i < workers; i++)
       	if ((announcements[i].last != -1l) && announcements[i].last < current_e) 
-      	  all_there = false;
-    // if so then increment current epoch
-    if (all_there) {
-      for (auto h : before_epoch_hooks) h();
-      if (current_epoch.compare_exchange_strong(current_e, current_e+1)) {
-	for (auto h : after_epoch_hooks) h();
-      }
-    }
+      	  return; // quit if not ready
+    // ready, so try to increment
+    for (auto h : before_epoch_hooks) h();
+    if (current_epoch.compare_exchange_strong(current_e, current_e+1)) 
+      for (auto h : after_epoch_hooks) h();
   }
 };
 

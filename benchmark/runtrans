@@ -10,7 +10,7 @@ class transactions(parameters) :
     trees = ["arttree", "btree", "hash_block"]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
-    trans_sizes = [0, 1, 16]
+    trans_sizes = [0, 16]
     mix_percents = [[5,0,0,0], [50,0,0,0]]
     suffixes_all = ["", "_validate", "_validate_lf"]
                     
