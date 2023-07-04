@@ -58,8 +58,9 @@ struct alignas(64) epoch_s {
   }
 
   static int get_my_id() {
-    if (my_id == -1) my_id = parlay::worker_id();
-    return my_id;
+    //if (my_id == -1) my_id = parlay::worker_id();
+    //return my_id;
+    return parlay::worker_id();
   }
 
   long get_my_epoch() {
@@ -163,8 +164,9 @@ private:
   int workers;
 
   static int get_my_id() {
-    if (my_id == -1) my_id = parlay::worker_id();
-    return my_id;
+    //if (my_id == -1) my_id = parlay::worker_id();
+    //return my_id;
+    return parlay::worker_id();
   }
 
   bool* add_to_current_list(void* p) {

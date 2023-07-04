@@ -14,6 +14,8 @@ def getArg(str, default) :
         return sys.argv[i+1]                                                                        
   return default
 
+
+
 rounds = int(getArg("-r", 0));
 
 time = float(getArg("-t", 0.0));
@@ -36,17 +38,13 @@ class parameters :
     suffixes_all = [""]
     suffixes_ro = []
     mix_percents = [[5,0,0,0]]
-    trans_sizes = [1]
+    trans_sizes = [0]
     
 today = date.today().strftime("%m_%d_%y")
 hostname = socket.gethostname()
 
 print(hostname)
 print(today)
-filename = "../../timings/" + hostname[0:5] + "_trans" + "_" + today
-    
-if os.path.exists(filename) :
-    os.remove(filename)
     
 def detectCPUs():
     """
@@ -79,24 +77,27 @@ def getProcessors() :
         processors = [1,4,16]+list(range(16,maxcpus+1,16))
     return processors
 
-def runstring(op) :
-    if test_only :
-        cmd = op
+def runstring(op, outfile) :
+    use_outfile = not(test_only) and len(outfile) > 0
+    if use_outfile :
+        cmd = op + " >> " + outfile
     else :
-        cmd = op + " >> " + filename
+        cmd = op
     os.system("echo \"" + cmd + "\"")
     x = os.system(cmd)
     if (x) :
         if (os.WEXITSTATUS(x) == 0) : raise NameError("  aborted: " + op)
-        if not(test_only) :
-            os.system("echo \"Failed: " + op + "\" >> " + filename)
+        if use_outfile :
+            os.system("echo \"Failed: " + op + "\" >> " + outfile)
         os.system("echo Failed")
 
 rounds = 0
 
-def runtest(test,procs,n,z,mix,ts,params) :
+def runtest(test,procs,n,z,mix,ts,params,filename) :
     num_threads = maxcpus-1
-    str_mix = "-u " + str(mix[0]) + " -mfind " + str(mix[1]) + " -range " + str(mix[2]) + " "
+    if mix[1] > 0: str_mfind = "-mfind "
+    else : str_mfind = ""
+    str_mix = "-u " + str(mix[0]) + " -range " + str(mix[2]) + " "
     str_rs = "-rs " + str(mix[3]) + " "
     str_zipfians = "-z " + str(z) + " "
     str_trans_size = "-trans " + str(ts) + " "
@@ -110,21 +111,24 @@ def runtest(test,procs,n,z,mix,ts,params) :
     str_n = "-n " + str(n) + " "
     if shuffle : str_other = "-shuffle "
     else : str_other = ""
-    runstring("PARLAY_NUM_THREADS=" + str(num_threads) + " numactl -i all ./" + test + " " + str_time + str_rounds + str_n + str_mix + str_rs + str_zipfians + str_trans_size + str_other)
+    runstring("PARLAY_NUM_THREADS=" + str(num_threads) + " numactl -i all ./" + test + " " + str_time + str_rounds + str_n + str_mfind + str_mix + str_rs + str_zipfians + str_trans_size + str_other, filename)
 
-def run_tests(tests, sizes, params) :
+def run_tests(tests, sizes, params, filename) :
     for test in tests :
         for suffix in params.suffixes_all:
             for n in sizes :
                 for mix in params.mix_percents :
                     for ts in params.trans_sizes :
                         for z in params.zipfians :
-                            runtest(test + suffix, maxcpus, n, z, mix, ts, params)
+                            runtest(test + suffix, maxcpus, n, z, mix, ts, params, filename)
                 with open(filename, "a") as f:
                     f.write("...\n")
 
 
 def run_all(params) :
+    filename = "../../../timings/" + hostname[0:5] + "_" + params.file_suffix + "_" + today
+    if os.path.exists(filename) :
+        os.remove(filename)
     if test_only :
         params.time = .2
         params.zipfians = [.99]
@@ -133,8 +137,9 @@ def run_all(params) :
         params.trans_sizes = [16]
         params.mix_percents = [[50,0,0,0]]
     processors = getProcessors()
-    os.system("pushd ..; make -j")
-    runstring("git rev-parse --short HEAD")
-    run_tests(params.trees, params.tree_sizes, params)
-    run_tests(params.lists, params.list_sizes, params)            
+    run_tests(params.trees, params.tree_sizes, params, filename)
+    run_tests(params.lists, params.list_sizes, params, filename)            
                     
+def compile_all() :
+    os.system("make -j")
+    runstring("git rev-parse --short HEAD", "")

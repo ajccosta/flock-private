@@ -16,6 +16,16 @@ namespace verlib {
   
 #define bad_ptr ((void*) ((1ul << 48) -1))
 
+  const TS tbd = std::numeric_limits<TS>::max()/4;
+
+  template <typename T>
+  using atomic = flck::atomic<T>;
+  using lock = flck::lock;
+  using atomic_bool = flck::atomic_write_once<bool>;
+  using flck::memory_pool;
+  template <typename F>
+  auto do_now(F f) {return f();}
+
 struct versioned {
   std::atomic<TS> time_stamp;
   void* next_version;
@@ -139,5 +149,10 @@ public:
 
   V* operator=(V* b) {store(b); return b; }
 };
+
+    template <typename T, typename E>
+  bool validate(flck::lock& lck, T* v, E expected) {
+    return true;
+  }
 
 } // namespace verlib

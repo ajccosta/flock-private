@@ -13,7 +13,7 @@ if (getOption("-help") or getOption("-help")) :
     print("./runverlib [-compare] [-shuffle] [-t t] [-test] [-r n] [-all] [-help]")
 
 class compare_tests(parameters) :
-    file_suffix = "_compare"
+    file_suffix = "_compare_ver"
     trees = ["arttree","arttree_nohelp","../setbench/leis_olc_art","btree","btree_nohelp","../setbench/srivastava_abtree_pub"]
     tree_sizes = [100000, 10000000]
     lists = ["list", "list_nohelp", "harris_list"]
@@ -23,13 +23,14 @@ class compare_tests(parameters) :
     mix_percents = [[5,0,0,0], [50,0,0,0]]
 
 class verlib_tests(parameters) :
+    file_suffix = "_ver"
     lists = ["dlist", "list"]
     list_sizes = [100,1000]
     trees = ["hash_block_lf", "arttree", "btree"]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     mix_percents = [[5,0,0,0], [5,25,0,4], [5,25,0,16], [5,0,95,48], [50,0,0,0]]
-    suffixes_all = ["","_nohelp","_indirect_ls","_noshortcut_ls","_ver_ls","_ver_rs","_ver_ws","_ver_ns","_ver_hw", "_ver_nohelp_ls","_ver_ls_ss"]
+    suffixes_all = ["", "_lf", "_versioned", "_versioned_lf", "_indirect_ls", "_noshortcut_ls", "_ver_ls", "_ver_rs", "_ver_ws", "_ver_ns"]
 
 if all :
     params.lists = params.lists + ["list_onelock"];

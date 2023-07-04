@@ -2,9 +2,10 @@
 #
 # run all tests
 #
-from runtests import *
+from ../runtests import *
 
 class transactions(parameters) :
+    file_suffix = "trans"
     lists = ["list"]
     list_sizes = [100,1000]
     trees = ["arttree", "btree", "hash_block"]

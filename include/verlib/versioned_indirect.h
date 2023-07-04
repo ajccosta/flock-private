@@ -3,6 +3,17 @@
 #include "timestamps.h"
 
 namespace verlib {
+  const TS tbd = std::numeric_limits<TS>::max()/4;
+
+  
+  template <typename T>
+  using atomic = flck::atomic<T>;
+  using lock = flck::lock;
+  using atomic_bool = flck::atomic_write_once<bool>;
+  using flck::memory_pool;
+  template <typename F>
+  auto do_now(F f) {return f();}
+
 struct versioned {};
 
 struct version_link {
@@ -99,5 +110,10 @@ public:
 
   V* operator=(V* b) {store(b); return b; }
 };
+
+  template <typename T, typename E>
+  bool validate(flck::lock& lck, T* v, E expected) {
+    return true;
+  }
 
 } // namespace verlib

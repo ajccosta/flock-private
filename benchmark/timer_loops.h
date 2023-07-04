@@ -5,10 +5,11 @@
 // a mix of operations, specified as follows
 //   -u <update percent>
 //   -range <range query percent>
-//   -mfind <multifind percent>
 // any left over percent goes to finds.
 //   -rs <size>
 // specifies the size of the range query or multifind.
+//   -mfind
+// specifies the queries should be grouped as multi finds (not compatible with range)
 // If
 //   -range_query_threads <num threads>
 // is specified then that percent of threads are dedicated to range
@@ -74,7 +75,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
   int update_percent = P.getOptionIntValue("-u", 20); 
   int range_size = P.getOptionIntValue("-rs",16);
   int range_percent = P.getOptionIntValue("-range",0);
-  int multifind_percent = P.getOptionIntValue("-mfind",0);
+  int multifind = P.getOption("-mfind");
   int trans_size = P.getOptionIntValue("-trans", 0);
   int trans_percent = P.getOptionIntValue("-tp", 0);
   int latency = P.getOptionIntValue("-latency", 0); // in microseconds
@@ -119,16 +120,20 @@ void run_mixed_operations(parlay::sequence<K>& all,
   enum op_type : char {Find, Insert, Remove, Range, MultiFind, Trans};
  
   // initially set to all finds
+  float update_per = update_percent;
   parlay::sequence<op_type> op_types(m, Find);
+  if (multifind) {
+    float update_frac = update_per / 100.0;
+    update_per = 100.0 * range_size * update_frac / (1 + (range_size - 1) * update_frac);
+  }
 
   op_types = parlay::tabulate(m, [&] (size_t i) -> op_type {
-      auto h = parlay::hash64(m+i)%200;
-      if (h < update_percent) return Insert; 
-      else if (h < 2*update_percent) return Remove;
-      else if (h < 2*(update_percent + range_percent)) return Range;
-      else if (h < 2*(update_percent + range_percent + multifind_percent))
-	return MultiFind;
-      else if (h < 2*(update_percent + range_percent + multifind_percent + trans_percent))
+      auto h = parlay::hash64(m+i)%2000;
+      if (h < 10*update_per) return Insert; 
+      else if (h < 20*update_per) return Remove;
+      else if (multifind) return MultiFind;
+      else if (h < 20*(update_percent + range_percent)) return Range;
+      else if (h < 20*(update_percent + range_percent + trans_percent))
 	return Trans;
       else return Find; });
 
@@ -337,7 +342,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	  j += range_size;
 	  if (j >= end) j = start;
 	  jj += range_size;
-	  if (jj >= end) jj = start+7;
+	  if (jj >= end) jj = start+range_size;
 	  cnt += range_size;
 	  local_stats.total += range_size;
 	  continue;
@@ -390,7 +395,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 		  << P.commandName() << ","
 		  << update_percent << "%update,"
 		  << range_percent << "%range,"
-		  << multifind_percent << "%mfind,"
+		  << (multifind ? "mfind," : "") 
 		  << "rs=" << range_size << ","
 		  << "trans=" << trans_size << ","
 		  << "n=" << n << ","
@@ -402,7 +407,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
 		  << P.commandName() << ","
 		  << update_percent << "%update,"
 		  << range_percent << "%range,"
-		  << multifind_percent << "%mfind,"
 		  << "rs=" << range_size << ","
 		  << "trans=" << trans_size << ","
 		  << "n=" << n << ","
@@ -419,7 +423,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	long total_updates = overall_stats.update_count;
 	double update_successes = overall_stats.update_success_count;
 	double update_success_ratio = update_successes / total_updates;
-	long total_queries = overall_stats.query_count;
+	long total_mfind = overall_stats.mfind_count;
+	long total_queries = overall_stats.query_count + total_mfind * range_size;
 	double total_found = overall_stats.query_total_value / default_value;
 	double success_ratio = total_found / total_queries;
 	if (verbose) {
@@ -439,7 +444,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	if (update_success_ratio < .3 || update_success_ratio > .55)
 	  std::cout << "bad update success ratio, should be .5 is "
 		    << update_success_ratio << std::endl;
-	if (multifind_percent > 0) {
+	if (multifind && verbose) {
 	  long mfind_sum = overall_stats.mfind_count;
 	  long retry_sum = overall_stats.retry_count;
 #ifdef LazyStamp
@@ -451,11 +456,16 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	  long range_sum = overall_stats.range_sum;
 	  long retry_sum = overall_stats.retry_count;
 	  long num_queries = overall_stats.range_count;
-	  std::cout << "average range size = " << ((float) range_sum) / num_queries
+	  long av_range_size = ((float) range_sum) / num_queries;
+	  if (av_range_size > 1.05 * range_size || av_range_size < .95 * range_size)
+	    std::cout << "bad average range size: "
+		      << av_range_size << std::endl;
+	  if (verbose)
+	    std::cout << "average range size = " << ((float) range_sum) / num_queries
 #ifdef LazyStamp
-		    << ", retry percent = " << (double) 100 * retry_sum / num_queries 
+		      << ", retry percent = " << (double) 100 * retry_sum / num_queries 
 #endif
-		    << std::endl;
+		      << std::endl;
 	}
 
 	if (initial_size + total_added != final_cnt) {

@@ -82,6 +82,7 @@ hostname = socket.gethostname()
 print(hostname)
 print(today)
 filename = "../../timings/" + hostname + "_" + today + file_suffix
+print(filename)
     
 if os.path.exists(filename) :
     os.remove(filename)
