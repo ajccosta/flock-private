@@ -15,7 +15,7 @@ class versioned(parameters) :
     trees = ["arttree", "btree"]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
-    mix_percents = [[5,0,0,0], [5,1,0,16], [50,0,0,0]]
+    mix_percents = [[5,0,0,0], [5,1,0,16], [50,0,0,0], [50,1,0,16]]
     suffixes_all = ["_lck_noversion", "_lck_versioned_ls", "_lf_noversion", "_lf_indirect_ls", "_lf_noshortcut_ls", "_lf_versioned_hs", "_lf_versioned_ls", "_lf_versioned_rs" , "_lf_versioned_ws", "_lf_versioned_ns" ]
                     
 run_all(versioned)
