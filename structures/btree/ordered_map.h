@@ -27,7 +27,7 @@ struct ordered_map {
       : is_leaf(is_leaf), status(status), size(size), removed(false) {}
   };
 
-  static constexpr int leaf_block_bytes = 64 * 6;
+  static constexpr int leaf_block_bytes = 64 * 8;
   static constexpr int kv_bytes = leaf_block_bytes - sizeof(header);
   static constexpr int leaf_block_size = kv_bytes/sizeof(KV);
   static constexpr int leaf_min_size = leaf_block_size/5;

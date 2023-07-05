@@ -6,7 +6,7 @@ import sys
 sys.path.insert(1, '..')
 from runtests import *
 
-compile_all()
+compile_clear("ver")
 
 class versioned(parameters) :
     file_suffix = "ver"

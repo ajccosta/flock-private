@@ -273,7 +273,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
       statistics local_stats;
       auto start_time = get_time();
       auto start_op_time = start_time;
-      std::vector<K>& range_keys = range_buffers[i];
+      std::vector<K>& range_keys = range_buffers[proc_id];
 
       while (true) {
 	if (check_end(cnt, local_stats, proc_id, start_time)) return;
@@ -395,7 +395,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 		  << P.commandName() << ","
 		  << update_percent << "%update,"
 		  << range_percent << "%range,"
-		  << (multifind ? "mfind," : "") 
+		  << (multifind ? "mfind," : "find,") 
 		  << "rs=" << range_size << ","
 		  << "trans=" << trans_size << ","
 		  << "n=" << n << ","
