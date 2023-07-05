@@ -40,6 +40,7 @@ class range(parameters) :
     trees = ["btree"]
     tree_sizes = [10000000]
     zipfians = [0]
+    processors = [100]
     mix_percents = [[100,0,95,4], [100,0,95,64], [100,0,95,1024], [100,0,95,16384]]
     suffixes_all = ["_lf_versioned_hs", "_lf_versioned_ls", "_lf_versioned_rs"]
 
@@ -56,3 +57,16 @@ class scale(parameters) :
     suffixes_all = ["_lf_versioned_ls", "_lck_versioned_ls","_lf_noversion", "_lck_noversion"]
 
 run_all(scale)
+
+class other(parameters) :
+    file_suffix = "ver"
+    lists = []
+    trees = ["../../setbench/srivastava_abtree_pub", "../../setbench/leis_olc_art"]
+    tree_sizes = [10000000]
+    zipfians = [.99]
+    mix_percents = [[5,0,0,0]]
+    processors = [1,64,128,192,256]
+    suffixes_all = [""]
+
+run_all(other)
+
