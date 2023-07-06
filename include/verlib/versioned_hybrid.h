@@ -178,6 +178,42 @@ public:
 #endif
   
   bool cas(V* exp, V* ptr) {
+    versioned* old_v = v.load();
+    versioned* new_v = ptr;
+    V* old = get_ptr(old_v);
+    set_stamp(old_v);
+    if(old != exp) return false;
+    if (exp == ptr) return true;
+    bool use_indirect = (ptr == nullptr || ptr->time_stamp.load() != tbd);
+
+    if(use_indirect)
+      new_v = add_indirect(link_pool.new_obj(old_v, new_v));
+    else ptr->next_version = old_v;
+
+    bool succeeded = cas_from_cam(old_v, new_v);
+#ifndef NoShortcut
+    if (!succeeded && is_indirect(old_v)) {
+      old_v = ((ver_link*) strip_indirect(old_v))->value;
+      if (old_v == v.load())
+	succeeded = cas_from_cam(old_v, new_v);
+    }
+#endif
+    if (succeeded) {
+      set_stamp(new_v);
+      if (is_indirect(old_v))
+	link_pool.retire((ver_link*) strip_indirect(old_v));
+#ifndef NoShortcut
+      if (use_indirect) shortcut(new_v);
+#endif
+      return true;
+    } 
+    if (use_indirect)
+      link_pool.destruct((ver_link*) strip_indirect(new_v));
+    set_stamp(v.load());
+    return false;
+  }
+
+    bool casx(V* exp, V* ptr) {
 #ifndef NoShortcut
     for(int ii = 0; ii < 2; ii++) {
 #endif

@@ -116,6 +116,8 @@ namespace ART_OLC {
 
         static TID getLeaf(const N *n);
 
+        static TID getLeafVal(const N *n);
+
         static bool isLeaf(const N *n);
 
         static N *setLeaf(Keyval* kv);

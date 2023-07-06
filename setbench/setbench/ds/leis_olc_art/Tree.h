@@ -244,11 +244,12 @@ namespace ART_OLC {
                         parentNode->readUnlockOrRestart(v, needRestart);
                         if (needRestart) goto restart;
 
-                        TID tid = N::getLeaf(node);
+                        TID tid = N::getLeafVal(node);
+			if (tid != 123) {std::cout << tid << std::endl; abort();}
                         // std::cout << tid << std::endl;
-                        if (level < k.getKeyLen() - 1 || optimisticPrefixMatch) {
+                        if (false) {//level < k.getKeyLen() - 1 || optimisticPrefixMatch) {
                             // std::cout << "checkKey " << tid << std::endl;
-                            return checkKey(tid, k);
+			  return checkKey(tid, k);
                         }
                         return tid;
                     }
@@ -319,6 +320,7 @@ namespace ART_OLC {
                     // 2)  add node and (tid, *k) as children
                     Keyval* kv = recmgr->template allocate<Keyval>(tid);
                     kv->key = tid;
+		    kv->val = 123;
                     newNode->insert(k[nextLevel], N::setLeaf(kv)); // Anubhav: Looks like k has to be malloc'd
                     newNode->insert(nonMatchingKey, node);
 
@@ -345,6 +347,7 @@ namespace ART_OLC {
             if (nextNode == nullptr) {
                 Keyval* kv = recmgr->template allocate<Keyval>(tid);
                 kv->key = tid;
+		kv->val = 123;
                 N::insertAndUnlock(threadID, recmgr, node, v, parentNode, parentVersion, parentKey, nodeKey, N::setLeaf(kv), needRestart);
                 if (needRestart) goto restart;
                 return true;
@@ -377,6 +380,7 @@ namespace ART_OLC {
                 n4->setPrefix(&k[level], prefixLength);
                 Keyval* kv = recmgr->template allocate<Keyval>(tid);
                 kv->key = tid;
+		kv->val = 123;
                 n4->insert(k[level + prefixLength], N::setLeaf(kv));
                 n4->insert(key[level + prefixLength], nextNode);
                 N::change(node, k[level - 1], n4);

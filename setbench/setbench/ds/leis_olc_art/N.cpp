@@ -317,6 +317,11 @@ namespace ART_OLC {
         return (TID) kv->key;
     }
 
+    TID N::getLeafVal(const N *n) {
+        Keyval* kv = reinterpret_cast<Keyval*>(((uint64_t) n) & ((1ull << 63)-1));
+        return (TID) kv->val;
+    }
+
     std::tuple<N *, uint8_t> N::getSecondChild(N *node, const uint8_t key) {
         switch (node->getType()) {
             case NTypes::N4: {
