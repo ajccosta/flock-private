@@ -213,7 +213,7 @@ public:
     return false;
   }
 
-    bool casx(V* exp, V* ptr) {
+    bool casz(V* exp, V* ptr) {
 #ifndef NoShortcut
     for(int ii = 0; ii < 2; ii++) {
 #endif

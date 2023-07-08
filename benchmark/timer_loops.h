@@ -83,6 +83,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
   if (latency > 0)
     std::cout << "not compiled for the -latency argument, ignoring" << std::endl;
 #endif
+  //bool use_upsert = P.getOption("-upsert");
   
   // mix of threads
   int range_query_threads = P.getOptionIntValue("-rqthreads", 0);
@@ -289,6 +290,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	  }
 	} else if (op_types[jj] == Insert) {
 	  local_stats.update_count++;
+	  //if (tr.upsert(all[j], [=] (auto x) { return default_value;})) {
 	  if (tr.insert(all[j], default_value)) {
 	    local_stats.added_count++;
 	    local_stats.update_success_count++;

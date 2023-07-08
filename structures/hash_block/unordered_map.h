@@ -87,7 +87,9 @@ private:
     // return optional value found in entries given a key
     std::optional<V> find(const K& k) {
       if (cnt <= 31) { // regular node
-	int i = find_index(k);
+	if (KeyEqual{}(entries[0].key, k)) // shortcut for common case
+	   return entries[0].value;
+	int i = find_in_range(entries+1, cnt-1, k);
 	if (i == -1) return {};
 	else return entries[i].value;
       } else { // big node
@@ -262,14 +264,14 @@ private:
     node* old_node = s->load();
     bool found = old_node != nullptr && old_node->find_index(k) != -1;
     if (!found)
-      try_update(s, old_node, insert_to_node(old_node, k, f(std::optional<V>())), true);
+      return try_update(s, old_node, insert_to_node(old_node, k, f(std::optional<V>())), true);
     else
 #ifdef UseCAS
     return try_update(s, old_node, update_node(old_node, k, f), false);
 #else  // use try_lock
     if (s->try_lock([=] {
         if (s->load() != old_node) return false;
-	*s = update_node(old_node, k, f); // f applied within lock
+	s->ptr = update_node(old_node, k, f); // f applied within lock
 	return true;})) {
       retire_node(old_node);
       return false;
@@ -291,9 +293,7 @@ private:
 
   // find a key at the given bucket
   static std::optional<V> find_at(node* x, const K& k) {
-    if (x == nullptr) return std::optional<V>();
-    if (KeyEqual{}(x->entries[0].key, k))
-      return x->entries[0].value;
+    if (x == nullptr) return std::nullopt;
     return x->find(k);
   }
 
@@ -347,13 +347,13 @@ public:
     bucket* s = hash_table.get_bucket(k);
     __builtin_prefetch (s);
     return verlib::with_epoch([&] {
-      return flck::try_loop([&] {return try_update_at(s, k, f);});});
+      return flck::try_loop([&] {return try_upsert_at(s, k, f);});});
   }
 
   template <typename F>
   bool upsert_(const K& k, const F& f) {
     bucket* s = hash_table.get_bucket(k);
-    return flck::try_loop([&] {return try_update_at(s, k, f);});
+    return flck::try_loop([&] {return try_upsert_at(s, k, f);});
   }
 
   bool remove(const K& k) {
