@@ -1,6 +1,7 @@
 set(SOURCES ../test_sets.cpp)
 copy_bench_file("runversioned")
 copy_bench_file("runpaper")
+copy_bench_file("rungraphs")
 
 set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
 set(VERLIB_BENCH "btree" "list" "dlist" "hash_block" "arttree")

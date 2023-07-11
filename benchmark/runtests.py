@@ -81,8 +81,6 @@ def runstring(op, outfile) :
             os.system("echo \"Failed: " + op + "\" >> " + outfile)
         os.system("echo Failed")
 
-rounds = 0
-
 def runtest(test,procs,n,z,mix,ts,params,filename) :
     num_threads = max(procs,maxcpus)
     if mix[1] > 0: str_mfind = "-mfind "
