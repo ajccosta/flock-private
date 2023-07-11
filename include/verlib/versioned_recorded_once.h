@@ -67,11 +67,11 @@ public:
     if(head == nullptr) return nullptr;
     set_stamp(head);
     TS ls = local_stamp;
-    while (head->time_stamp.load() > ls) {
+    while (global_stamp.less(ls, head->time_stamp.load())) {
       head = (V*) head->next_version;
     }
 #ifdef LazyStamp
-    if (head->time_stamp.load() == ls && speculative)
+    if (global_stamp.equal(head->time_stamp.load(), ls) && speculative)
       aborted = true;
 #endif
     return head;

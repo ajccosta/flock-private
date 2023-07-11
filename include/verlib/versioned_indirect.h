@@ -65,10 +65,10 @@ public:
   
   V* read_snapshot() {
     version_link* head = set_stamp(v.load());
-    while (head->time_stamp.load() > local_stamp)
+    while (global_stamp.less(local_stamp, head->time_stamp.load()))
       head = head->next_version;
 #ifdef LazyStamp
-    if (head->time_stamp.load() == local_stamp && speculative)
+    if (global_stamp.equal(head->time_stamp.load(), local_stamp) && speculative)
       aborted = true;
 #endif
     return (V*) head->value;

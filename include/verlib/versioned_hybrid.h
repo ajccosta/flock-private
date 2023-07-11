@@ -116,12 +116,12 @@ public:
     versioned* head_unmarked = strip_indirect(head);
 
     // chase down version chain
-    while (head != nullptr && head_unmarked->time_stamp.load() > ls) {
+    while (head != nullptr && global_stamp.less(ls, head_unmarked->time_stamp.load())) {
       head = head_unmarked->next_version;
       head_unmarked = strip_indirect(head);
     }
 #ifdef LazyStamp
-    if (head != nullptr && head_unmarked->time_stamp.load() == ls
+    if (head != nullptr && global_stamp.equal(head_unmarked->time_stamp.load(), ls)
 	&& speculative)
       aborted = true;
 #endif
