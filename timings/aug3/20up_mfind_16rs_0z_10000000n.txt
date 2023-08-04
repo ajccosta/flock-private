@@ -1,0 +1,9 @@
+20up_mfind_16rs_0z_10000000n
+========================================= 
+
+ds                indirect_hs    noshortcut_hs    versioned_hs  reconce_hs      noversion
+--------------  -------------  ---------------  --------------  ------------  -----------
+arttree_lf              179                276           291    -                   359
+btree_lf                136                200           195    204                 199
+dlist_lf                 14.8               18            19.8  -                    36.4
+hash_block_cas          426                558           599    -                   773

@@ -1,0 +1,9 @@
+20up_mfind_16rs_0z_10000000n_timestamp
+========================================= 
+
+ds                           ws     rs    tl2s     ls     hs     ns
+------------------------  -----  -----  ------  -----  -----  -----
+dlist_lf_versioned         15.7   19.6    17.3   17.8   19.8   25.9
+arttree_lf_versioned      214    248     278    282    291    308
+btree_lf_versioned        156    176     191    194    195    198
+hash_block_cas_versioned  346    430     550    578    599    648
