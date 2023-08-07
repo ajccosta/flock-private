@@ -1,0 +1,87 @@
+./btree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,2.831
+./btree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,165.6
+./btree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,298.5
+./btree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,270.7
+./btree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,267.2
+./btree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,257.9
+./btree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,254.1
+...
+./btree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,2.987
+./btree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,166.9
+./btree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,307.5
+./btree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,189.5
+./btree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,140.6
+./btree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,118.9
+./btree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,112.4
+...
+./btree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,2.961
+./btree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,170
+./btree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,305.7
+./btree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,277.7
+./btree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,268.8
+./btree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,260.2
+./btree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,257.8
+...
+./btree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,3.299
+./btree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,183.8
+./btree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,342.2
+./btree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,199.7
+./btree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,173.9
+./btree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,118
+./btree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,130.2
+...
+./arttree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,4.655
+./arttree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,257.4
+./arttree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,462.3
+./arttree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,442.4
+./arttree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,432.3
+./arttree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,427.7
+./arttree_lf_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,421.8
+...
+./arttree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,5.039
+./arttree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,273.8
+./arttree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,492.1
+./arttree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,252.7
+./arttree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,214.9
+./arttree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,150
+./arttree_lck_versioned_hs,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,149.2
+...
+./arttree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,5.061
+./arttree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,289.1
+./arttree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,521.3
+./arttree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,502.8
+./arttree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,503.2
+./arttree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,488.7
+./arttree_lf_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,489.9
+...
+./arttree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,5.422
+./arttree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,297.5
+./arttree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,543.5
+./arttree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,293.4
+./arttree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,240.7
+./arttree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,191.1
+./arttree_lck_noversion,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,183.7
+...
+./../../setbench/srivastava_abtree_pub,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,2.479
+./../../setbench/srivastava_abtree_pub,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,145.5
+./../../setbench/srivastava_abtree_pub,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,267.9
+./../../setbench/srivastava_abtree_pub,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,243.4
+./../../setbench/srivastava_abtree_pub,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,213.7
+./../../setbench/srivastava_abtree_pub,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,191.9
+./../../setbench/srivastava_abtree_pub,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,171.7
+...
+./../../setbench/leis_olc_art,5%update,0%range,find,rs=0,trans=0,n=10000000,p=1,z=0.99,4.945
+bad query success ratio, should be .5 is -5.383e+10
+./../../setbench/leis_olc_art,5%update,0%range,find,rs=0,trans=0,n=10000000,p=64,z=0.99,236.8
+bad query success ratio, should be .5 is -1.306e+10
+./../../setbench/leis_olc_art,5%update,0%range,find,rs=0,trans=0,n=10000000,p=128,z=0.99,416.5
+bad query success ratio, should be .5 is -8.979e+08
+./../../setbench/leis_olc_art,5%update,0%range,find,rs=0,trans=0,n=10000000,p=192,z=0.99,279.1
+bad query success ratio, should be .5 is -1.126e+10
+./../../setbench/leis_olc_art,5%update,0%range,find,rs=0,trans=0,n=10000000,p=256,z=0.99,219.4
+bad query success ratio, should be .5 is 6.952e+09
+./../../setbench/leis_olc_art,5%update,0%range,find,rs=0,trans=0,n=10000000,p=320,z=0.99,159.7
+bad query success ratio, should be .5 is -5.435e+08
+./../../setbench/leis_olc_art,5%update,0%range,find,rs=0,trans=0,n=10000000,p=384,z=0.99,141.2
+bad query success ratio, should be .5 is 6.977e+09
+...

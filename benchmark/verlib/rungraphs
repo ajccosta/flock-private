@@ -24,8 +24,8 @@ class versioning_across_structures(parameters) :
     trees = ["arttree_lf", "btree_lf", "hash_block_cas"]
     tree_sizes = [10000000]
     zipfians = [0]
-    mix_percents = [[20,1,0,16]]
-    suffixes_all = ["_noversion", "_versioned_ls", "_indirect_ls", "_noshortcut_ls"]
+    mix_percents = [[20,1,0,16], [20,0,0,0]]
+    suffixes_all = ["_noversion", "_versioned_hs", "_indirect_hs", "_noshortcut_hs"]
 
 run_all(versioning_across_structures)
 
@@ -33,7 +33,7 @@ run_all(versioning_across_structures)
 class versioning_btree_reconce(parameters) :
     file_suffix = "paper"
     lists = []
-    trees = ["btree_lf_reconce_ls"]
+    trees = ["btree_lf_reconce_hs"]
     tree_sizes = [10000000]
     zipfians = [0]
     mix_percents = [[20,1,0,16]]
@@ -51,7 +51,7 @@ class versioning_arttree_update(parameters) :
     tree_sizes = [10000000]
     zipfians = [0]
     mix_percents = [[0,1,0,16],[5,1,0,16],[20,1,0,16],[50,1,0,16],[100,1,0,16]]
-    suffixes_all = ["_noversion", "_versioned_ls", "_indirect_ls", "_noshortcut_ls"]
+    suffixes_all = ["_noversion", "_versioned_hs", "_indirect_hs", "_noshortcut_hs"]
     
 run_all(versioning_arttree_update)
 
@@ -66,7 +66,7 @@ class versioning_arttree_zipfian(parameters) :
     tree_sizes = [10000000]
     zipfians = [0,.2,.4,.6,.8,.9,.99]
     mix_percents = [[20,1,0,16]]
-    suffixes_all = ["_noversion", "_versioned_ls", "_indirect_ls", "_noshortcut_ls"]
+    suffixes_all = ["_noversion", "_versioned_hs", "_indirect_hs", "_noshortcut_hs"]
 
 run_all(versioning_arttree_zipfian)
 
@@ -81,7 +81,7 @@ class versioning_arttree_size(parameters) :
     tree_sizes = [10000,1000000,1000000,10000000,100000000]
     zipfians = [0]
     mix_percents = [[20,1,0,16]]
-    suffixes_all = ["_noversion", "_versioned_ls", "_indirect_ls", "_noshortcut_ls"]
+    suffixes_all = ["_noversion", "_versioned_hs", "_indirect_hs", "_noshortcut_hs"]
     
 run_all(versioning_arttree_size)
 
@@ -181,7 +181,7 @@ class processor_scale(parameters) :
     zipfians = [.99]
     mix_percents = [[5,0,0,0]]
     processors = [1,64,128,192,256,320,384]
-    suffixes_all = ["_lf_versioned_ls", "_lck_versioned_ls","_lf_noversion", "_lck_noversion"]
+    suffixes_all = ["_lf_versioned_hs", "_lck_versioned_hs","_lf_noversion", "_lck_noversion"]
 
 run_all(processor_scale)
 

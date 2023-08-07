@@ -1,0 +1,11 @@
+5up_mfind_16rs_0z_10000000n
+========================================= 
+
+ds              indirect_ls    noshortcut_ls    versioned_ls    noversion
+--------------  -------------  ---------------  --------------  -----------
+arttree_lf      193            312              335             442
+btree_lf        -              -                -               -
+arttree_lck     -              -                -               -
+btree_lck       -              -                -               -
+dlist_lf        -              -                -               -
+hash_block_cas  -              -                720             -

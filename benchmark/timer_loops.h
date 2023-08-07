@@ -157,16 +157,21 @@ void run_mixed_operations(parlay::sequence<K>& all,
     int default_value = 3;
 
     // insert n distinct elements
-    parlay::parallel_for(0, n, [&] (size_t i) {
+    parlay::parallel_for(0, 2*n, [&] (size_t i) {
 				 //std::cout << unique[i] << std::endl;
       tr.insert(unique[i], default_value);
     }, 10, true);
-    
+
+    parlay::parallel_for(0, n, [&] (size_t i) {
+				 //std::cout << unique[i] << std::endl;
+      tr.remove(unique[i]);
+    }, 10, true);
+
     // insert and delete for a while
-    parlay::parallel_for(0, 4*n, [&] (size_t i) {
-    	auto k = unique[parlay::hash64(i + i) % nn];
-    	if(i%2==0) tr.insert(k, default_value); 
-    	else tr.remove(k); }, 10, true);
+    // parlay::parallel_for(0, 10*n, [&] (size_t i) {
+    // 	auto k = unique[parlay::hash64(i + i) % nn];
+    // 	if(i%2==0) tr.insert(k, default_value); 
+    // 	else tr.remove(k); }, 10, true);
 
     if (do_check) {
       initial_size = tr.check();
