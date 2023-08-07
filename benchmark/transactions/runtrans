@@ -2,7 +2,11 @@
 #
 # run all tests
 #
-from ../runtests import *
+import sys
+sys.path.insert(1, '..')
+from runtests import *
+
+compile_clear("trans")
 
 class transactions(parameters) :
     file_suffix = "trans"
@@ -11,8 +15,8 @@ class transactions(parameters) :
     trees = ["arttree", "btree", "hash_block"]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
-    trans_sizes = [0, 16]
+    trans_sizes = [0, 1, 16]
     mix_percents = [[5,0,0,0], [50,0,0,0]]
-    suffixes_all = ["", "_validate", "_validate_lf"]
+    suffixes_all = ["_lck", "_lck_validate", "_lck_versioned", "_lf", "_lf_validate", "_lf_versioned"]
                     
 run_all(transactions)
