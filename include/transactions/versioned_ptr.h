@@ -2,7 +2,7 @@
 
 #include "flock/flock.h"
 #include "flock/acquired_pool.h"
-#include "timestamps.h"
+#include "../verlib/timestamps.h"
 #include "transaction_descriptor.h"
 #include "memory_pool.h"
 
