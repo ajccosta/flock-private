@@ -1,8 +1,8 @@
 // The core functions used by transactions
 // includes:
 //   the versioned type
-//   install_versioned_store : installs a store at start of commit phase
-//   finalize_versioned_store : finalize the store at end of commit phase (whether succeeded or aborted)
+//   install_store : installs a store at start of commit phase
+//   finalize_store : finalize the store at end of commit phase (whether succeeded or aborted)
 //   get_value : load transactional value
 
 namespace verlib {
@@ -143,10 +143,10 @@ namespace verlib {
 
   // Installs ptr to front of version list for a store on loc.
   // - If in a transaction, then set descriptor on the new link, and the
-  // store will be completed by finalize_versioned_store.
+  // store will be completed by finalize_store.
   // - Otherwise set the timestamp and no finalization is required.
   std::pair<versioned*,versioned*>
-  install_versioned_store(flck::atomic<versioned*>* loc,
+  install_store(flck::atomic<versioned*>* loc,
 			  versioned* ptr,
 			  trans_descriptor* descriptor) {
     assert(current_transaction == nullptr);
@@ -190,7 +190,7 @@ namespace verlib {
     return std::pair(old_v, new_v);
   }
 
-  void finalize_versioned_store(flck::atomic<versioned*>* loc,
+  void finalize_store(flck::atomic<versioned*>* loc,
 				std::pair<versioned*,versioned*> pointers,
 				TS time_stamp) {
     assert(loc != nullptr);
@@ -203,7 +203,7 @@ namespace verlib {
     strip_indirect(new_ptr)->remove_descriptor(time_stamp); 
   }
 
-  void validate_reads(trans_descriptor* descriptor);
+  void validate(trans_descriptor* descriptor);
 
   thread_local bool in_lock;
  
@@ -230,7 +230,7 @@ namespace verlib {
       int cnt = 0;
       while (descriptor->time_stamp.load() == tbs && cnt++ < 50)
       	for (volatile int i=0; i < 100; i++);
-      if (descriptor->time_stamp.load() == tbs) validate_reads(descriptor);
+      if (descriptor->time_stamp.load() == tbs) validate(descriptor);
     }
     if (descriptor->time_stamp.load() == failed) return old_v;
 #else

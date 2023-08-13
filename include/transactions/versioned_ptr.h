@@ -1,13 +1,4 @@
-#pragma once
-
-#include "flock/flock.h"
-#include "flock/acquired_pool.h"
-#include "../verlib/timestamps.h"
-#include "transaction_descriptor.h"
-#include "memory_pool.h"
-
-#include "lock.h"
-#include "transactions.h"
+// Definition of versioned_ptr
 
 namespace verlib {
 
@@ -71,6 +62,7 @@ namespace verlib {
       return std::optional<int>();
     }
 
+    // should be private (only used by load_transactional)
     // Returns the value of the version of "ptr" at time stamp "at_stamp".
     // If the most recent version is ahead of at_stamp, and in_lock is
     // set, then sets "old_version_read" to true.
@@ -103,7 +95,8 @@ namespace verlib {
 	return get_ptr_shortcut(ptr);
       } else return load_transactional();
     }
-    
+
+    // should be private (only used by load)
     V* load_transactional() {
       // first see if it is in the write log
       std::optional<int> lid = find_in_write_log();
@@ -126,7 +119,7 @@ namespace verlib {
 	if (lid.has_value()) current_transaction->write_ptr_log[*lid].second = ptr;
 	else current_transaction->write_ptr_log.add(std::pair(&v,ptr));
       } else { // not in a transaction
-	install_versioned_store(&v, ptr, nullptr);
+	install_store(&v, ptr, nullptr);
       }
     }
     V* operator=(V* b) {store(b); return b; }

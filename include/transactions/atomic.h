@@ -4,10 +4,12 @@
 //   commit(trans_descriptor* descriptor), which calls
 //   validate(trans_descriptor* descriptor)
 
+namespace verlib {
+
 thread_local TS start_stamp = 0;
 
 // validate the versioned pointers that were read
-void validate_reads(trans_descriptor* descriptor) {
+void validate(trans_descriptor* descriptor) {
   auto &log = descriptor->validate_ptr_log;
   bool passed = true;
   TS ts = global_stamp.get_write_stamp();
@@ -20,7 +22,7 @@ void validate_reads(trans_descriptor* descriptor) {
   descriptor->atomic_set_stamp(passed ? ts : failed);
 }
 
-void commit_transaction (trans_descriptor* descriptor) {
+void commit (trans_descriptor* descriptor) {
   if (is_helping()) trans_descriptor_pool.acquire(descriptor);
   flck::skip_if_done([&] {
   assert(descriptor != nullptr);
@@ -30,20 +32,20 @@ void commit_transaction (trans_descriptor* descriptor) {
 
   for (int i=0; i < write_log.size(); i++) {
     auto [location, value] = write_log[i];
-    pointers[i] = install_versioned_store(location, value, descriptor);
+    pointers[i] = install_store(location, value, descriptor);
   }
 
   // Set timestamp to go into validate mode
   descriptor->time_stamp = tbs; // logged load 
 
   // Validate the reads (not idempotent)
-  flck::non_idempotent([=] {validate_reads(descriptor);}); 
+  flck::non_idempotent([=] {validate(descriptor);}); 
   TS ts = descriptor->time_stamp.load();
 
   // finalize logged writes (whether passed or failed)
   for (int i=0; i < write_log.size(); i++) {
     auto [location, old_value] = write_log[i];
-    finalize_versioned_store(location, pointers[i], ts);
+    finalize_store(location, pointers[i], ts);
   }
   });  
 }
@@ -63,18 +65,6 @@ auto with_transaction(F f) {
       current_transaction = descriptor;
       auto x = f();
       current_transaction = nullptr;
-#ifdef Immediate // not up to date (don't use)
-      bool passed = x.has_value() && !old_version_read;
-      if (passed && descriptor->lock_log.size() > 0) {
-	commit_transaction(descriptor);
-	passed = (descriptor->time_stamp.load() != failed);
-      }
-      // unlock all acquired locks
-      for (int i=0; i < descriptor->lock_log.size(); i++) {
-	assert(descriptor->lock_log[i]->is_self_locked());
-	descriptor->lock_log[i]->unlock();
-      }
-#else
       bool passed = x.has_value(); 
       if (passed && descriptor->write_ptr_log.size() > 0) {
 	// if transactions has stores and an old version was read, then abort
@@ -84,11 +74,10 @@ auto with_transaction(F f) {
 	  std::sort(descriptor->lock_log.data(),
 		    descriptor->lock_log.data() + descriptor->lock_log.size());
 	  passed = run_with_locks_rec(0, descriptor, [=] {
-	       commit_transaction(descriptor); return true;}, use_help);
+	       commit(descriptor); return true;}, use_help);
 	  passed = passed && (descriptor->time_stamp.load() != failed);
 	}
       }
-#endif
       assert(current_transaction == nullptr);
       if (passed) {
 	trans_descriptor_pool.retire(descriptor);
@@ -136,4 +125,6 @@ auto do_now(F f) {
   auto x = f();
   //current_transaction = tmp;
   return x;
+}
+
 }

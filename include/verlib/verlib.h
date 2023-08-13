@@ -23,7 +23,7 @@ namespace verlib {
 #elif FullyIndirect
 #include "versioned_indirect.h"
 #elif Transactional
-#include "../transactions/versioned_ptr.h"
+#include "../transactions/transactions.h"
 #else
 #include "versioned_hybrid.h"
 #endif

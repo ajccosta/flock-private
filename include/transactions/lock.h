@@ -2,6 +2,8 @@
 
 #include<optional>
 
+namespace verlib {
+
 //thread_local bool in_lock;
 
 struct lock {
@@ -78,4 +80,6 @@ bool run_with_logged_locks(trans_descriptor* descriptor, F f, bool do_help = tru
   // 	return false;
   //   }
   return run_with_locks_rec(0, descriptor, f, do_help);
+}
+
 }
