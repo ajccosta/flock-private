@@ -393,8 +393,7 @@ struct ordered_map {
     //std::cout << byte_pos << std::endl;
     if (c != nullptr && c->is_leaf() &&
 	((leaf*) c)->find(k, byte_pos).has_value()) // already in the tree
-      if (verlib::validate(p->lck, cptr, c) &&
-	  verlib::validate(p->lck, &p->removed, false))
+      if (p->lck.read_lock([&] {return (cptr->load() == c) && !p->removed.load();}))
 	return false;
       else return {};
 
@@ -490,8 +489,7 @@ struct ordered_map {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
     if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value()))
-      if (((cptr == nullptr) || verlib::validate(p->lck, cptr, c)) &&
-	  verlib::validate(p->lck, &p->removed, false))
+      if (p->lck.read_lock([&] {return (cptr->load() == c) && !p->removed.load();}))
 	return false;
       else return {};
     if (p->lck.try_lock([=] {
@@ -534,8 +532,7 @@ struct ordered_map {
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [gp, p, cptr, l, pos] = find_location(root, k);
-    if (((cptr == nullptr) || verlib::validate(p->lck, cptr, l)) &&
-	verlib::validate(p->lck, &p->removed, false))
+    if (p->lck.read_lock([&] {return (cptr->load() == l) && !p->removed.load();}))
       if (l == nullptr) return ot(std::optional<V>());
       else return ot(((leaf*) l)->find(k, pos));
     else return ot();

@@ -250,9 +250,4 @@ public:
   V* operator=(V* b) {store(b); return b; }
 };
 
-  template <typename T, typename E>
-  bool validate(flck::lock& lck, T* v, E expected) {
-    return true;
-  }
-
 } // namespace verlib

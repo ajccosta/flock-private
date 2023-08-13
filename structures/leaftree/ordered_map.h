@@ -74,8 +74,7 @@ struct ordered_map {
 	((!upsert && equal(l->key, k))))
       // || (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
       // l != prev_leaf)))
-      if (verlib::validate(p->lck, ptr, (node*) l) &&
-	  verlib::validate(p->lck, &p->removed, false))
+      if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
 	return false;
       else return {};
     //prev_leaf = l;
@@ -103,8 +102,7 @@ struct ordered_map {
     auto ptr = gp_left ? &(gp->left) : &(gp->right);
     if (l->is_sentinal || !equal(k, l->key))
 	// || (prev_leaf != nullptr && prev_leaf != l))
-      if (verlib::validate(p->lck, ptr, (node*) l) &&
-	  verlib::validate(p->lck, &p->removed, false))
+      if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
 	return false;
       else return {};
     // prev_leaf = l;
@@ -147,8 +145,7 @@ struct ordered_map {
     using ot = std::optional<std::optional<V>>;
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = p_left ? &(p->left) : &(p->right);
-    if (verlib::validate(p->lck, ptr, (node*) l) &&
-	verlib::validate(p->lck, &p->removed, false))
+    if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
       return ot(!l->is_sentinal && equal(l->key, k) ?
 		std::optional<V>(l->value) :
 		std::optional<V>());

@@ -83,6 +83,10 @@ public:
   //  void unlock() {get_lock()->unlock();}
   void wait_lock() { get_lock()->wait_lock(); }
   bool is_locked() { return get_lock()->is_locked(); }
+
+  // for compatibility with transactions, otherwise do not use
+  template <typename Thunk>
+  auto read_lock(Thunk f) {return f();}
 };
 
 std::vector<internal::lock> lock::locks{1ul << bucket_bits};

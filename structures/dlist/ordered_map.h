@@ -39,8 +39,8 @@ struct ordered_map {
     node* next = find_location(root, k);
     node* prev = (next->prev).load();
     if (!next->is_end && !less(k, next->key)) //already there
-      if (verlib::validate(prev->lck, &prev->next, next) &&
-	  verlib::validate(prev->lck, &prev->removed, false))
+      if (prev->lck.read_lock([&] {return ((prev->next.load() == next) &&
+					   !prev->removed.load());}))
 	return false;
       else return {};
     if ((prev->is_end || prev->key < k) && 
@@ -64,8 +64,8 @@ struct ordered_map {
     node* loc = find_location(root, k);
     node* prev = (loc->prev).load();
     if (loc->is_end || less(k, loc->key)) // not found
-      if (verlib::validate(prev->lck, &prev->next, loc) &&
-	  verlib::validate(prev->lck, &prev->removed, false))
+      if (prev->lck.read_lock([&] {return ((prev->next.load() == loc) &&
+					   !prev->removed.load());}))
 	return false;
       else return {};
     if (prev->try_lock([=] {
@@ -93,8 +93,8 @@ struct ordered_map {
     using ot = std::optional<std::optional<V>>;
     node* next = find_location(root, k);
     node* prev = next->prev.load();
-    if (verlib::validate(prev->lck, &prev->next, next) &&
-	verlib::validate(prev->lck, &prev->removed, false))
+    if (prev->lck.read_lock([&] {return ((prev->next.load() == next) &&
+					 !prev->removed.load());}))
       return ot(!next->is_end && !less(k, next->key) ?
 		std::optional<V>(next->value) :
 		std::optional<V>());

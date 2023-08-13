@@ -43,8 +43,7 @@ struct ordered_map {
   std::optional<bool> try_insert(const K& k, const V& v) {
     auto [cur, nxt] = find_location(root, k);
     if (!nxt->is_end && !less(k, nxt->key)) //already there
-      if (verlib::validate(cur->lck, &(cur->next), nxt) &&
-	  verlib::validate(cur->lck, &cur->removed, false))
+      if (cur->lck.read_lock([&] {return (cur->next.load() == nxt) && !cur->removed.load();}))
 	return false;
       else return {};
     if (cur->lck.try_lock([=] {
@@ -65,8 +64,7 @@ struct ordered_map {
   std::optional<bool> try_remove(const K& k) {
     auto [cur, nxt] = find_location(root, k);
     if (nxt->is_end || less(k, nxt->key)) // not found
-      if (verlib::validate(cur->lck, &(cur->next), nxt) &&
-	  verlib::validate(cur->lck, &cur->removed, false))
+      if (cur->lck.read_lock([&] {return (cur->next.load() == nxt) && !cur->removed.load();}))
 	return false;
       else return {};
     if (cur->lck.try_lock([=] {
@@ -107,8 +105,7 @@ struct ordered_map {
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [cur, nxt] = find_location(root, k);
-    if (verlib::validate(cur->lck, &cur->next, nxt) &&
-	verlib::validate(cur->lck, &cur->removed, false))
+    if (cur->lck.read_lock([&] {return (cur->next.load() == nxt) && !cur->removed.load();}))
       return ot(!nxt->is_end && !less(k, nxt->key) ?
 		std::optional<V>(nxt->value) :
 		std::optional<V>());

@@ -61,6 +61,11 @@ public:
       current = lck.load();
   }
 
+
+  // for compatibility with transactions, otherwise do not use
+  template <typename Thunk>
+  auto read_lock(Thunk f) {return f();}
+  
   template <typename Thunk>
   auto try_lock_result(Thunk f, bool* no_release=nullptr) {
     using RT = decltype(f());

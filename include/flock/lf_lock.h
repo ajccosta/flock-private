@@ -258,6 +258,11 @@ public:
     auto result = try_lock_result(f, do_help);
     return result.has_value() && result.value();
   }
+
+  // for compatibility with transactions, otherwise do not use
+  template <typename Thunk>
+  auto read_lock(Thunk f) {return f();}
+
 };
 
 } // namespace internal

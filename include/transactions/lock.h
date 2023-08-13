@@ -13,6 +13,18 @@ public:
   bool is_locked() { return lck.is_locked();}
   //bool is_self_locked() { return lck.is_self_locked();}
   template <typename Thunk>
+  auto read_lock(Thunk f) {
+    using RT = decltype(f());
+    if (current_transaction != nullptr) {
+      bool tmp = in_lock;
+      in_lock = true;
+      RT result = f();
+      in_lock = tmp;
+      return result;
+    } else return f();
+  }
+
+  template <typename Thunk>
   auto try_lock(Thunk f) {
 #ifdef Immediate
     if (current_transaction != nullptr) {
@@ -32,6 +44,8 @@ public:
       return result;
     } else return lck.try_lock(f);
 #endif
+
+
   }
 
   //   template <typename T, typename E>

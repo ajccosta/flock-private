@@ -574,8 +574,8 @@ struct ordered_map {
   std::optional<bool> try_insert(const K& k, const V& v) {
     auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
     if (l->find(k).has_value()) // already there
-      if (verlib::validate(p->lck, &p->children[cidx], (node*) l) &&
-	  verlib::validate(p->lck, &p->removed, false))
+      if (p->lck.read_lock([&] {
+	     return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
 	return false;
       else return {};
     else if (p->lck.try_lock([=] {
@@ -601,8 +601,8 @@ struct ordered_map {
   std::optional<bool> try_remove(const K& k) {
     auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
     if (!l->find(k).has_value()) // not there
-      if (verlib::validate(p->lck, &p->children[cidx], (node*) l) &&
-	  verlib::validate(p->lck, &p->removed, false))
+      if (p->lck.read_lock([&] {
+	    return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
 	return false;
       else return {};
     else if (p->lck.try_lock([=] {
@@ -650,8 +650,7 @@ struct ordered_map {
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [p, cidx, l] = find_no_fix(root, k);
-    if (verlib::validate(p->lck, &p->children[cidx], (node*) l) &&
-	verlib::validate(p->lck, &p->removed, false))
+    if (p->lck.read_lock([&] {return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
       return ot(l->find(k));
     else return ot();
   }

@@ -3,7 +3,7 @@ set(SOURCES ../test_sets.cpp)
 copy_bench_file("runtrans")
 
 set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
-set(FLOCK_BENCH "btree" "list" "hash_block" "arttree")
+set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "arttree")
 
 set(COMMON_DEFS "HashLock") #  "Latency")
 

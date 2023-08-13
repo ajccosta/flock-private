@@ -1,4 +1,4 @@
-// Definition of versioned_ptr
+// Definition of versioned_ptr and atomic_bool
 
 namespace verlib {
 
@@ -21,7 +21,53 @@ namespace verlib {
       return ptr;
     }
 
-  public:
+    std::optional<int> find_in_write_log() {
+      auto& log = current_transaction->write_ptr_log;
+      for (int i=0; i < log.size(); i++)
+	if (log[i].first == &v)
+	  return std::optional<int>(i);
+      return std::optional<int>();
+    }
+
+    // Only used by load_transactional.
+    // Returns the value of the version of "ptr" at time stamp "at_stamp".
+    // If the most recent version is ahead of at_stamp, and in_lock is
+    // set, then sets "old_version_read" to true.
+    V* get_version(versioned* ptr, TS at_stamp) {
+#ifndef NoShortcut
+      if (is_indirect(ptr)) shortcut(&v, ptr);
+#endif
+      versioned* ptr_ = strip_indirect(ptr);
+      if (ptr != nullptr && ptr_->get_stamp() > at_stamp) {
+	if (in_lock) old_version_read = true;
+	// chase down version chain
+	do {
+	  ptr = ptr_->get_next_version();
+	  ptr_ = strip_indirect(ptr);
+	} while (ptr != nullptr && ptr_->get_stamp() > at_stamp);
+      }
+      if (!is_indirect(ptr)) return (V*) ptr;
+      else return (V*) ((ver_link*) ptr_)->value;
+    }
+
+    // Load when in a transaction (only used by load)
+    V* load_transactional() {
+      // first see if it is in the write log
+      std::optional<int> lid = find_in_write_log();
+      if (lid.has_value())
+	return (V*) current_transaction->write_ptr_log[*lid].second;
+
+      // if not then get the value and add to validate log if in a lock
+      versioned* ptr = get_value(v.load());
+      if (in_lock) 
+	current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
+
+      // returns version at start_stamp for opacity
+      return get_version(ptr, start_stamp);
+    }
+
+    // The public interface
+  public: // The public interface
     
     versioned_ptr(): v(nullptr) {}
     versioned_ptr(V* ptr) : v(set_zero_stamp(ptr)) {}
@@ -54,36 +100,6 @@ namespace verlib {
       } else return (V*) ptr;
     }
 
-    std::optional<int> find_in_write_log() {
-      auto& log = current_transaction->write_ptr_log;
-      for (int i=0; i < log.size(); i++)
-	if (log[i].first == &v)
-	  return std::optional<int>(i);
-      return std::optional<int>();
-    }
-
-    // should be private (only used by load_transactional)
-    // Returns the value of the version of "ptr" at time stamp "at_stamp".
-    // If the most recent version is ahead of at_stamp, and in_lock is
-    // set, then sets "old_version_read" to true.
-    V* get_version(versioned* ptr, TS at_stamp) {
-#ifndef NoShortcut
-      if (is_indirect(ptr)) shortcut(&v, ptr);
-#endif
-      versioned* ptr_ = strip_indirect(ptr);
-      if (ptr != nullptr && ptr_->get_stamp() > at_stamp) {
-	if (in_lock) old_version_read = true;
-	// chase down version chain
-	do {
-	  ptr = ptr_->get_next_version();
-	  ptr_ = strip_indirect(ptr);
-	} while (ptr != nullptr && ptr_->get_stamp() > at_stamp);
-      }
-      if (!is_indirect(ptr)) return (V*) ptr;
-      else return (V*) ((ver_link*) ptr_)->value;
-    }
-
-
     V* load() {  
       assert(!is_helping() || current_transaction == nullptr);
       if (local_stamp != -1)  return read_snapshot();
@@ -94,22 +110,6 @@ namespace verlib {
 	  ptr = get_value(ptr);
 	return get_ptr_shortcut(ptr);
       } else return load_transactional();
-    }
-
-    // should be private (only used by load)
-    V* load_transactional() {
-      // first see if it is in the write log
-      std::optional<int> lid = find_in_write_log();
-      if (lid.has_value())
-	return (V*) current_transaction->write_ptr_log[*lid].second;
-
-      // if not then get the value and add to validate log if in a lock
-      versioned* ptr = get_value(v.load());
-      if (in_lock) 
-	current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
-
-      // returns version at start_stamp for opacity
-      return get_version(ptr, start_stamp);
     }
 
     void store(V* ptr) { 
@@ -124,22 +124,22 @@ namespace verlib {
     }
     V* operator=(V* b) {store(b); return b; }
 
-    bool validate(V* expected) {
-      // check if in write log.  if so no need to validate
-      std::optional<int> lid = find_in_write_log();
-      if (lid.has_value())
-	return (current_transaction->write_ptr_log[*lid].second == expected);
+    // bool validate(V* expected) {
+    //   // check if in write log.  if so no need to validate
+    //   std::optional<int> lid = find_in_write_log();
+    //   if (lid.has_value())
+    // 	return (current_transaction->write_ptr_log[*lid].second == expected);
 
-      // otherwise check that value matches expected, and if so add to validate log
-      versioned* ptr = get_value(v.load());
-      //V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
-      //if (cur != expected) return false;
-      // Note that adding "ptr" not "expected" to log. This is because
-      // ptr might be an indirect pointer to the expected value and
-      // the pointers need to match to avoid ABA problems.
-      current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
-      return true;
-    }
+    //   // otherwise check that value matches expected, and if so add to validate log
+    //   versioned* ptr = get_value(v.load());
+    //   //V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
+    //   //if (cur != expected) return false;
+    //   // Note that adding "ptr" not "expected" to log. This is because
+    //   // ptr might be an indirect pointer to the expected value and
+    //   // the pointers need to match to avoid ABA problems.
+    //   current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
+    //   return true;
+    // }
   };
 
   struct Empty : versioned {
@@ -156,27 +156,27 @@ namespace verlib {
     versioned_ptr<Empty> val;
     bool load() {return val.load() == true_val;}
     void store(bool v) {val = (v ? true_val : false_val);}
-    bool validate(bool expected) {
-      Empty* cur = val.load();
-      if ((cur == false_val) == expected) return false;
-      return val.validate(cur); }
+    // bool validate(bool expected) {
+    //   Empty* cur = val.load();
+    //   if ((cur == false_val) == expected) return false;
+    //   return val.validate(cur); }
     atomic_bool(bool v) : val(v ? true_val : false_val) {}
     bool operator=(bool b) {store(b); return b; }
   };
 
-  // should probably go into the lock code.
-  template <typename T, typename E>
-  bool validate(verlib::lock& lck, T* v, E expected) {
-    if (current_transaction != nullptr) {
-#ifdef Validate
-      if (true) //try_count < 100) // anywhere from 10-100 seems good
-	return v->validate(expected);
-      else // if too many tries give up on validation and take locks
-	return lck.try_lock([=] {return (v->load() == expected);});
-#else
-      return lck.try_lock([=] {return (v->load() == expected);});
-#endif
-    } else return true;
-  }
+//   // should probably go into the lock code.
+//   template <typename T, typename E>
+//   bool validate(verlib::lock& lck, T* v, E expected) {
+//     if (current_transaction != nullptr) {
+// #ifdef Validate
+//       if (true) //try_count < 100) // anywhere from 10-100 seems good
+// 	return v->validate(expected);
+//       else // if too many tries give up on validation and take locks
+// 	return lck.try_lock([=] {return (v->load() == expected);});
+// #else
+//       return lck.try_lock([=] {return (v->load() == expected);});
+// #endif
+//     } else return true;
+//   }
 
 } // namespace verlib

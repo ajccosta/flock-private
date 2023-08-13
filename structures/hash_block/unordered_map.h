@@ -251,7 +251,7 @@ private:
     node* old_node = s->load();
     if (old_node != nullptr && old_node->find_index(k) != -1)
 #ifndef UseCAS
-      if (verlib::validate(*((verlib::lock*) s), &(s->ptr), old_node)) return false;
+      if (s->read_lock([&] {return s->load() == old_node;})) return false;
       else return {};
 #else
       return false;
@@ -283,8 +283,8 @@ private:
     node* old_node = s->load();
     if (old_node == nullptr || old_node->find_index(k) == -1)
 #ifndef UseCAS
-      {if (verlib::validate(*((verlib::lock*) s), &(s->ptr), old_node)) return false;
-	else return {};}
+      if (s->read_lock([&] {return s->load() == old_node;})) return false;
+      else return {};
 #else
       return false;
 #endif
@@ -317,19 +317,11 @@ public:
     return find_at(s->load(), k);
   }
 
-  std::optional<std::optional<V>> try_find(const K& k) {
-    using ot = std::optional<std::optional<V>>;
-    bucket* s = hash_table.get_bucket(k);
-    node* x = s->load();
-    if (verlib::validate(*((verlib::lock*) s), &s->ptr, x))
-      return ot(find_at(x, k));
-    return ot();
-  }
-
   std::optional<V> find_locked(const K& k) {
-    return flck::try_loop([&] {return try_find(k);});
+    bucket* s = hash_table.get_bucket(k);
+    return find_at(s->read_lock([=] {return s->load();}), k);
   }
-
+      
   bool insert(const K& k, const V& v) {
     bucket* s = hash_table.get_bucket(k);
     __builtin_prefetch (s);
