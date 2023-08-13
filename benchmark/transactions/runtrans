@@ -21,7 +21,7 @@ class transactions(parameters) :
                     
 run_all(transactions)
 
-class transactions(parameters) :
+class other(parameters) :
     file_suffix = "trans"
     lists = ["list"]
     list_sizes = [100,1000]
