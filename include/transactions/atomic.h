@@ -1,4 +1,8 @@
-// Code for transactions
+// Main code for atomic region
+// Includes:
+//   atomic(F f), which calls
+//   commit(trans_descriptor* descriptor), which calls
+//   validate(trans_descriptor* descriptor)
 
 thread_local TS start_stamp = 0;
 
