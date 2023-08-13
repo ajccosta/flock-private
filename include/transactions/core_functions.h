@@ -1,9 +1,43 @@
-// The core functions used by transactions
-// includes:
-//   the versioned type
-//   install_store : installs a store at start of commit phase
-//   finalize_store : finalize the store at end of commit phase (whether succeeded or aborted)
-//   get_value : load transactional value
+// The core functions used by transactions.
+//
+// Includes the versioned struct, which is the meta information held
+// on every link of a version list.  It contains a next_version
+// pointer, and a timestamp/descriptor.  The timestamp/descriptor can
+// be one of:
+//   - a pointer to a transaction descriptor
+//   - a valid timestamp
+//   - a TBD timestamp
+//   - a failed timestamp
+//
+// After taking locks during the commit phase of a transaction x, we
+// use install_store for every store s in the write log.  This adds a
+// new version link to s with next pointing to current contents of s,
+// and the timestamp/descriptor is initialized to point to the
+// transaction_descriptor of x.  At the end of the commit phase
+// (before releasing locks), we use finalize_store to either (1) if
+// succeeded, change the timestamp/descriptor to be the x's timestamp,
+// or (2) if failed, remove the installed version link.
+//
+// TBD is used for singleton stores (not in a transaction).  In this
+// case a new link is installed with a TBD timestamp, which is then
+// changed to a real timestamp.
+//
+// The file also includes the get_value function, which safely reads a
+// value from a location.  It needs to check the status of the latest
+// version's meta data.  If the timestamp is valid, then the value can
+// simply be returned, if the timestamp is failed, then the value of
+// the next version is returned, and if the timestamp is TBD, the
+// timestamp is set and the current value returned.  Otherwise (i.e.,
+// a descriptor is installed) it has to check the status of the
+// descriptor.  If the descriptor is pending or aborted then the value
+// of the next version is returned, if the descriptor has succeeded
+// then the current value is returned, and if the descriptor is
+// validating then get_value will either abort or help the descriptor
+// (depending which thread has a higher id).
+//
+// Since we use lock-free locks with flock, the install_store and
+// finalize_store are idempotent---any number of threads can
+// repeatedly apply them while helping the original thread.
 
 namespace verlib {
 
@@ -27,10 +61,10 @@ namespace verlib {
 
     // tags second highest bit to mark as descriptor
     constexpr static int bit_num = 62;
-    static TS tag_descriptor(trans_descriptor* ptr) {
+    static TS tag_descriptor(transaction_descriptor* ptr) {
       return (TS) ptr | (1ul << bit_num);}
-    static trans_descriptor* untag_descriptor(TS sd) {
-      auto ptr = (trans_descriptor*) (sd & ~(1ul << bit_num));
+    static transaction_descriptor* untag_descriptor(TS sd) {
+      auto ptr = (transaction_descriptor*) (sd & ~(1ul << bit_num));
       assert(valid_pointer((void*) ptr));
       return ptr;
     }
@@ -41,10 +75,10 @@ namespace verlib {
     bool simple_stamp() { return stamp_or_descriptor.load() < failed;}
     bool has_descriptor() { return is_tagged(stamp_or_descriptor.load());}
 
-    std::pair<trans_descriptor*, TS> get_descriptor_and_stamp() {
+    std::pair<transaction_descriptor*, TS> get_descriptor_and_stamp() {
       TS td = stamp_or_descriptor.load();
       if (is_tagged(td)) {
-      	trans_descriptor* descriptor = untag_descriptor(td);
+      	transaction_descriptor* descriptor = untag_descriptor(td);
       	trans_descriptor_pool.acquire(descriptor);
       	td = stamp_or_descriptor.load();
       } 
@@ -52,7 +86,7 @@ namespace verlib {
       else return std::pair(nullptr, td);
     }
 
-    void set_descriptor(trans_descriptor* descriptor) {
+    void set_descriptor(transaction_descriptor* descriptor) {
       assert(stamp_or_descriptor.load() == tbd);
       stamp_or_descriptor = tag_descriptor(descriptor);
     }
@@ -148,7 +182,7 @@ namespace verlib {
   std::pair<versioned*,versioned*>
   install_store(flck::atomic<versioned*>* loc,
 			  versioned* ptr,
-			  trans_descriptor* descriptor) {
+			  transaction_descriptor* descriptor) {
     assert(current_transaction == nullptr);
     assert(flck::check_synchronized(8));
     versioned* old_v = loc->load();
@@ -203,7 +237,7 @@ namespace verlib {
     strip_indirect(new_ptr)->remove_descriptor(time_stamp); 
   }
 
-  void validate(trans_descriptor* descriptor);
+  void validate(transaction_descriptor* descriptor);
 
   thread_local bool in_lock;
  
@@ -211,7 +245,7 @@ namespace verlib {
   // return the new value (if succeded) or old value (if not yet in
   // validation stage or if failed).
   template <typename T>
-  T resolve_descriptor(trans_descriptor* descriptor, T old_v, T new_v,
+  T resolve_descriptor(transaction_descriptor* descriptor, T old_v, T new_v,
 		       bool validating) {
     if (descriptor->owner == flck::internal::current_id) {
       assert(is_helping() || descriptor->round == transaction_round);
@@ -226,7 +260,7 @@ namespace verlib {
       // kill other if they have lower id. prevents validate cycle
       TS old = tbs;
       descriptor->time_stamp.cam(old, failed);
-    } else { //otherwise wait for a bit to see if other is done, then help
+    } else { //otherwise wait for a while to see if other is done, then help if not
       int cnt = 0;
       while (descriptor->time_stamp.load() == tbs && cnt++ < 50)
       	for (volatile int i=0; i < 100; i++);

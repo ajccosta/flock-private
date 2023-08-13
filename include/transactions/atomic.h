@@ -1,15 +1,15 @@
 // Main code for atomic region
 // Includes:
 //   atomic(F f), which calls
-//   commit(trans_descriptor* descriptor), which calls
-//   validate(trans_descriptor* descriptor)
+//   commit(transaction_descriptor* descriptor), which calls
+//   validate(transaction_descriptor* descriptor)
 
 namespace verlib {
 
 thread_local TS start_stamp = 0;
 
 // validate the versioned pointers that were read
-void validate(trans_descriptor* descriptor) {
+void validate(transaction_descriptor* descriptor) {
   auto &log = descriptor->validate_ptr_log;
   bool passed = true;
   TS ts = global_stamp.get_write_stamp();
@@ -22,7 +22,7 @@ void validate(trans_descriptor* descriptor) {
   descriptor->atomic_set_stamp(passed ? ts : failed);
 }
 
-void commit (trans_descriptor* descriptor) {
+void commit (transaction_descriptor* descriptor) {
   if (is_helping()) trans_descriptor_pool.acquire(descriptor);
   flck::skip_if_done([&] {
   assert(descriptor != nullptr);
@@ -52,7 +52,7 @@ void commit (trans_descriptor* descriptor) {
 
 // wrapper for a transaction
 template <typename F>
-auto with_transaction(F f) { 
+auto atomic(F f) { 
   try_count = 0;
   int delay = 0;
   int max_delay = 0;
@@ -61,7 +61,7 @@ auto with_transaction(F f) {
       in_lock = false;
       start_stamp = global_stamp.get_read_stamp();
       old_version_read = false;
-      trans_descriptor* descriptor = trans_descriptor_pool.new_obj();
+      transaction_descriptor* descriptor = trans_descriptor_pool.new_obj();
       current_transaction = descriptor;
       auto x = f();
       current_transaction = nullptr;
@@ -120,7 +120,7 @@ auto with_transaction(F f) {
 
 template <typename F>
 auto do_now(F f) {
-  //trans_descriptor* tmp = current_transaction;
+  //transaction_descriptor* tmp = current_transaction;
   //current_transaction = nullptr;
   auto x = f();
   //current_transaction = tmp;

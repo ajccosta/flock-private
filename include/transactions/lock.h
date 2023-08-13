@@ -67,7 +67,7 @@ public:
 };
 
 template <typename F>
-bool run_with_locks_rec(int i, trans_descriptor* descriptor, F f, bool do_help) {
+bool run_with_locks_rec(int i, transaction_descriptor* descriptor, F f, bool do_help) {
   if (i == descriptor->lock_log.size()) return f();
   if (strict_lock) {
     abort();
@@ -83,7 +83,7 @@ bool run_with_locks_rec(int i, trans_descriptor* descriptor, F f, bool do_help) 
 }
 
 template <typename F>
-bool run_with_logged_locks(trans_descriptor* descriptor, F f, bool do_help = true) {
+bool run_with_logged_locks(transaction_descriptor* descriptor, F f, bool do_help = true) {
   // sorting actually slows things down slightly (5%) under high contention
   std::sort(descriptor->lock_log.data(),
   	    descriptor->lock_log.data() + descriptor->lock_log.size());

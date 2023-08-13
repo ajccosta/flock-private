@@ -40,7 +40,7 @@ namespace verlib {
   struct versioned;
 
   // structure that stores transaction information, including logs and state
-  struct trans_descriptor {
+  struct transaction_descriptor {
     // originally "tbd", then "tbs", then either a real timestamp or "failed"
     flck::atomic_aba_free<TS> time_stamp;  
     static constexpr int init_log_size = 8;
@@ -72,17 +72,17 @@ namespace verlib {
 	atomic_set_stamp(global_stamp.get_write_stamp());
     }
 
-    //trans_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {
-    trans_descriptor() : time_stamp(tbd), owner(parlay::worker_id()), round(++transaction_round) {
+    //transaction_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {
+    transaction_descriptor() : time_stamp(tbd), owner(parlay::worker_id()), round(++transaction_round) {
       std::atomic_thread_fence(std::memory_order_seq_cst);
     }
   };
-  thread_local trans_descriptor* current_transaction = nullptr;
+  thread_local transaction_descriptor* current_transaction = nullptr;
 
 #ifdef NoHelp
-  flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
+  flck::internal::acquired_pool<transaction_descriptor> trans_descriptor_pool;
 #else
-  flck::internal::acquired_pool<trans_descriptor> trans_descriptor_pool;
-  //flck::memory_pool<trans_descriptor> trans_descriptor_pool;
+  flck::internal::acquired_pool<transaction_descriptor> trans_descriptor_pool;
+  //flck::memory_pool<transaction_descriptor> trans_descriptor_pool;
 #endif
 }

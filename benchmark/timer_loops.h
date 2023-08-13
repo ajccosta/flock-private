@@ -234,7 +234,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	if (jj + trans_size > end) jj = start + trans_size;
 
 	// run trans_size operations atomically in a transaction
-	auto [added, queries, found, update_success] = verlib::with_transaction([&] {
+	auto [added, queries, found, update_success] = verlib::atomic([&] {
 	  int loc_added = 0;
 	  int loc_queries = 0;
 	  int loc_found = 0;

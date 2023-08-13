@@ -17,7 +17,7 @@ namespace verlib {
 #endif
     }
 
-    void retire_on_abort(trans_descriptor* descriptor, T* ptr) {
+    void retire_on_abort(transaction_descriptor* descriptor, T* ptr) {
 #ifdef TransUndo
       if (descriptor != nullptr && !is_helping()) {
 	bool* x = pool.retire(ptr);
@@ -27,7 +27,7 @@ namespace verlib {
 #endif
     }
 
-    void retire_on_success(trans_descriptor* descriptor, T* ptr) {
+    void retire_on_success(transaction_descriptor* descriptor, T* ptr) {
 #ifdef TransUndo
       bool* x = pool.retire(ptr);
       if (descriptor != nullptr && !is_helping())

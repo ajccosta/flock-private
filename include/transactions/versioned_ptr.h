@@ -10,9 +10,7 @@ namespace verlib {
     V* get_ptr_shortcut(versioned* ptr) {
       versioned* ptr_ = strip_indirect(ptr);
       if (!is_indirect(ptr)) return (V*) ptr_;
-#ifndef NoShortcut
       shortcut(&v, ptr);
-#endif
       return (V*) ((ver_link*) ptr_)->value;
     }
 
@@ -34,9 +32,7 @@ namespace verlib {
     // If the most recent version is ahead of at_stamp, and in_lock is
     // set, then sets "old_version_read" to true.
     V* get_version(versioned* ptr, TS at_stamp) {
-#ifndef NoShortcut
       if (is_indirect(ptr)) shortcut(&v, ptr);
-#endif
       versioned* ptr_ = strip_indirect(ptr);
       if (ptr != nullptr && ptr_->get_stamp() > at_stamp) {
 	if (in_lock) old_version_read = true;
@@ -66,7 +62,6 @@ namespace verlib {
       return get_version(ptr, start_stamp);
     }
 
-    // The public interface
   public: // The public interface
     
     versioned_ptr(): v(nullptr) {}
@@ -80,6 +75,7 @@ namespace verlib {
 
     void init(V* ptr) {v = set_zero_stamp(ptr);}
 
+    // eventually move to private
     V* read_snapshot() {
       TS ls = local_stamp;
       versioned* ptr = get_value(v.read());
@@ -123,23 +119,6 @@ namespace verlib {
       }
     }
     V* operator=(V* b) {store(b); return b; }
-
-    // bool validate(V* expected) {
-    //   // check if in write log.  if so no need to validate
-    //   std::optional<int> lid = find_in_write_log();
-    //   if (lid.has_value())
-    // 	return (current_transaction->write_ptr_log[*lid].second == expected);
-
-    //   // otherwise check that value matches expected, and if so add to validate log
-    //   versioned* ptr = get_value(v.load());
-    //   //V* cur = (V*) (is_indirect(ptr) ? ((ver_link*) strip_indirect(ptr))->value : ptr);
-    //   //if (cur != expected) return false;
-    //   // Note that adding "ptr" not "expected" to log. This is because
-    //   // ptr might be an indirect pointer to the expected value and
-    //   // the pointers need to match to avoid ABA problems.
-    //   current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
-    //   return true;
-    // }
   };
 
   struct Empty : versioned {
@@ -156,27 +135,8 @@ namespace verlib {
     versioned_ptr<Empty> val;
     bool load() {return val.load() == true_val;}
     void store(bool v) {val = (v ? true_val : false_val);}
-    // bool validate(bool expected) {
-    //   Empty* cur = val.load();
-    //   if ((cur == false_val) == expected) return false;
-    //   return val.validate(cur); }
     atomic_bool(bool v) : val(v ? true_val : false_val) {}
     bool operator=(bool b) {store(b); return b; }
   };
-
-//   // should probably go into the lock code.
-//   template <typename T, typename E>
-//   bool validate(verlib::lock& lck, T* v, E expected) {
-//     if (current_transaction != nullptr) {
-// #ifdef Validate
-//       if (true) //try_count < 100) // anywhere from 10-100 seems good
-// 	return v->validate(expected);
-//       else // if too many tries give up on validation and take locks
-// 	return lck.try_lock([=] {return (v->load() == expected);});
-// #else
-//       return lck.try_lock([=] {return (v->load() == expected);});
-// #endif
-//     } else return true;
-//   }
 
 } // namespace verlib
