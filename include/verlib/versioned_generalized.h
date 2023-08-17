@@ -55,7 +55,8 @@ public:
   bool forward() {
     version_link* head = verlist.load();
     TS ts = global_stamp.get_stamp();  // ts = ver from pseudo-code
-    if(ts < head->upper_time_stamp) return true;
+    if(ts <= head->upper_time_stamp) return true;
+    // abort();
     version_link* node = link_pool.new_obj(head->upper_time_stamp, ts, head, value.load());
     if(verlist.compare_exchange_strong(head, node)) {
         link_pool.retire(head);   
