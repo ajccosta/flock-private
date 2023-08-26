@@ -24,6 +24,8 @@ namespace verlib {
 #include "versioned_indirect.h"
 #elif Transactional
 #include "../transactions/transactions.h"
+#elif GenSnapshot
+#include "versioned_generalized.h"
 #else
 #include "versioned_hybrid.h"
 #endif

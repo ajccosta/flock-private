@@ -32,6 +32,10 @@ foreach(bench ${VERLIB_BENCH})
   add_benchmark(${bench}_lck_versioned_hs ${STRUCT_DIR}/${bench} "NoHelp;Versioned;HWWriteStamp")
   add_benchmark(${bench}_lf_noversion ${STRUCT_DIR}/${bench} "")
   add_benchmark(${bench}_lf_indirect_ls ${STRUCT_DIR}/${bench} "Versioned;FullyIndirect;LazyStamp")
+
+  add_benchmark(${bench}_lck_gen_snapshot_rs ${STRUCT_DIR}/${bench} "NoHelp;Versioned;GenSnapshot;ReadStamp")
+  add_benchmark(${bench}_lck_indirect_rs ${STRUCT_DIR}/${bench} "NoHelp;Versioned;FullyIndirect;ReadStamp")
+
   add_benchmark(${bench}_lf_noshortcut_ls ${STRUCT_DIR}/${bench} "Versioned;NoShortcut;LazyStamp")
   add_benchmark(${bench}_lf_indirect_hs ${STRUCT_DIR}/${bench} "Versioned;FullyIndirect;HWWriteStamp")
   add_benchmark(${bench}_lf_noshortcut_hs ${STRUCT_DIR}/${bench} "Versioned;NoShortcut;HWWriteStamp")

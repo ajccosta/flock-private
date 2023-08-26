@@ -383,9 +383,9 @@ TS prev_stamp = global_stamp.get_stamp();
 thread_local TS current_stamp;
   
   bool add_epoch_hooks() {
-    flck::internal::epoch.before_epoch_hooks.push_back([&] {
+    flck::internal::get_epoch().before_epoch_hooks.push_back([&] {
        current_stamp = global_stamp.get_stamp();});
-    flck::internal::epoch.after_epoch_hooks.push_back([&] {
+    flck::internal::get_epoch().after_epoch_hooks.push_back([&] {
 	done_stamp = prev_stamp;
 	prev_stamp = current_stamp;});
     return true;

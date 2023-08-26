@@ -45,7 +45,7 @@ struct descriptor {
   descriptor(Thunk& g) : 
     done(false), freed(false), f([=] {g();}) {
     lg_array.init();
-    epoch_num = epoch.get_my_epoch();
+    epoch_num = get_epoch().get_my_epoch();
     thread_id = current_id;
   }
 
@@ -118,10 +118,10 @@ private:
     descriptor* desc = remove_tag(le);
     bool still_locked = (read() == le);
     if (!still_locked) return false;
-    long my_epoch = epoch.get_my_epoch();
+    long my_epoch = get_epoch().get_my_epoch();
     long other_epoch = desc->epoch_num;
     if (other_epoch < my_epoch)
-      epoch.set_my_epoch(other_epoch); // inherit epoch of helpee
+      get_epoch().set_my_epoch(other_epoch); // inherit epoch of helpee
     int my_id = current_id; 
     current_id = desc->thread_id;   // inherit thread id of helpee
     descriptor_pool.acquire(desc);  // mark descriptor as acquired
@@ -134,7 +134,7 @@ private:
       helping = hold_h; // reset helping mode
     }
     current_id = my_id; // reset thread id
-    epoch.set_my_epoch(my_epoch); // reset to my epoch
+    get_epoch().set_my_epoch(my_epoch); // reset to my epoch
     return still_locked; // return true if did helping
   }
 
