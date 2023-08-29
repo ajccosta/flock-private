@@ -307,7 +307,7 @@ public:
 			   
   template <typename F, typename ... Args>
   // f is a function that initializes a new object before it is shared
-  T* new_init(F f, Args... args) {
+  T* new_init(const F& f, Args... args) {
     T* x = new_obj(args...);
     f(x);
     return x;

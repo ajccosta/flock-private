@@ -128,4 +128,26 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
     return RT();
   }
 
+  template <typename T, typename ... Args>
+  inline T* New(Args... args) {
+    return internal::get_pool<T>().new_obj(std::forward<Args>(args)...);}
+
+  // f is a function that initializes a new object before it is shared
+  template <typename T, typename F, typename ... Args>
+  inline T* NewInit(const F& f, Args... args) {
+    return internal::get_pool<T>().new_init(f, std::forward<Args>(args)...);
+  }
+
+  template <typename T>
+  inline void Delete(T* p) {internal::get_pool<T>().destruct(p);}
+
+  template <typename T>
+  inline bool* Retire(T* p) {return internal::get_pool<T>().retire(p);}
+
+  template <typename T>
+  inline void clear_pool() {internal::get_pool<T>().clear();}
+
+  template <typename T>
+  inline void pool_stats() {internal::get_pool<T>().stats();}
+
 } // namespace flck
