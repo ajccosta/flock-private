@@ -117,10 +117,6 @@ struct ordered_map {
     // constructor for a new sparse node with two children
     sparse_node(int byte_num, node* v1, const K& k1, node* v2, const K& k2)
       : node(k1, Sparse, 2, byte_num) {
-      // if (k1 == k2) {
-      // 	std::cout << "new sparse: " << k1 << ", " << k2 << ", " << byte_num << std::endl;
-      // 	abort();
-      // }
       keys[0] = String::get_byte(k1, byte_num);
       ptr[0].init(v1);
       keys[1] = String::get_byte(k2, byte_num);
@@ -218,12 +214,6 @@ struct ordered_map {
     generic_leaf(int byte_pos, leaf_ptr l, K& key, V& value) 
       : header(l->key, Leaf, l->size + 1, byte_pos) {
       insert(l->key_vals, key_vals, l->size, key, value);
-      // for (int i = 1; i < header::size; i++)
-      // 	if (!(key_vals[i-1].key < key_vals[i].key)) {
-      // 	  std::cout << "x out of order at leaf: " << i << ", " << header::size << ", " << std::hex << 
-      // 	    key_vals[i-1].key << ", " << key_vals[i].key << std::dec << std::endl;
-      // 	  abort();
-      // 	}
     }
 
     // remove from leaf
@@ -417,12 +407,8 @@ struct ordered_map {
 	      // insert new key-value pair into l and put result into tmp
 	      KV tmp[n];
 	      leaf::insert(l->key_vals, tmp, n - 1, k, v);
-	      // for (int i=0; i < max_big_leaf_size; i++)
-	      //  	tmp[i] = l->key_vals[i];
-	      // tmp[max_big_leaf_size] = KV{k,v};
-	      // std::sort(tmp, tmp + n, [&] (KV& a, KV& b) {return a.key < b.key;});
 
-	      // break tmp up into multiple leafs base on byte value at byte_pos
+	      // break tmp up into multiple leaves based on byte value at byte_pos
 	      auto gb = [&] (const KV& kv) {return String::get_byte(kv.key, byte_pos);};
 	      int j = 0;
 	      int start = 0;
@@ -546,7 +532,7 @@ struct ordered_map {
 
   template<typename AddF>
   static void range_internal(node* a, AddF& add,
-		      std::optional<K> start, std::optional<K> end, int pos) {
+			     std::optional<K> start, std::optional<K> end, int pos) {
     if (a == nullptr) return;
     std::optional<K> empty;
     if (a->nt == Leaf) {
