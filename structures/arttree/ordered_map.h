@@ -384,7 +384,6 @@ struct ordered_map {
   
   std::optional<bool> try_insert(const K& k, const V& v) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
-    //std::cout << byte_pos << std::endl;
     if (c != nullptr && c->is_leaf() &&
 	((leaf*) c)->find(k, byte_pos).has_value()) // already in the tree
       if (p->lck.read_lock([&] {return (cptr->load() == c) && !p->removed.load();}))
@@ -483,7 +482,7 @@ struct ordered_map {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
     if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value()))
-      if (p->lck.read_lock([&] {return (cptr->load() == c) && !p->removed.load();}))
+      if (cptr == nullptr ||p->lck.read_lock([&] {return (cptr->load() == c) && !p->removed.load();}))
 	return false;
       else return {};
     if (p->lck.try_lock([=] {
