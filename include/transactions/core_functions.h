@@ -123,8 +123,8 @@ namespace verlib {
     }
 
     // use when stamp could be descriptor
-    TS get_stamp_indirect() {
-      TS td = stamp_or_descriptor.load();
+    TS get_stamp_indirect_ni() {
+      TS td = stamp_or_descriptor.load_ni();
       if (is_tagged(td)) return tbd;
       else return td;
     }
@@ -170,9 +170,8 @@ namespace verlib {
 
   void shortcut(flck::atomic<versioned*>* loc, versioned* ptr) {
     ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
-    flck::non_idempotent([=] {
-      if (ptr_->get_stamp_indirect() <= done_stamp) 
-	if (loc->cas(ptr, ptr_->value)) link_pool.pool.retire(ptr_);});
+    if (ptr_->get_stamp_indirect_ni() <= done_stamp) 
+      if (loc->cas_ni(ptr, ptr_->value)) link_pool.pool.retire(ptr_);
   }
 
   // Installs ptr to front of version list for a store on loc.
@@ -181,10 +180,9 @@ namespace verlib {
   // - Otherwise set the timestamp and no finalization is required.
   std::pair<versioned*,versioned*>
   install_store(flck::atomic<versioned*>* loc,
-			  versioned* ptr,
-			  transaction_descriptor* descriptor) {
+		versioned* ptr,
+		transaction_descriptor* descriptor) {
     assert(current_transaction == nullptr);
-    assert(flck::check_synchronized(8));
     versioned* old_v = loc->load();
     versioned* new_v = ptr;
     // indirection on need
@@ -220,7 +218,6 @@ namespace verlib {
       strip_indirect(new_v)->set_with_current_stamp();  // not logged
       if (use_indirect) shortcut(loc, new_v); // not logged
     }
-    assert(flck::check_synchronized(40));
     return std::pair(old_v, new_v);
   }
 
