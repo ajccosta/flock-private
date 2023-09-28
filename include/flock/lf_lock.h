@@ -88,9 +88,9 @@ private:
 
   // used to take lock for version with helping
   bool cas(lock_entry oldl, descriptor* d) {
-    return skip_if_done([&] { // skip for efficiency
+    // return skip_if_done([&] { // skip for efficiency
       return Tag::cas(lck, oldl, d);
-    });
+    // });
     // lock_entry current = read();
     // if (current != oldl) {
     //   return false;
@@ -99,11 +99,11 @@ private:
   }
   
   void clear(descriptor* d) {
-    skip_if_done([&] { // skip for efficiency
-      lock_entry current = load();
-      if (Tag::value(current) == d)
-        Tag::cas(lck, current, nullptr, true);
-    });
+    // skip_if_done([&] { // skip for efficiency
+    lock_entry current = load();
+    if (Tag::value(current) == d)
+      Tag::cas(lck, current, nullptr, true);
+    // });
     // lock_entry current = read();
     // if (Tag::value(current) == d)
     //   // true indicates this is ABA free since current cannot
@@ -233,6 +233,7 @@ public:
     // if descriptor is already retired, then done and return value
     if (descriptor_pool.is_done(my_descriptor)) 
       result = descriptor_pool.done_val_result<RT>(my_descriptor);
+
 	  skip_if_done([&] {   // will skip if previous check returned true
       if (!is_locked_(current)) {
         // use a CAS to try to acquire the lock
