@@ -88,17 +88,27 @@ private:
 
   // used to take lock for version with helping
   bool cas(lock_entry oldl, descriptor* d) {
-    lock_entry current = read();
-    if (current != oldl) return false;
-    return Tag::cas(lck, oldl, d);
+    return skip_if_done([&] { // skip for efficiency
+      return Tag::cas(lck, oldl, d);
+    });
+    // lock_entry current = read();
+    // if (current != oldl) {
+    //   return false;
+    // }
+    // return Tag::cas(lck, oldl, d);
   }
   
   void clear(descriptor* d) {
-    lock_entry current = lck.load();
-    if (Tag::value(current) == d)
-      // true indicates this is ABA free since current cannot
-      // be reused until all helpers are done with it.
-      Tag::cas(lck, current, nullptr, true);
+    skip_if_done([&] { // skip for efficiency
+      lock_entry current = load();
+      if (Tag::value(current) == d)
+        Tag::cas(lck, current, nullptr, true);
+    });
+    // lock_entry current = read();
+    // if (Tag::value(current) == d)
+    //   // true indicates this is ABA free since current cannot
+    //   // be reused until all helpers are done with it.
+    //   Tag::cas(lck, current, nullptr, true);
   }
 
   void unlock() {
@@ -175,31 +185,30 @@ public:
     
     // if already retired, then done
     if (descriptor_pool.is_done(my_descriptor)) {
-	auto ret_val = descriptor_pool.done_val_result<RT>(my_descriptor);
-	assert(ret_val.has_value()); // with_lock is guaranteed to succeed
-	return ret_val.value(); 
+    	auto ret_val = descriptor_pool.done_val_result<RT>(my_descriptor);
+    	assert(ret_val.has_value()); // with_lock is guaranteed to succeed
+    	return ret_val.value(); 
     }
     
     bool locked = is_locked_(current);
     while (true) {
       if (my_descriptor->done // already done
-	  || remove_tag(current) == my_descriptor // already acquired
-	  || (!locked && cas(current, my_descriptor))) { // try to acquire
+        || remove_tag(current) == my_descriptor // already acquired
+        || (!locked && cas(current, my_descriptor))) { // try to acquire
+            // run the body f with the log from my_descriptor
+            RT result = with_log(Log(&my_descriptor->lg_array,0), [&] {return f();});
 
-	// run the body f with the log from my_descriptor
-	RT result = with_log(Log(&my_descriptor->lg_array,0), [&] {return f();});
+            // mark as done and clear the lock
+            my_descriptor->done = true;
+            clear(my_descriptor);
 
-	// mark as done and clear the lock
-	my_descriptor->done = true;
-	clear(my_descriptor);
-
-	// retire the descriptor saving the result in the enclosing
-	// descriptor, if any
-	descriptor_pool.retire_acquired_result(my_descriptor, i_own,
-					       std::optional<RT>(result));
-	return result;
+            // retire the descriptor saving the result in the enclosing
+            // descriptor, if any
+            descriptor_pool.retire_acquired_result(my_descriptor, i_own,
+                   std::optional<RT>(result));
+            return result;
       } else if (locked) {
-	help_descriptor(current);
+        help_descriptor(current);
       }
       current = read();
       locked = is_locked_(current);
@@ -223,29 +232,30 @@ public:
     
     // if descriptor is already retired, then done and return value
     if (descriptor_pool.is_done(my_descriptor)) 
-      return descriptor_pool.done_val_result<RT>(my_descriptor);
-	
-    if (!is_locked_(current)) {
-      // use a CAS to try to acquire the lock
-      cas(current, my_descriptor);
+      result = descriptor_pool.done_val_result<RT>(my_descriptor);
+	  skip_if_done([&] {   // will skip if previous check returned true
+      if (!is_locked_(current)) {
+        // use a CAS to try to acquire the lock
+        cas(current, my_descriptor);
+        // flck::internal::lg.check_synchronized(80);
 
-      // This could be a load() without the my_descriptor->done test.
-      // Using read() is an optimization to avoid a logging event.
-      current = read();
-      if (my_descriptor->done || remove_tag(current) == my_descriptor) {
+        // This could be a load() without the my_descriptor->done test.
+        // Using read() is an optimization to avoid a logging event.
+        current = read();
+        if (my_descriptor->done || remove_tag(current) == my_descriptor) {
 
-	// run f with log from my_descriptor
-	result = with_log(Log(&my_descriptor->lg_array,0),
-			  [&] {return f();});
+  	// run f with log from my_descriptor
+  	result = with_log(Log(&my_descriptor->lg_array,0),
+  			  [&] {return f();});
 
-	// mark as done and clear the lock
-	my_descriptor->done = true;
-	clear(my_descriptor);
+  	// mark as done and clear the lock
+  	my_descriptor->done = true;
+  	clear(my_descriptor);
+        }
+      } else {
+        if (do_help) help_descriptor(current);
       }
-    } else {
-      if (do_help) help_descriptor(current);
-    }
-
+    });
     // retire the thunk
     descriptor_pool.retire_acquired_result(my_descriptor, i_own, result);
     return result;
