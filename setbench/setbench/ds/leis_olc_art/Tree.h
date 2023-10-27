@@ -112,6 +112,7 @@ namespace ART_OLC {
         N* alloc(const int threadID, NTypes type);
 
         static void shuffle(size_t n);
+        static void print_stats();
 
         N* const getRoot() {
             return root;
@@ -132,6 +133,15 @@ namespace ART_OLC {
         shuffleHelper<N16>(n/5);
         shuffleHelper<N4>(n);
     }
+
+  template <class RecordManager>
+  void Tree<RecordManager>::print_stats() {
+    parlay::type_allocator<N256>::print_stats();
+    parlay::type_allocator<N48>::print_stats();
+    parlay::type_allocator<N16>::print_stats();
+    parlay::type_allocator<N4>::print_stats();
+    parlay::type_allocator<Keyval>::print_stats();
+  }
 
     template <class RecordManager>
     Tree<RecordManager>::Tree(const int numThreads, LoadKeyFunction loadKey) : recmgr(new RecordManager(numThreads)), loadKey(loadKey) {

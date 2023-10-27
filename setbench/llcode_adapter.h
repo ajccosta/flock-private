@@ -82,6 +82,7 @@ public:
   }
 
   static void stats() {
+    adapter_t::stats();
   }
 
 private:

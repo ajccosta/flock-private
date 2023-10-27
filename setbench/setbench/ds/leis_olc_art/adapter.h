@@ -100,6 +100,10 @@ public:
     }
     // static void shuffle(size_t n) {}
 
+    static void stats() {
+      ART_OLC::Tree<RECORD_MANAGER_T>::print_stats();
+    }
+
     static void reserve(size_t n) {}
 
     void printSummary() {
