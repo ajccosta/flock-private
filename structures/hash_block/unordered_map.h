@@ -174,42 +174,59 @@ private:
 
   Table hash_table;
 
+  using Node1 = Node<1>;
+  using Node3 = Node<3>;
+  using Node7 = Node<7>;
+  using Node31 = Node<31>;
+  static verlib::memory_pool<Node1> node_pool_1;
+  static verlib::memory_pool<Node3> node_pool_3;
+  static verlib::memory_pool<Node7> node_pool_7;
+  static verlib::memory_pool<Node31> node_pool_31;
+  static verlib::memory_pool<BigNode> big_node_pool;
+
   static node* insert_to_node(node* old, const K& k, const V& v) {
-    if (old == nullptr) return (node*) flck::New<Node<1>>(old, k, v);
-    if (old->cnt < 3) return (node*) flck::New<Node<3>>(old, k, v);
-    else if (old->cnt < 7) return (node*) flck::New<Node<7>>(old, k, v);
-    else if (old->cnt < 31) return (node*) flck::New<Node<31>>(old, k, v);
-    else return (node*) flck::New<BigNode>(old, k, v);
+    if (old == nullptr) return (node*) node_pool_1.new_obj(old, k, v);
+    if (old->cnt < 3) return (node*) node_pool_3.new_obj(old, k, v);
+    else if (old->cnt < 7) return (node*) node_pool_7.new_obj(old, k, v);
+    else if (old->cnt < 31) return (node*) node_pool_31.new_obj(old, k, v);
+    else return (node*) big_node_pool.new_obj(old, k, v);
   }
 
   template <typename F>
   static node* update_node(node* old, const K& k, const F& f) {
-    if (old == nullptr) return (node*) flck::New<Node<1>>(old, k, f);
-    if (old->cnt < 3) return (node*) flck::New<Node<3>>(old, k, f);
-    else if (old->cnt < 7) return (node*) flck::New<Node<7>>(old, k, f);
-    else if (old->cnt < 31) return (node*) flck::New<Node<31>>(old, k, f);
-    else return (node*) flck::New<BigNode>(old, k, f);
+    if (old == nullptr) return (node*) node_pool_1.new_obj(old, k, f);
+    if (old->cnt < 3) return (node*) node_pool_3.new_obj(old, k, f);
+    else if (old->cnt < 7) return (node*) node_pool_7.new_obj(old, k, f);
+    else if (old->cnt < 31) return (node*) node_pool_31.new_obj(old, k, f);
+    else return (node*) big_node_pool.new_obj(old, k, f);
   }
 
   static node* remove_from_node(node* old, const K& k) {
     if (old->cnt == 1) return (node*) nullptr;
-    if (old->cnt == 2) return (node*) flck::New<Node<1>>(old, k);
-    else if (old->cnt <= 4) return (node*) flck::New<Node<3>>(old, k);
-    else if (old->cnt <= 8) return (node*) flck::New<Node<7>>(old, k);
-    else if (old->cnt <= 32) return (node*) flck::New<Node<31>>(old, k);
-    else return (node*) flck::New<BigNode>(old, k);
+    if (old->cnt == 2) return (node*) node_pool_1.new_obj(old, k);
+    else if (old->cnt <= 4) return (node*) node_pool_3.new_obj(old, k);
+    else if (old->cnt <= 8) return (node*) node_pool_7.new_obj(old, k);
+    else if (old->cnt <= 32) return (node*) node_pool_31.new_obj(old, k);
+    else return (node*) big_node_pool.new_obj(old, k);
   }
 
   static void retire_node(node* old) {
     if (old == nullptr);
-    else if (old->cnt == 1) flck::Retire<Node<1>>((Node<1>*) old);
-    else if (old->cnt <= 3) flck::Retire<Node<3>>((Node<3>*) old);
-    else if (old->cnt <= 7) flck::Retire<Node<7>>((Node<7>*) old);
-    else if (old->cnt <= 31) flck::Retire<Node<31>>((Node<31>*) old);
-    else flck::Retire<BigNode>((BigNode*) old);
+    else if (old->cnt == 1) node_pool_1.retire((Node1*) old);
+    else if (old->cnt <= 3) node_pool_3.retire((Node3*) old);
+    else if (old->cnt <= 7) node_pool_7.retire((Node7*) old);
+    else if (old->cnt <= 31) node_pool_31.retire((Node31*) old);
+    else big_node_pool.retire((BigNode*) old);
   }
 
-  static void destruct_node(node* old) { retire_node(old);}
+  static void destruct_node(node* old) {
+    if (old == nullptr);
+    else if (old->cnt == 1) node_pool_1.destruct((Node1*) old);
+    else if (old->cnt <= 3) node_pool_3.destruct((Node3*) old);
+    else if (old->cnt <= 7) node_pool_7.destruct((Node7*) old);
+    else if (old->cnt <= 31) node_pool_31.destruct((Node31*) old);
+    else big_node_pool.destruct((BigNode*) old);
+  }
 
   // try to install a new node in bucket s
   static std::optional<bool> try_update(bucket* s, node* old_node, node* new_node, bool ret_val) {
@@ -368,21 +385,31 @@ public:
   long check() { return size();}
 
   static void clear() {
-    flck::clear_pool<Node<1>>();
-    flck::clear_pool<Node<3>>();
-    flck::clear_pool<Node<7>>();
-    flck::clear_pool<Node<31>>();
-    flck::clear_pool<BigNode>();
+    node_pool_1.clear();
+    node_pool_3.clear();
+    node_pool_7.clear();
+    node_pool_31.clear();
+    big_node_pool.clear();
   }
   static void stats() {
-    flck::pool_stats<Node<1>>();
-    flck::pool_stats<Node<3>>();
-    flck::pool_stats<Node<7>>();
-    flck::pool_stats<Node<31>>();
-    flck::pool_stats<BigNode>();
+    node_pool_1.stats();
+    node_pool_3.stats();
+    node_pool_7.stats();
+    node_pool_31.stats();
+    big_node_pool.stats();
   }
   static void reserve(size_t n) {}
   static void shuffle(size_t n) {}
 
 };
 
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::Node1> unordered_map<K,V,H,E>::node_pool_1;
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::Node3> unordered_map<K,V,H,E>::node_pool_3;
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::Node7> unordered_map<K,V,H,E>::node_pool_7;
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::Node31> unordered_map<K,V,H,E>::node_pool_31;
+template <typename K, typename V, typename H, typename E>
+verlib::memory_pool<typename unordered_map<K,V,H,E>::BigNode> unordered_map<K,V,H,E>::big_node_pool;
