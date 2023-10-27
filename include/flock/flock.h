@@ -128,26 +128,32 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
     return RT();
   }
 
+  template <typename T>
+  extern inline memory_pool<T>& get_pool() {
+    static memory_pool<T> pool;
+    return pool;
+  }
+
   template <typename T, typename ... Args>
   inline T* New(Args... args) {
-    return internal::get_pool<T>().new_obj(std::forward<Args>(args)...);}
+    return get_pool<T>().new_obj(std::forward<Args>(args)...);}
 
   // f is a function that initializes a new object before it is shared
   template <typename T, typename F, typename ... Args>
   inline T* NewInit(const F& f, Args... args) {
-    return internal::get_pool<T>().new_init(f, std::forward<Args>(args)...);
+    return get_pool<T>().new_init(f, std::forward<Args>(args)...);
   }
 
   template <typename T>
-  inline void Delete(T* p) {internal::get_pool<T>().destruct(p);}
+  inline void Delete(T* p) {get_pool<T>().destruct(p);}
 
   template <typename T>
-  inline bool* Retire(T* p) {return internal::get_pool<T>().retire(p);}
+  inline bool* Retire(T* p) {return get_pool<T>().retire(p);}
 
   template <typename T>
-  inline void clear_pool() {internal::get_pool<T>().clear();}
+  inline void clear_pool() {get_pool<T>().clear();}
 
   template <typename T>
-  inline void pool_stats() {internal::get_pool<T>().stats();}
+  inline void pool_stats() {get_pool<T>().stats();}
 
 } // namespace flck

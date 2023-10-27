@@ -88,12 +88,12 @@ struct ordered_map {
 
   };
 
-  static verlib::memory_pool<node> node_pool;
+  //static verlib::memory_pool<node> node_pool;
 
   // helper function to copy into a new node
   template <typename Key, typename Child>
   static node* copy(int size, Key get_key, Child get_child) {
-    return node_pool.new_init([=] (node* new_l) {
+    return flck::NewInit<node>([=] (node* new_l) {
     for (int i = 0; i < size; i++) new_l->children[i].init(get_child(i));
         for (int i = 0; i < size-1; i++) new_l->keys[i] = get_key(i);
       }, size);
@@ -244,11 +244,11 @@ struct ordered_map {
     size} {};
   };
 
-  static verlib::memory_pool<leaf> leaf_pool;
+  //static verlib::memory_pool<leaf> leaf_pool;
 
   static leaf* copy_leaf(leaf* l) {
     int size = l->size;
-    leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
+    leaf* new_l = flck::NewInit<leaf>([=] (leaf* new_l) {
     for (int i=0; i < size; i++)
       new_l->keyvals[i] = l->keyvals[i];}, size);
     return new_l;
@@ -258,7 +258,7 @@ struct ordered_map {
   // Old is left intact (but retired).
   // The key k must not already be present in the leaf.
   static leaf* insert_leaf(leaf* l, const K& k, const V& v) {
-    return leaf_pool.new_init([=] (leaf* new_l) {
+    return flck::NewInit<leaf>([=] (leaf* new_l) {
     int size = l->size;
     assert(size < leaf_block_size);
     int i=0;
@@ -278,7 +278,7 @@ struct ordered_map {
   // Remove a key-value pair from the leaf that matches the key k.
   // This copies the values into a new leaf.
   static leaf* remove_leaf(leaf* l, const K& k) {
-    return leaf_pool.new_init([=] (leaf* new_l) {
+    return flck::NewInit<leaf>([=] (leaf* new_l) {
     int size = l->size;
     assert(size > 0);
     int i=0;
@@ -299,7 +299,7 @@ struct ordered_map {
     // hack to deal with broken g++-10 compiler
     if (true) {
       int lsize = size/2;
-      leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
+      leaf* new_l = flck::NewInit<leaf>([=] (leaf* new_l) {
       K tmpK[leaf_block_size];
       V tmpV[leaf_block_size];
       for (int i = 0; i < lsize; i++) {
@@ -313,7 +313,7 @@ struct ordered_map {
       }}, lsize);
 
       int rsize = size - lsize;
-      leaf* new_r = leaf_pool.new_init([=] (leaf* new_r) {
+      leaf* new_r = flck::NewInit<leaf>([=] (leaf* new_r) {
       K tmpK[leaf_block_size];
       V tmpV[leaf_block_size];
       for (int i = 0; i < rsize; i++) {
@@ -330,9 +330,9 @@ struct ordered_map {
     } else { // old simpler version, that does not copile correctly
       int lsize = size/2;
       int rsize = size - lsize;
-      leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
+      leaf* new_l = flck::NewInit<leaf>([=] (leaf* new_l) {
       for (int i = 0; i < lsize; i++) new_l->keyvals[i] = get_kv(i);}, lsize);
-      leaf* new_r = leaf_pool.new_init([=] (leaf* new_l) {
+      leaf* new_r = flck::NewInit<leaf>([=] (leaf* new_l) {
       for (int i = 0; i < rsize; i++) new_r->keyvals[i] = get_kv(i+lsize);}, rsize);
       // separating key (first key in right child)
       K mid = get_kv(lsize).key;
@@ -360,7 +360,7 @@ struct ordered_map {
 
   static node* join_leaf(node* l, node* r) {
     int size = l->size + r->size;
-    return (node*) leaf_pool.new_init([=] (leaf* new_l) {
+    return (node*) flck::NewInit<leaf>([=] (leaf* new_l) {
     for (int i=0; i < l->size + r->size; i++)
       new_l->keyvals[i] = ((i < l->size) 
                    ? ((leaf*) l)->keyvals[i] 
@@ -385,15 +385,15 @@ struct ordered_map {
         if (c->is_leaf) {
           gp->children[pidx] = add_child(p, split_leaf(c), cidx);
 	  p->removed = true;
-          leaf_pool.retire((leaf*) c);
-	  node_pool.retire(p);
+	  flck::Retire<leaf>((leaf*) c);
+	  flck::Retire<node>(p);
 	  return true;
         }
 	return c->lck.try_lock([=] {
 	  gp->children[pidx] = add_child(p, split(c), cidx);
 	  p->removed = c->removed = true;
-	  node_pool.retire(c);
-	  node_pool.retire(p);
+	  flck::Retire<node>(c);
+	  flck::Retire<node>(p);
 	  return true;});
       });});
   }
@@ -419,9 +419,9 @@ struct ordered_map {
           else   // rebalance
 	    gp->children[pidx] = rebalance_children(p, rebalance_leaf(lc, rc), li);
 	  p->removed = true;
-          node_pool.retire(p);
-          leaf_pool.retire((leaf*) lc);
-          leaf_pool.retire((leaf*) rc);
+	  flck::Retire<node>(p);
+	  flck::Retire<leaf>((leaf*) lc);
+	  flck::Retire<leaf>((leaf*) rc);
           return true;
         } else { // internal node
           // K& k = p->keys[li];
@@ -445,9 +445,9 @@ struct ordered_map {
 	      else // rebalance
 	  	gp->children[pidx] = rebalance_children(p, rebalance(lc, k, rc), li);
 	      lc->removed = rc->removed = p->removed = true;
-	      node_pool.retire(p);
-	      node_pool.retire(lc);
-	      node_pool.retire(rc);
+	      flck::Retire<node>(p);
+	      flck::Retire<node>(lc);
+	      flck::Retire<node>(rc);
 	      return true;});});
 	  }});});
   }
@@ -460,12 +460,12 @@ struct ordered_map {
   static node* copy_node_or_leaf(node* p) {
     if (p->is_leaf) {
       node* r = (node*) copy_leaf((leaf*) p);
-      leaf_pool.retire((leaf*) p);
+      flck::Retire<leaf>((leaf*) p);
       return r;
     } else {
       node* r = copy_node(p);
       p->removed = true;
-      node_pool.retire(p);
+      flck::Retire<node>(p);
       return r;
     }
   }
@@ -481,11 +481,11 @@ struct ordered_map {
     if (root->children[0].load() != c) return false;
     if (c->status == isOver) {
       if (c->is_leaf) {
-        root->children[0] = node_pool.new_obj(split_leaf(c));
-        leaf_pool.retire((leaf*) c);
+        root->children[0] = flck::New<node>(split_leaf(c));
+	flck::Retire<leaf>((leaf*) c);
       } else {
-        root->children[0] = node_pool.new_obj(split(c));
-        node_pool.retire(c);
+        root->children[0] = flck::New<node>(split(c));
+	flck::Retire<node>(c);
       }
       return true;
     } else { // c has degree 1 and not a leaf
@@ -493,12 +493,12 @@ struct ordered_map {
       // if recorded once then child of c needs to be copied
       return c->lck.try_lock([=] {
           root->children[0] = copy_node_or_leaf(c->children[0].load());
-          node_pool.retire(c);
+	  flck::Retire<node>(c);
           return true;});
 #else
       // if not recorded once then can be updated in place
       root->children[0] = c->children[0].load();
-      node_pool.retire(c);
+      flck::Retire<node>(c);
       return true;
 #endif
     }});
@@ -582,7 +582,7 @@ struct ordered_map {
       if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
       p->children[cidx] = (node*) insert_leaf(l, k, v);
-      leaf_pool.retire(l);
+      flck::Retire<leaf>(l);
       return true;})) return true;
     else return {};
   }
@@ -609,7 +609,7 @@ struct ordered_map {
           if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
           p->children[cidx] = (node*) remove_leaf(l, k);
-          leaf_pool.retire(l);
+	  flck::Retire<leaf>(l);
           return true;})) return true;
     else return {};
   }
@@ -671,17 +671,17 @@ struct ordered_map {
 
   // An empty tree is an empty leaf along with a root pointing tho the
   // leaf.  The root will always contain a single pointer.
-  ordered_map() : root(node_pool.new_obj(leaf_pool.new_obj(0))) {}
-  ordered_map(size_t n) : root(node_pool.new_obj(leaf_pool.new_obj(0))) {}
+  ordered_map() : root(flck::New<node>(flck::New<leaf>(0))) {}
+  ordered_map(size_t n) : root(flck::New<node>(flck::New<leaf>(0))) {}
 
   static void retire_recursive(node* p) {
     if (p == nullptr) return;
     if (p->is_leaf) {
-      leaf_pool.retire((leaf*) p);
+      flck::Retire<leaf>((leaf*) p);
     } else {
       parlay::parallel_for(0, p->size, [&] (size_t i) {
         retire_recursive(p->children[i].load());});
-      node_pool.retire(p);
+      flck::Retire<node>(p);
     }
   }
 
@@ -757,29 +757,29 @@ struct ordered_map {
   }
 
   static void clear() {
-    node_pool.clear();
-    leaf_pool.clear();
+    flck::clear_pool<node>();
+    flck::clear_pool<leaf>();
   }
 
-  static void reserve(size_t n) {
-    node_pool.reserve(n);
-    leaf_pool.reserve(n);
-  }
+  //static void reserve(size_t n) {
+    //node_pool.reserve(n);
+    //leaf_pool.reserve(n);
+  //}
 
   static void shuffle(size_t n) {
-    node_pool.shuffle(n/8);
-    leaf_pool.shuffle(n/8);
+    //node_pool.shuffle(n/8);
+    //leaf_pool.shuffle(n/8);
   }
 
   static void stats() {
-    node_pool.stats();
-    leaf_pool.stats();
+    flck::pool_stats<node>();
+    flck::pool_stats<leaf>();
   }
 
 };
 
-template <typename K, typename V, typename C>
-verlib::memory_pool<typename ordered_map<K,V,C>::node> ordered_map<K,V,C>::node_pool;
+// template <typename K, typename V, typename C>
+// verlib::memory_pool<typename ordered_map<K,V,C>::node> ordered_map<K,V,C>::node_pool;
 
-template <typename K, typename V, typename C>
-verlib::memory_pool<typename ordered_map<K,V,C>::leaf> ordered_map<K,V,C>::leaf_pool;
+// template <typename K, typename V, typename C>
+// verlib::memory_pool<typename ordered_map<K,V,C>::leaf> ordered_map<K,V,C>::leaf_pool;

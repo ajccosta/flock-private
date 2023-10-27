@@ -114,7 +114,8 @@ private:
       // announce the location and tag been written
       announce_write.set(add_tag(oldv, (IT) &loc));
       skip_if_done_no_log([&] { // skip both for correctness, and efficiency
-	  r = loc.compare_exchange_strong(oldv, newv);});
+        r = loc.compare_exchange_strong(oldv, newv);
+      });
       // unannounce the location
       announce_write.clear();
       return r;

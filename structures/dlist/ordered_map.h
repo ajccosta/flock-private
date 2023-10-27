@@ -23,8 +23,6 @@ struct ordered_map {
 
   node* root;
   
-  static verlib::memory_pool<node> node_pool;
-
   auto find_location(node* root, const K& k) {
     node* next = (root->next).load();
     while (true) {
@@ -46,7 +44,7 @@ struct ordered_map {
     if ((prev->is_end || prev->key < k) && 
 	prev->try_lock([=] {
 	   if (!prev->removed.load() && (prev->next).load() == next) {
-	     node* new_node = node_pool.new_obj(k, v, next, prev);
+	     node* new_node = flck::New<node>(k, v, next, prev);
 	     prev->next = new_node;
 	     next->prev = new_node;
 	return true;
@@ -76,7 +74,7 @@ struct ordered_map {
 	 loc->removed = true;
 	 prev->next = next;
 	 next->prev = prev;
-	 node_pool.retire(loc);
+	 flck::Retire<node>(loc);
 	return true;
         });}))
       return true;
@@ -136,8 +134,8 @@ struct ordered_map {
   }
 
   node* init() {
-    node* tail = node_pool.new_obj(nullptr);
-    node* head = node_pool.new_obj(tail);
+    node* tail = flck::New<node>(nullptr);
+    node* head = flck::New<node>(tail);
     tail->prev = head;
     return head;
   }
@@ -156,7 +154,7 @@ struct ordered_map {
 
   void retire_recursive(node* p) {
     if (!p->is_end) retire_recursive(p->next.load());
-    node_pool.retire(p);
+    flck::Retire<node>(p);
   }
 
   ~ordered_map() {retire_recursive(root);}
@@ -179,12 +177,10 @@ struct ordered_map {
     return i;
   }
 
-  static void clear() { node_pool.clear();}
-  static void reserve(size_t n) { node_pool.reserve(n);}
-  static void shuffle(size_t n) { node_pool.shuffle(n);}
-  static void stats() { node_pool.stats();}
+  static void clear() { flck::clear_pool<node>();}
+  //static void reserve(size_t n) { node_pool.reserve(n);}
+  static void shuffle(size_t n) {} // node_pool.shuffle(n);}
+  static void stats() { flck::pool_stats<node>();}
 
 };
 
-template <typename K, typename V, typename C>
-verlib::memory_pool<typename ordered_map<K,V,C>::node> ordered_map<K,V,C>::node_pool;
