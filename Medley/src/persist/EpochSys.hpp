@@ -1221,7 +1221,7 @@ PBlkArray<T>* EpochSys::alloc_pblk_array(size_t s, uint64_t c){
 template<typename T>
 PBlkArray<T>* EpochSys::alloc_pblk_array(PBlk* owner, size_t s, uint64_t c){
     PBlkArray<T>* ret = static_cast<PBlkArray<T>*>(
-        _::operator new(sizeof(PBlkArray<T>) + s*sizeof(T)));
+        ::operator new(sizeof(PBlkArray<T>) + s*sizeof(T)));
     new (ret) PBlkArray<T>(owner);
     ret->size = s;
     T* p = ret->content;
