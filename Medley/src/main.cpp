@@ -76,25 +76,25 @@ int main(int argc, char *argv[])
 
 	/* transactional microbenchmark */
 	// Read-most. Get:Insert:Remove=18:1:1
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::None>(false, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:None>:txn10:g90p0i5rm5:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::NBTC>(false, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:NBTC>:txn10:g90p0i5rm5:range=1000000:prefill=500000"); // Uses Medley/txMontage framework
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::TDSL>(false, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:TDSL>:txn10:g90p0i5rm5:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::LFTT>(false, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:LFTT>:txn10:g90p0i5rm5:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::OneFile>(false, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:OneFile>:txn10:g90p0i5rm5:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::None>(true, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:None>:txn10:g90p0i5rm5:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::NBTC>(true, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:NBTC>:txn10:g90p0i5rm5:range=1000000:prefill=500000"); // Uses Medley/txMontage framework
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::TDSL>(true, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:TDSL>:txn10:g90p0i5rm5:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::LFTT>(true, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:LFTT>:txn10:g90p0i5rm5:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::OneFile>(true, 10, 90, 0, 5, 5, 1000000, 500000), "TxnMapChurnTest<uint64_t:OneFile>:txn10:g90p0i5rm5:range=1000000:prefill=500000");
 
 	// Read-write. Get:Insert:Remove=2:1:1
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::None>(false, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:None>:txn10:g50p0i25rm25:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::NBTC>(false, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:NBTC>:txn10:g50p0i25rm25:range=1000000:prefill=500000"); // Uses Medley/txMontage framework
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::TDSL>(false, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:TDSL>:txn10:g50p0i25rm25:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::LFTT>(false, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:LFTT>:txn10:g50p0i25rm25:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::OneFile>(false, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:OneFile>:txn10:g50p0i25rm25:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::None>(true, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:None>:txn10:g50p0i25rm25:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::NBTC>(true, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:NBTC>:txn10:g50p0i25rm25:range=1000000:prefill=500000"); // Uses Medley/txMontage framework
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::TDSL>(true, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:TDSL>:txn10:g50p0i25rm25:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::LFTT>(true, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:LFTT>:txn10:g50p0i25rm25:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::OneFile>(true, 10, 50, 0, 25, 25, 1000000, 500000), "TxnMapChurnTest<uint64_t:OneFile>:txn10:g50p0i25rm25:range=1000000:prefill=500000");
 
 	// Write-only. Get:Insert:Remove=0:1:1
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::None>(false, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:None>:txn10:g0p0i50rm50:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::NBTC>(false, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:NBTC>:txn10:g0p0i50rm50:range=1000000:prefill=500000"); // Uses Medley/txMontage framework
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::TDSL>(false, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:TDSL>:txn10:g0p0i50rm50:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::LFTT>(false, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:LFTT>:txn10:g0p0i50rm50:range=1000000:prefill=500000");
-	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::OneFile>(false, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:OneFile>:txn10:g0p0i50rm50:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::None>(true, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:None>:txn10:g0p0i50rm50:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::NBTC>(true, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:NBTC>:txn10:g0p0i50rm50:range=1000000:prefill=500000"); // Uses Medley/txMontage framework
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::TDSL>(true, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:TDSL>:txn10:g0p0i50rm50:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::LFTT>(true, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:LFTT>:txn10:g0p0i50rm50:range=1000000:prefill=500000");
+	gtc.addTestOption(new TxnMapChurnTest<uint64_t,uint64_t,TxnType::OneFile>(true, 10, 0, 0, 50, 50, 1000000, 500000), "TxnMapChurnTest<uint64_t:OneFile>:txn10:g0p0i50rm50:range=1000000:prefill=500000");
 
 	gtc.addTestOption(new TxnVerify<uint64_t, uint64_t>(30, 14,14, 14, 14,14, 500000,10), "TxnVerify<uint64_t>:g30:wa14:rb14:wb14:rc14:wc14:range=500000");
 	
