@@ -545,9 +545,9 @@ public:
     EpochSys(GlobalTestConfig* _gtc) : uid_generator(_gtc->task_num), tracker(_gtc->task_num, 100, 1000, true), gtc(_gtc) {
         // init main thread
         pds::EpochSys::init_thread(0);
-        std::string heap_name = get_ralloc_heap_name();
+        //std::string heap_name = get_ralloc_heap_name();
         // task_num+1 to construct Ralloc for dedicated epoch advancer
-        _ral = new Ralloc(_gtc->task_num+1,heap_name.c_str(),REGION_SIZE);
+        //_ral = new Ralloc(_gtc->task_num+1,heap_name.c_str(),REGION_SIZE);
         local_descs = new sc_desc_t* [gtc->task_num];
         // [wentao] FIXME: this may need to change if recovery reuses
         // existing descs
@@ -604,7 +604,7 @@ public:
         delete persisted_epochs;
         delete to_be_persisted;
         delete to_be_freed;
-        delete _ral;
+        //delete _ral;
 
         delete pending_allocs;
         delete pending_retires;
@@ -656,7 +656,7 @@ public:
             delete epoch_advancer;
             epoch_advancer = nullptr;
         // }
-        _ral->simulate_crash();
+        //_ral->simulate_crash();
     }
 
     ////////////////
@@ -669,7 +669,7 @@ public:
     }
 
     void* malloc_pblk(size_t sz){
-        return _ral->allocate(sz);
+        return ::operator new(sz);
     }
 
     // malloc_pblk with pending_allocs stuff
@@ -687,7 +687,7 @@ public:
     // construct using placement new
     template <class T, typename... Types>
     T* new_pblk(Types... args){
-        T* ret = (T*)_ral->allocate(sizeof(T));
+        T* ret = (T*)::operator new(sizeof(T));
         new (ret) T (args...);
         return ret;
     }
@@ -709,7 +709,7 @@ public:
     template <class T>
     void delete_pblk(T* pblk, uint64_t c){
         pblk->~T();
-        _ral->deallocate(pblk);
+        ::operator new(pblk);
         if (sys_mode == ONLINE && c != NULL_EPOCH){
             if (tid >= gtc->task_num){
                 // if this thread does not have to-be-presisted buffer
@@ -1202,7 +1202,7 @@ T* EpochSys::reset_alloc_pblk(T* b, uint64_t c){
 template<typename T>
 PBlkArray<T>* EpochSys::alloc_pblk_array(size_t s, uint64_t c){
     PBlkArray<T>* ret = static_cast<PBlkArray<T>*>(
-        _ral->allocate(sizeof(PBlkArray<T>) + s*sizeof(T)));
+        ::operator new(sizeof(PBlkArray<T>) + s*sizeof(T)));
     new (ret) PBlkArray<T>();
     // Wentao: content initialization has been moved into PBlkArray constructor
     ret->size = s;
@@ -1221,7 +1221,7 @@ PBlkArray<T>* EpochSys::alloc_pblk_array(size_t s, uint64_t c){
 template<typename T>
 PBlkArray<T>* EpochSys::alloc_pblk_array(PBlk* owner, size_t s, uint64_t c){
     PBlkArray<T>* ret = static_cast<PBlkArray<T>*>(
-        _ral->allocate(sizeof(PBlkArray<T>) + s*sizeof(T)));
+        _::operator new(sizeof(PBlkArray<T>) + s*sizeof(T)));
     new (ret) PBlkArray<T>(owner);
     ret->size = s;
     T* p = ret->content;
@@ -1239,7 +1239,7 @@ PBlkArray<T>* EpochSys::alloc_pblk_array(PBlk* owner, size_t s, uint64_t c){
 template<typename T>
 PBlkArray<T>* EpochSys::copy_pblk_array(const PBlkArray<T>* oth, uint64_t c){
     PBlkArray<T>* ret = static_cast<PBlkArray<T>*>(
-        _ral->allocate(sizeof(PBlkArray<T>) + oth->size*sizeof(T)));
+        ::operator new(sizeof(PBlkArray<T>) + oth->size*sizeof(T)));
     new (ret) PBlkArray<T>(*oth);
     memcpy(ret->content, oth->content, oth->size*sizeof(T));
     ret->epoch = c;
