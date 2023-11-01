@@ -1,0 +1,1 @@
+/usr/bin/c++ -std=c++17 -pthread -O3 -DINTEL -DCACHE_LINE_SIZE=64 -fpermissive -DHAVE_CLOCK_GETTIME -rdynamic CMakeFiles/tdsl-test.dir/experiments.cpp.o CMakeFiles/tdsl-test.dir/tskiplist/Index.cpp.o CMakeFiles/tdsl-test.dir/tskiplist/WriteSet.cpp.o CMakeFiles/tdsl-test.dir/tskiplist/TSkipList.cpp.o CMakeFiles/tdsl-test.dir/tskiplist/skiplist/skiplist.cc.o -o tdsl-test 
