@@ -709,7 +709,7 @@ public:
     template <class T>
     void delete_pblk(T* pblk, uint64_t c){
         pblk->~T();
-        ::operator new(pblk);
+        ::operator delete(pblk);
         if (sys_mode == ONLINE && c != NULL_EPOCH){
             if (tid >= gtc->task_num){
                 // if this thread does not have to-be-presisted buffer
