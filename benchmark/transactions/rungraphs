@@ -1,0 +1,104 @@
+#!/usr/bin/python3
+#
+# run all tests
+#
+import sys
+sys.path.insert(1, '..')
+from runtests import *
+
+bench_name = "trans_graphs"
+
+compile_clear(bench_name)
+
+trans_suffixes = ["_lck_validate","_lf_validate","_lck","_lf"]
+default_trees = ["arttree", "btree", "hash_block"]
+default_lists = ["list"]
+default_list_size = [1000]
+default_tree_size = [10000000]
+default_threads = [maxcpus]
+default_zipfian = [0.0]
+default_mix = [[5,0,0,0]]
+default_trans_size = [16]
+
+class by_size(parameters) :
+    file_suffix = bench_name
+    lists = default_lists
+    list_sizes = [30,100,300,1000]
+    trees = default_trees
+    tree_sizes = [10000,100000,1000000,10000000,100000000]
+    zipfians = default_zipfian
+    trans_sizes = default_trans_size
+    mix_percents = default_mix
+    processors = default_threads
+    suffixes_all = trans_suffixes
+                    
+run_all(by_size)
+
+class by_threads(parameters) :
+    file_suffix = bench_name
+    lists = default_lists
+    list_sizes = default_list_size
+    trees = default_trees
+    tree_sizes = default_tree_size
+    zipfians = [0,.99]
+    trans_sizes = default_trans_size
+    mix_percents = default_mix
+    processors = [16, 32, 64, 128, 256, 512]
+    suffixes_all = trans_suffixes
+                    
+run_all(by_threads)
+
+class by_mix(parameters) :
+    file_suffix = bench_name
+    lists = default_lists
+    list_sizes = default_list_size
+    trees = default_trees
+    tree_sizes = default_tree_size
+    zipfians = default_zipfian
+    trans_sizes = default_trans_size
+    mix_percents = [[0,0,0,0],[5,0,0,0],[10,0,0,0],[20,0,0,0],[50,0,0,0],[100,0,0,0]]
+    processors = default_threads
+    suffixes_all = trans_suffixes
+                    
+run_all(by_mix)
+
+class by_contention(parameters) :
+    file_suffix = bench_name
+    lists = default_lists
+    list_sizes = default_list_size
+    trees = default_trees
+    tree_sizes = default_tree_size
+    zipfians = [0,.5,.8,.9,.95,.99]
+    trans_sizes = default_trans_size
+    mix_percents = default_mix
+    processors = default_threads
+    suffixes_all = trans_suffixes
+                    
+run_all(by_contention)
+
+class by_transaction_size(parameters) :
+    file_suffix = bench_name
+    lists = default_lists
+    list_sizes = default_list_size
+    trees = default_trees
+    tree_sizes = default_tree_size
+    zipfians = default_zipfian
+    trans_sizes = [1,4,16,64,256]
+    mix_percents = default_mix
+    processors = default_threads
+    suffixes_all = trans_suffixes
+                    
+run_all(by_transaction_size)
+
+range_threads = round(maxcpus * .95)
+
+class range_search(parameters) :
+    file_suffix = bench_name
+    trees = ["btree"]
+    tree_sizes = default_tree_size
+    zipfians = default_zipfian
+    processors = default_threads
+    mix_percents = [[100,0,range_threads,4], [100,0,range_threads,64], [100,0,range_threads,1024], [100,0,range_threads,16384]]
+    suffixes_all = trans_suffixes
+
+run_all(range_search)

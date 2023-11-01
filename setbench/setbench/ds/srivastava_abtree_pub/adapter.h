@@ -58,6 +58,10 @@ public:
       parlay::type_allocator<Node<K,V,DEGREE>>::reserve(n);
     }
 
+    static void stats() {
+      parlay::type_allocator<Node<K,V,DEGREE>>::print_stats();
+    }
+
     long int getNoValue() {
         return ds->NO_VALUE;
     }
