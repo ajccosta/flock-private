@@ -100,11 +100,13 @@ struct ordered_map {
   std::optional<bool> try_remove(const K& k) {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = gp_left ? &(gp->left) : &(gp->right);
-    if (l->is_sentinal || !equal(k, l->key))
-	// || (prev_leaf != nullptr && prev_leaf != l))
-      if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
+    if (l->is_sentinal) return false; // need to deal with gp == nullptr
+    if (!equal(k, l->key)) {
+      // || (prev_leaf != nullptr && prev_leaf != l))
+      if (gp->lck.read_lock([&] {return (ptr->load() == p) && !gp->removed.load();}))
 	return false;
       else return {};
+    }
     // prev_leaf = l;
     if (gp->lck.try_lock([=] {
       return p->lck.try_lock([=] {

@@ -166,6 +166,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 				 //std::cout << unique[i] << std::endl;
       tr.remove(unique[i]);
     }, 10, true);
+    if (verbose)
+      std::cout << "initial size = " << tr.check() << std::endl;
 
     // insert and delete for a while
     // parlay::parallel_for(0, 10*n, [&] (size_t i) {
@@ -282,6 +284,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
       std::vector<K>& range_keys = range_buffers[proc_id];
 
       while (true) {
+	//std::cout << all[j] << ", " << op_types[jj] << std::endl;
 	if (check_end(cnt, local_stats, proc_id, start_time)) return;
 
 #ifdef Latency
