@@ -1,5 +1,8 @@
 // Definition of versioned_ptr and atomic_bool
 
+#ifndef TLF_VERSIONED_POINTER_H_
+#define TLF_VERSIONED_POINTER_H_
+
 namespace verlib {
 
   template <typename V>
@@ -140,3 +143,5 @@ namespace verlib {
   };
 
 } // namespace verlib
+
+#endif // TLF_VERSIONED_POINTER_H_

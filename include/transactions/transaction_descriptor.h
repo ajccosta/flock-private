@@ -1,3 +1,6 @@
+#ifndef TLF_TRANS_DESCRIPTOR_H_
+#define TLF_TRANS_DESCRIPTOR_H_
+
 namespace verlib {
   using atomic_val = size_t;
   thread_local int transaction_round = 0;
@@ -86,3 +89,5 @@ namespace verlib {
   //flck::memory_pool<transaction_descriptor> trans_descriptor_pool;
 #endif
 }
+
+#endif // TLF_TRANS_DESCRIPTOR_H_

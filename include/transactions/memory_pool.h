@@ -1,3 +1,6 @@
+#ifndef TLF_MEMORY_POOL_H_
+#define TLF_MEMORY_POOL_H_
+
 namespace verlib {
   template <typename xT>
   struct memory_pool {
@@ -60,3 +63,5 @@ namespace verlib {
     }
   };
 }
+
+#endif // TLF_MEMORY_POOL_H_

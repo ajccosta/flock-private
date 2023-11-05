@@ -4,6 +4,9 @@
 //   commit(transaction_descriptor* descriptor), which calls
 //   validate(transaction_descriptor* descriptor)
 
+#ifndef TLF_ATOMIC_H_
+#define TLF_ATOMIC_H_
+
 namespace verlib {
 
 thread_local TS start_stamp = 0;
@@ -128,3 +131,5 @@ auto do_now(F f) {
 }
 
 }
+
+#endif // TLF_ATOMIC_H_

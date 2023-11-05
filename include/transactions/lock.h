@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TLF_LOCK_H_
+#define TLF_LOCK_H_
 
 #include<optional>
 
@@ -97,3 +98,5 @@ bool run_with_logged_locks(transaction_descriptor* descriptor, F f, bool do_help
 }
 
 }
+
+#endif // TLF_LOCK_H_

@@ -39,6 +39,9 @@
 // finalize_store are idempotent---any number of threads can
 // repeatedly apply them while helping the original thread.
 
+#ifndef TLF_CORE_FUNCTIONS_H_
+#define TLF_CORE_FUNCTIONS_H_
+
 namespace verlib {
 
   bool is_helping() {
@@ -295,3 +298,5 @@ namespace verlib {
   thread_local bool old_version_read = false;
 
 }
+
+#endif // TLF_CORE_FUNCTIONS_H_
