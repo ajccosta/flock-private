@@ -5,10 +5,6 @@ template <typename K,
 	  typename V,
 	  typename Compare = std::less<K>>
 struct ordered_map {
-  static constexpr auto less = Compare{};
-  static bool equal(const K& a, const K& b) {
-    return !less(a,b) && !less(b,a);
-  }
 
   struct internal;
   internal* root;
@@ -20,8 +16,8 @@ struct ordered_map {
     bool is_sentinal;
     node(K key, bool is_leaf)
       : key(key), is_leaf(is_leaf), is_sentinal(false) {}
-    node(bool is_sentinal) :
-      is_leaf(is_sentinal), is_sentinal(is_sentinal) {}
+    node(bool is_leaf) :
+      is_leaf(is_leaf), is_sentinal(true) {}
   };
 
   // internal node
@@ -42,6 +38,13 @@ struct ordered_map {
     leaf() : node{true} {}; // for the sentinal leaf
   };
 
+  static bool Less(const K& k, node* a) {
+    return !a->is_sentinal && Compare{}(k, a->key);
+  }
+  static bool Equal(const K& k, node* a) {
+    return !(a->is_sentinal || Compare{}(k, a->key) || Compare{}(a->key ,k));
+  }
+
   static verlib::memory_pool<internal> internal_pool;
   static verlib::memory_pool<leaf> leaf_pool;
 
@@ -55,7 +58,7 @@ struct ordered_map {
       gp = p;
       gp_left = p_left;
       p = (internal*) l;
-      p_left = less(k, p->key);
+      p_left = Less(k, p);
       l = p_left ? (p->left).load() : (p->right).load();
     }
     return std::make_tuple(gp, gp_left, p, p_left, (leaf*) l);
@@ -70,8 +73,8 @@ struct ordered_map {
   std::optional<bool> try_insert(const K& k, const V& v, bool upsert=false) {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = p_left ? &(p->left) : &(p->right);
-    if (!l->is_sentinal &&
-	((!upsert && equal(l->key, k))))
+    if (Equal(k, l))
+	//(!l->is_sentinal && (!upsert && equal(l->key, k))))
       // || (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
       // l != prev_leaf)))
       if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
@@ -82,12 +85,13 @@ struct ordered_map {
 	auto l_new = ptr->load();
 	if (p->removed.load() || l_new != l) return false;
 	node* new_l = leaf_pool.new_obj(k, v);
-	if (!l->is_sentinal && equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
-	else *ptr = (l->is_sentinal || less(l->key, k) ?
-		     internal_pool.new_obj(k, l, new_l) :
-		     internal_pool.new_obj(l->key, new_l, l));
+	//if (!l->is_sentinal && equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
+	//else
+	*ptr = (Less(k, l) ?
+		internal_pool.new_obj(l->key, new_l, l) :
+		internal_pool.new_obj(k, l, new_l));
 	return true;});
-    if (r) return (l->is_sentinal || !equal(k, l->key));
+    if (r) return !Equal(k, l); 
     else return {};
   }
 
@@ -101,7 +105,7 @@ struct ordered_map {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = gp_left ? &(gp->left) : &(gp->right);
     if (l->is_sentinal) return false; // need to deal with gp == nullptr
-    if (!equal(k, l->key)) {
+    if (!Equal(k, l)) {
       // || (prev_leaf != nullptr && prev_leaf != l))
       if (gp->lck.read_lock([&] {return (ptr->load() == p) && !gp->removed.load();}))
 	return false;
@@ -129,11 +133,11 @@ struct ordered_map {
     node* l = ptr->load();
     while (!l->is_leaf) {
       internal* p = (internal*) l;
-      auto ptr = less(k, p->key) ? &(p->left) : &(p->right);
+      auto ptr = Less(k, p) ? &(p->left) : &(p->right);
       l = ptr->load();
     }
     auto ll = (leaf*) l;
-    if (!ll->is_sentinal && equal(ll->key, k)) return ll->value; 
+    if (Equal(k, ll)) return ll->value; 
     else return {};
   }
 
@@ -148,7 +152,7 @@ struct ordered_map {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = p_left ? &(p->left) : &(p->right);
     if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
-      return ot(!l->is_sentinal && equal(l->key, k) ?
+      return ot(Equal(k, l) ?
 		std::optional<V>(l->value) :
 		std::optional<V>());
     return ot();
@@ -224,7 +228,7 @@ struct ordered_map {
 	     long lsum, rsum;
 	     parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((pp->left).load(), leftmost);},
 			    [&] () { std::tie(rmin,rmax,rsum) = crec((pp->right).load(), false);});
-	     if ((lsum !=0 && !less(lmax, pp->key)) || less(rmin, pp->key))
+	     if ((lsum !=0 && !Less(lmax, pp)) || Less(rmin, pp))
 	       std::cout << "out of order key: " << lmax << ", " << pp->key << ", " << rmin << std::endl;
 	     if (lsum == 0) return rtup(pp->key, rmax, rsum);
 	     else return rtup(lmin, rmax, lsum + rsum);

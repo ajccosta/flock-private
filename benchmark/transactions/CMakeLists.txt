@@ -29,6 +29,8 @@ foreach(bench ${FLOCK_BENCH})
   add_benchmark(${bench}_lf_validate ${STRUCT_DIR}/${bench} "Validate;Transactional;TransUndo;Versioned;HWWriteStamp")
 endforeach()
 
+add_benchmark(tlf_leaftree_lck_validate ${STRUCT_DIR}/tlf_leaftree "NoHelp;Validate;Transactional;TransUndo;Versioned;HWWriteStamp")
+
 # *************************
 #    Strings
 # *************************
