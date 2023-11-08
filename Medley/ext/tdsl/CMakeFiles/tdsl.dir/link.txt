@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtdsl.a CMakeFiles/tdsl.dir/tskiplist/Index.cpp.o CMakeFiles/tdsl.dir/tskiplist/WriteSet.cpp.o CMakeFiles/tdsl.dir/tskiplist/TSkipList.cpp.o CMakeFiles/tdsl.dir/tskiplist/skiplist/skiplist.cc.o
+/usr/bin/ranlib libtdsl.a
