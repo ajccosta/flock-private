@@ -5,6 +5,9 @@
 #include <cassert>
 
 #include <atomic>
+#include <thread>
+#include <type_traits>    // IWYU pragma: keep
+
 
 namespace parlay {
 
@@ -12,18 +15,21 @@ namespace parlay {
 // and return nothing. Could be a lambda, e.g. [] () {}.
 
 struct WorkStealingJob {
-  WorkStealingJob() {
-    done.store(false, std::memory_order_relaxed);
-  }
-  ~WorkStealingJob() = default;
+  WorkStealingJob() : done{false} { }
+  virtual ~WorkStealingJob() = default;
   void operator()() {
     assert(done.load(std::memory_order_relaxed) == false);
     execute();
-    done.store(true, std::memory_order_relaxed);
+    done.store(true, std::memory_order_release);
   }
-  bool finished() {
-    return done.load(std::memory_order_relaxed);
+  [[nodiscard]] bool finished() const noexcept {
+    return done.load(std::memory_order_acquire);
   }
+  void wait() const noexcept {
+    while (!finished())
+      std::this_thread::yield();
+  }
+ protected:
   virtual void execute() = 0;
   std::atomic<bool> done;
 };
@@ -31,10 +37,12 @@ struct WorkStealingJob {
 // Holds a type-specific reference to a callable object
 template<typename F>
 struct JobImpl : WorkStealingJob {
+  static_assert(std::is_invocable_v<F&>);
   explicit JobImpl(F& _f) : WorkStealingJob(), f(_f) { }
   void execute() override {
     f();
   }
+ private:
   F& f;
 };
 

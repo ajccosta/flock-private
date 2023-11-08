@@ -3,6 +3,8 @@
 
 #include <cstddef>
 
+#include <type_traits>
+
 #include <cilk/cilk.h>
 #include <cilk/cilk_api.h>
 
@@ -14,18 +16,19 @@ inline size_t num_workers() { return __cilkrts_get_nworkers(); }
 inline size_t worker_id() { return __cilkrts_get_worker_number(); }
 
 template <typename Lf, typename Rf>
-inline void par_do(Lf left, Rf right, bool) {
-  cilk_spawn right();
-  left();
+inline void par_do(Lf&& left, Rf&& right, bool) {
+  static_assert(std::is_invocable_v<Lf&&>);
+  static_assert(std::is_invocable_v<Rf&&>);
+  cilk_spawn std::forward<Rf>(right)();
+  std::forward<Lf>(left)();
   cilk_sync;
 }
 
 template <typename F>
-inline void parallel_for(size_t start, size_t end, F f,
-                         long granularity,
-			                   bool) {
+inline void parallel_for(size_t start, size_t end, F&& f, long granularity, bool) {
+  static_assert(std::is_invocable_v< F&, size_t>);
   if (granularity == 0)
-    cilk_for(size_t i=start; i<end; i++) f(i);
+    cilk_for (size_t i=start; i<end; i++) f(i);
   else if ((end - start) <= static_cast<size_t>(granularity))
     for (size_t i=start; i < end; i++) f(i);
   else {
@@ -37,7 +40,12 @@ inline void parallel_for(size_t start, size_t end, F f,
   }
 }
 
+template <typename... Fs>
+void execute_with_scheduler(Fs...) {
+  struct Illegal {};
+  static_assert((std::is_same_v<Illegal, Fs> && ...), "parlay::execute_with_scheduler is only available in the Parlay scheduler and is not compatible with CilkPlus");
+}
+
 }  // namespace parlay
 
-#endif  // PARLAY_INTERNAL_SCHEDULER_PLUGINS_CILKPLUS_HPP_
-
+#endif  // PARLAY_INTERNAL_SCHEDULER_PLUGINS_CILKPLUS_H_

@@ -2,55 +2,42 @@
 #ifndef PARLAY_UTILITIES_H_
 #define PARLAY_UTILITIES_H_
 
+#include <cstddef>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 
-#include <algorithm>
+#include <array>            // IWYU pragma: keep
 #include <atomic>
-#include <iterator>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <new>
 #include <type_traits>
 #include <utility>
 
 #include "portability.h"
-#include "parallel.h"
-#include "range.h"           // IWYU pragma: keep
 #include "type_traits.h"
 
 #include "internal/debug_uninitialized.h"
 
+// IWYU pragma: no_include <tuple>
+
 namespace parlay {
 
-template <typename Lf, typename Rf>
-static void par_do_if(bool do_parallel, Lf left, Rf right, bool cons = false) {
-  if (do_parallel)
-    par_do(left, right, cons);
-  else {
-    left();
-    right();
-  }
+// Obtains a pointer to an object of type T located at the address represented
+// by p. Essentially performs std::launder(reinterpret_cast<T*>(p)).
+template<typename T>
+[[nodiscard]] constexpr T* from_bytes(std::byte* p) noexcept {
+  // std::launder not available on older compilers
+#ifdef __cpp_lib_launder
+  return std::launder(reinterpret_cast<T*>(p));
+#else
+  return reinterpret_cast<T*>(p);
+#endif
 }
 
-template <typename Lf, typename Mf, typename Rf>
-inline void par_do3(Lf left, Mf mid, Rf right) {
-  auto left_mid = [&]() { par_do(left, mid); };
-  par_do(left_mid, right);
-}
-
-template <typename Lf, typename Mf, typename Rf>
-static void par_do3_if(bool do_parallel, Lf left, Mf mid, Rf right) {
-  if (do_parallel)
-    par_do3(left, mid, right);
-  else {
-    left();
-    mid();
-    right();
-  }
-}
 
 template <class T>
 size_t log2_up(T);
@@ -81,6 +68,23 @@ template <typename T>
 inline void move_uninitialized(T& a, type_identity_t<T>& b) {
   PARLAY_ASSERT_UNINITIALIZED(a);
   new (static_cast<T*>(std::addressof(a))) T(std::move(b));
+}
+
+// Relocate a single object into uninitialized memory, leaving
+// the source memory uninitialized afterwards.
+template<typename T>
+inline void uninitialized_relocate(T* to, T* from) noexcept(is_nothrow_relocatable<T>::value) {
+  if constexpr (is_trivially_relocatable<T>::value) {
+    std::memcpy(static_cast<void*>(to), static_cast<void*>(from), sizeof(T));
+  }
+  else {
+    static_assert(std::is_move_constructible<T>::value);
+    static_assert(std::is_destructible<T>::value);
+    PARLAY_ASSERT_UNINITIALIZED(*to);
+    ::new (to) T(std::move(*from));
+    from->~T();
+    PARLAY_ASSERT_UNINITIALIZED(*from);
+  }
 }
 
 /* Hashing functions for various integer types */
@@ -142,15 +146,33 @@ inline void hash_combine(size_t& seed, size_t v) {
 // parlay::hash provides a customization point for hashing that allows
 // us to override the hash for standard types, or to provide specializations
 // for standard types that do not have a std::hash specialization themselves.
-template<typename T>
+template<typename T, typename Enable = void>
 struct hash : public std::hash<T> { };
 
+template <typename T>
+struct hash<T, typename std::enable_if_t<std::is_integral_v<T>>> {
+  size_t operator()(const T& p) const {
+    return p * UINT64_C(0xbf58476d1ce4e5b9);
+  }
+};
+    
 // Hashing for std::pairs
 template<typename U, typename V>
 struct hash<std::pair<U,V>> {
   size_t operator()(const std::pair<U,V>& p) const {
     size_t h = parlay::hash<U>{}(p.first);
     hash_combine(h, parlay::hash<V>{}(p.second));
+    return h;
+  }
+};
+
+template<typename V, std::size_t n>
+struct hash<std::array<V,n>> {
+  size_t operator()(const std::array<V,n>& a) const {
+    size_t h = 1;
+    for (int i=0; i < n; i++) {
+      hash_combine(h, parlay::hash<V>{}(a[i]));
+    }
     return h;
   }
 };
@@ -169,7 +191,7 @@ inline void write_add(std::atomic<T>* a, EV b) {
 template <typename T, typename F>
 inline bool write_min(std::atomic<T>* a, T b, F less) {
   T c;
-  bool r = 0;
+  bool r = false;
   do {
     c = a->load();
   } while (less(b, c) && !(r = std::atomic_compare_exchange_weak(a, &c, b)));
@@ -179,7 +201,7 @@ inline bool write_min(std::atomic<T>* a, T b, F less) {
 template <typename T, typename F>
 inline bool write_max(std::atomic<T>* a, T b, F less) {
   T c;
-  bool r = 0;
+  bool r = false;
   do {
     c = a->load();
   } while (less(c, b) && !(r = std::atomic_compare_exchange_weak(a, &c, b)));
@@ -200,6 +222,7 @@ size_t log2_up(T i) {
   return a;
 }
 
+
 inline size_t granularity(size_t n) {
   return (n > 100) ? static_cast<size_t>(std::ceil(std::sqrt(n))) : 100;
 }
@@ -208,7 +231,7 @@ inline size_t granularity(size_t n) {
 //  or any callable object) as a member while still being default copy-assignable.
 //
 //  As long as the function type is copy constructible (which it needs to be in
-//  order to event initialize the member), this wrapper will be copy assignable.
+//  order to even initialize the member), this wrapper will be copy assignable.
 template<typename F>
 struct copyable_function_wrapper {
 
@@ -258,7 +281,7 @@ struct copyable_function_wrapper {
   }
 
   // Special case for when the argument is just a size_t. This is the common case since this is what
-  // all of the functions in delayed_sequence are. This should in theory make absolutely no difference
+  // all the functions in delayed_sequence are. This should in theory make absolutely no difference
   // compared to the templates whatsoever but for some reason it's faster???
   PARLAY_INLINE decltype(auto) operator()(size_t i) noexcept(std::is_nothrow_invocable_v<F&, size_t>) {
     static_assert(std::is_invocable_v<F&, size_t>);
@@ -276,166 +299,6 @@ struct copyable_function_wrapper {
  private:
   F f;
 };
-
-
-
-/* Relocation (a.k.a. "destructive move")
-
-   The relocation of object a into memory b is equivalent to a move
-   construction of a into b, followed by the destruction of what
-   remains at a. In other words, it is
-
-   new (b) T(std::move(*a));
-   a->~T();
-
-   For many types, however, this can be optimized by replacing it
-   with just
-
-   std::memcpy(b, a, sizeof(T));
-
-   We call any such types trivially relocatable. This is clearly
-   true for any trivial type, but it also turns out to be true
-   for most other standard types, such as vectors, unique_ptrs,
-   and more. The key observation is that the only reason that
-   the move operations of these types is non-trivial is because
-   they must clear out the source object after moving from it.
-   If, however, the source object is treated as uninitialized
-   memory after relocation, then it does not have to be cleared
-   out, since its destructor will not run.
-
-   A strong motivating use case for relocation is in dynamically
-   sized containers (e.g. vector, or parlay::sequence). When
-   performing a resize operation, one has to move all of the
-   contents of the old buffer into the new one, and destroy
-   the contents of the old buffer, like so (ignoring allocator
-   details)
-
-   parallel_for(0, n, [&](size_t i) {
-     new (&new_buffer[i]) std::move(current_buffer[i]));
-     current_buffer[i].~value_type();
-   });
-
-   This can be replaced with
-
-   parallel_for(0, n, [&](size_t i) {
-     uninitialized_relocate(&new_buffer[i], &current_buffer[i]);
-   });
-
-   or even, for better performance yet
-
-   uninitialized_relocate_n(new_buffer, current_buffer, n);
-
-   The uninitialized_relocate functions will use the optimized
-   memcpy-based approach for any types for which it is suitable,
-   and otherwise, will fall back to the generic approach.
-*/
-
-// Relocate a single object into uninitialized memory, leaving
-// the source memory uninitialized afterwards.
-template<typename T>
-inline void uninitialized_relocate(T* to, T* from) noexcept(is_nothrow_relocatable<T>::value) {
-  if constexpr (is_trivially_relocatable<T>::value) {
-    std::memcpy(static_cast<void*>(to), static_cast<void*>(from), sizeof(T));
-  }
-  else {
-    static_assert(std::is_move_constructible<T>::value);
-    static_assert(std::is_destructible<T>::value);
-    PARLAY_ASSERT_UNINITIALIZED(*to);
-    ::new (to) T(std::move(*from));
-    from->~T();
-    PARLAY_ASSERT_UNINITIALIZED(*from);
-  }
-}
-
-// Relocate the given range of n elements [from, from + n) into uninitialized
-// memory at [to, to + n), such that both the source and destination memory
-// were allocated by the given allocator.
-template<typename It1, typename It2, typename Alloc>
-inline void uninitialized_relocate_n_a(It1 to, It2 from, size_t n, Alloc& alloc) {
-  using T = typename std::iterator_traits<It1>::value_type;
-  static_assert(std::is_same_v<typename std::iterator_traits<It2>::value_type, T>);
-  static_assert(std::is_same_v<typename std::allocator_traits<Alloc>::value_type, T>);
-
-  constexpr bool trivially_relocatable = is_trivially_relocatable_v<T>;
-  constexpr bool trivial_alloc = is_trivial_allocator_v<Alloc, T>;
-  constexpr bool contiguous = is_contiguous_iterator_v<It1> && is_contiguous_iterator_v<It2>;
-  constexpr bool random_access = is_random_access_iterator_v<It1> && is_random_access_iterator_v<It2>;
-
-  // The most efficient scenario -- The objects are trivially relocatable, the allocator
-  // has no special behaviour, and the iterators point to contiguous memory so we can
-  // memcpy chunks of more than one T object at a time.
-  if constexpr (trivially_relocatable && contiguous && trivial_alloc) {
-    constexpr size_t chunk_size = 1024 * sizeof(size_t) / sizeof(T);
-    const size_t n_chunks = (n + chunk_size - 1) / chunk_size;
-    parallel_for(0, n_chunks, [&](size_t i) {
-      size_t n_objects = (std::min)(chunk_size, n - i * chunk_size);
-      size_t n_bytes = sizeof(T) * n_objects;
-      void* src = static_cast<void*>(std::addressof(*(from + i * chunk_size)));
-      void* dest = static_cast<void*>(std::addressof(*(to + i * chunk_size)));
-      std::memcpy(dest, src, n_bytes);
-    }, 1);
-  // The next best thing -- If the objects are trivially relocatable and the allocator
-  // has no special behaviour, so long as the iterators are random access, we can still
-  // relocate everything in parallel, just not by memcpying multiple objects at a time
-  } else if constexpr (trivially_relocatable && random_access && trivial_alloc) {
-    constexpr size_t chunk_size = 1024 * sizeof(size_t) / sizeof(T);
-    const size_t n_chunks = (n + chunk_size - 1) / chunk_size;
-    parallel_for(0, n_chunks, [&](size_t i) {
-      for (size_t j = 0; j < chunk_size && (j + i *chunk_size < n); j++) {
-        void* src = static_cast<void*>(std::addressof(from[j + i * chunk_size]));
-        void* dest = static_cast<void*>(std::addressof(to[j + i * chunk_size]));
-        std::memcpy(dest, src, sizeof(T));
-      }
-    }, 1);
-  }
-  // The iterators are not random access, but we can still relocate, just not in parallel
-  else if constexpr (trivially_relocatable && trivial_alloc) {
-    for (size_t i = 0; i < n; i++) {
-      std::memcpy(std::addressof(*to), std::addressof(*from), sizeof(T));
-      to++;
-      from++;
-    }
-  }
-  // After this point, the object can not be trivially relocated, either because it is not
-  // trivially relocatable, or because the allocator has specialize behaviour. We now fall
-  // back to just doing a "destructive move" manually.
-  else if constexpr (random_access) {
-    static_assert(std::is_move_constructible<T>::value);
-    static_assert(std::is_destructible<T>::value);
-    parallel_for(0, n, [&](size_t i) {
-      PARLAY_ASSERT_UNINITIALIZED(to[i]);
-      std::allocator_traits<Alloc>::construct(alloc, std::addressof(to[i]), std::move(from[i]));
-      std::allocator_traits<Alloc>::destroy(alloc, std::addressof(from[i]));
-      PARLAY_ASSERT_UNINITIALIZED(from[i]);
-    });
-  }
-  // The worst case. No parallelism and no fast relocation.
-  else {
-    static_assert(std::is_move_constructible<T>::value);
-    static_assert(std::is_destructible<T>::value);
-    for (size_t i = 0; i < n; i++) {
-      PARLAY_ASSERT_UNINITIALIZED(*to);
-      std::allocator_traits<Alloc>::construct(alloc, std::addressof(*to), std::move(*from));
-      std::allocator_traits<Alloc>::destroy(alloc, std::addressof(*from));
-      PARLAY_ASSERT_UNINITIALIZED(*from);
-      to++;
-      from++;
-    }
-  }
-}
-
-// Relocate the given range of n elements [from, from + n) into uninitialized
-// memory at [to, to + n). Relocation is done as if the memory was allocated
-// by a standard allocator (e.g. std::allocator, parlay::allocator, malloc)
-//
-// For an allocator-aware version that respects the construction and destruction
-// behaviour of the allocator, use uninitialized_relocate_n_a.
-template<typename Iterator1, typename Iterator2>
-inline void uninitialized_relocate_n(Iterator1 to, Iterator2 from, size_t n) {
-  using T = typename std::iterator_traits<Iterator1>::value_type;
-  std::allocator<T> a;
-  uninitialized_relocate_n_a(to, from, n, a);
-}
 
 
 /* For inplace sorting / merging, we sometimes need to move values
@@ -492,6 +355,146 @@ void assign_dispatch(T& dest, T& val, uninitialized_relocate_tag) {
   uninitialized_relocate(&dest, &val);
 }
 
+
+namespace internal {
+
+// The deleter used by unique_array / make_unique_array
+template<typename T>
+struct unique_array_deleter {
+  void operator()(T* ptr) {
+    if (ptr != nullptr) {
+      if constexpr (!std::is_trivially_destructible_v<T>) {
+        for (size_t i = 0; i < n; i++) {
+          ptr[i].~T();
+        }
+      }
+      ::operator delete (static_cast<void*>(ptr), std::align_val_t{alignof(T)});
+    }
+  }
+  size_t n;
+};
+
+}  // namespace internal
+
+// An alias of unique_ptr<T[], *custom_deleter*> as returned by make_unique_array.
+// Stores a dynamically allocated array of type T[] that is automatically freed when
+// the unique_ptr goes out of scope. Unlike regular unique_ptr<T[]>, this type with
+// make_unique_array can be used to construct an array of non-default-constructible T
+template<typename T>
+using unique_array = std::unique_ptr<T[], internal::unique_array_deleter<T>>;
+
+template<typename T>
+std::size_t size(const unique_array<T>& arr) {
+  return arr.get_deleter().n;
+}
+
+template<typename T>
+T* begin(unique_array<T>& arr) {
+  return &arr[0];
+}
+
+template<typename T>
+T* end(unique_array<T>& arr) {
+  return &arr[0] + size(arr);
+}
+
+template<typename T>
+T const* begin(const unique_array<T>& arr) {
+  return &arr[0];
+}
+
+template<typename T>
+T const* end(const unique_array<T>& arr) {
+  return &arr[0] + size(arr);
+}
+
+// Creates a unique_ptr<T[], *custom_deleter*> consisting of n objects of
+// type T initialized by T(init(i)) for i from 0 to n - 1. The objects are
+// automatically destroyed and freed when the unique_ptr goes out of scope.
+//
+// Useful in place of unique_ptr<T[]> when T is not default constructible
+// and hence make_unique<T[]> can not be used.
+template<typename T, typename F>
+auto make_unique_array(size_t n, F init) {
+  // Either T is constructible from init(i), or init(i) returns a prvalue T which means
+  // we get guaranteed copy elision and can construct T even if it isn't copyable/movable
+  static_assert(std::is_constructible_v<T, std::invoke_result_t<F&, size_t>> ||
+                std::is_same_v<T, std::invoke_result_t<F&, size_t>>);
+
+  if (n == 0) return unique_array<T>(nullptr, {0});
+  auto buffer = static_cast<std::byte*>(::operator new(n * sizeof(T), std::align_val_t{alignof(T)}));
+  auto first = new (buffer) T(init(0));
+  for (size_t i = 1; i < n; i++) {
+    new (buffer + i * sizeof(T)) T(init(i));  // NOLINT
+  }
+  return unique_array<T>(first, {n});
+}
+
+/*
+    Padded types for avoiding false sharing by over-aligning to a cache-line boundary.
+
+    parlay::padded<T> should be a drop-in replacement for T in just about any scenario,
+    without having to change the code that makes use of the T object. padded<T> can be
+    initialized with any initializer that would work on T, including copy and move
+    initialization, and any constructor of T. Assignment operations should also work.
+
+    You can also bind a padded<T> to const/non-const reference/rvalue-reference variables
+    of type T, e.g.,
+
+      padded<int> p{1};
+      int& x = p;  // refers to the padded int 1
+      x = 2;       // p now contains 2
+
+    This also applies to function parameters. For class types, you should also be able
+    to invoke overloaded operations and member functions, e.g.,
+
+      padded<std::vector<int>> v{1,2,3};
+      v.push_back(4);
+      v[0] = 42;
+
+    You can even invoke function pointers!!
+
+      padded<int(*)()> fp = &func;
+      int x = fp();
+
+    The only thing that doesn't seem to work is directly invoking member-function pointers...
+
+ */
+
+// Padded types to avoid false sharing. Takes a type T and makes its size
+// at least Size bytes by over-aligning it. Size must be a valid alignment.
+template<typename T, size_t Size = 128, typename Sfinae = void>
+struct padded;
+
+// Use user-defined conversions to pad primitive types
+template<typename T, size_t Size>
+struct alignas(Size) padded<T, Size, typename std::enable_if_t<std::is_scalar_v<T>>> {
+  padded() : x{} {};
+  /* implicit */ padded(T _x) : x(_x) { }       // cppcheck-suppress noExplicitConstructor    // NOLINT
+  /* implicit */ operator T&() & { return x; }                                                // NOLINT
+  /* implicit */ operator const T&() const& { return x; }                                     // NOLINT
+  /* implicit */ operator T&&() && { return std::move(x); }                                   // NOLINT
+  /* implicit */ operator const T&&() const&& { return std::move(x); }                        // NOLINT
+
+  // Allow padded function pointers to be directly invoked!
+  template<typename... Ts> auto operator()(Ts... args) const noexcept(std::is_nothrow_invocable_v<T, Ts...>)
+      -> std::enable_if_t<std::is_invocable_v<T, Ts...>, std::invoke_result_t<T, Ts...>> {
+    return x(std::forward<Ts>(args)...);
+  }
+
+  T x;
+};
+
+// Use inheritance to pad class types
+template<typename T, size_t Size>
+struct alignas(Size) padded<T, Size, typename std::enable_if_t<std::is_class_v<T>>> : public T {
+  static_assert(std::is_same_v<T, std::remove_cv_t<T>>,
+      "padded<T> requires T be non-const-volatile qualified. Use const padded<T> instead of padded<const T>");
+  using T::T;                                         // inherit (non-special) constructors
+  padded() = default;                                 // implement non-inherited special constructors
+  /* implicit */ padded(const T& t) : T(t) {}         // cppcheck-suppress noExplicitConstructor          // NOLINT
+  /* implicit */ padded(T&& t) : T(std::move(t)) {}   // cppcheck-suppress noExplicitConstructor          // NOLINT
+};
 
 }  // namespace parlay
 

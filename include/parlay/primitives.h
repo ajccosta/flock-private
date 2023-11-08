@@ -11,6 +11,7 @@
 #include <functional>
 #include <optional>
 #include <random>
+#include <tuple>                          // IWYU pragma: keep
 #include <type_traits>
 #include <utility>
 
@@ -29,12 +30,14 @@
 #include "parallel.h"
 #include "random.h"
 #include "range.h"
+#include "relocation.h"
 #include "sequence.h"
 #include "slice.h"
 #include "type_traits.h"               // IWYU pragma: keep
 #include "utilities.h"
 
 // IWYU pragma: no_include <sstream>
+// IWYU pragma: no_include <bits/utility.h>
 
 namespace parlay {
 
@@ -533,6 +536,8 @@ template <typename R, typename UnaryFunction>
 void for_each(R&& r , UnaryFunction&& f) {
   static_assert(is_random_access_range_v<R>);
   static_assert(std::is_invocable_v<UnaryFunction, range_reference_type_t<R>>);
+  // TODO: For many iterator types, calling operator[] is slower than ++.
+  // Would be nice if this could instead use ++ at the leaves
   parallel_for(0, parlay::size(r),
     [&f, it = std::begin(r)](size_t i) { f(it[i]); });
 }
@@ -975,6 +980,12 @@ auto flatten(R&& r) {
   static_assert(std::is_constructible_v<range_value_type_t<range_reference_type_t<R>>,
                                         range_reference_type_t<range_reference_type_t<R>>>);
 
+  // For prvalue ranges, we materialize the range to avoid generating its elements multiple
+  // times, or worse, generating them then taking references to them that dangle!
+  if constexpr (!std::is_reference_v<range_reference_type_t<R>>) {
+    return flatten(to_sequence(std::forward<R>(r)));
+  }
+
   using T = range_value_type_t<range_reference_type_t<R>>;
   auto offsets = tabulate(parlay::size(r), [it = std::begin(r)](size_t i)
                           { return parlay::size(it[i]); });
@@ -982,8 +993,9 @@ auto flatten(R&& r) {
   auto res = sequence<T>::uninitialized(len);
   parallel_for(0, parlay::size(r), [&, it = std::begin(r)](size_t i) {
     auto dit = std::begin(res)+offsets[i];
-    auto sit = std::begin(it[i]);
-    parallel_for(0, parlay::size(it[i]), [=] (size_t j) {
+    auto&& inner = it[i];
+    auto sit = std::begin(inner);
+    parallel_for(0, parlay::size(inner), [=] (size_t j) {
       assign_uninitialized(*(dit+j), *(sit+j));
     }, 1000);
   });
@@ -1233,21 +1245,23 @@ auto rank(Range&& r, BinaryOperator&& compare = {}) {
 template <typename Range, typename Compare = std::less<>>
 auto kth_smallest_copy(Range&& in, size_t k, Compare&& less = {}) {
   static_assert(is_random_access_range_v<Range>);
-  static_assert(std::is_copy_constructible_v<range_value_type_t<Range>>);
+  static_assert(std::is_constructible_v<range_value_type_t<Range>, range_reference_type_t<Range>>);
   static_assert(std::is_invocable_r_v<bool, Compare, range_reference_type_t<Range>, range_reference_type_t<Range>>);
 
   size_t n = parlay::size(in);
+  assert(k < n);
   if (n <= 1000) return parlay::sort(std::forward<Range>(in), std::forward<Compare>(less))[k];
 
   auto it = std::begin(in);
 
   // pick 31 pivots by randomly choosing 8 * 31 keys, sorting them,
   // and taking every 8th key (i.e. oversampling)
-  int sample_size = 31;
-  int over = 8;
+  constexpr size_t sample_size = 31;
+  constexpr size_t over = 8;
+
   parlay::random_generator gen;
   std::uniform_int_distribution<size_t> dis(0, n-1);
-  auto pivots = parlay::sort(parlay::tabulate(sample_size*over, [&] (size_t i) {
+  auto pivots = parlay::sort(parlay::tabulate(sample_size*over, [&] (size_t i) -> range_value_type_t<Range> {
     auto r = gen[i];
     return it[dis(r)];
   }), less);
@@ -1267,7 +1281,7 @@ auto kth_smallest_copy(Range&& in, size_t k, Compare&& less = {}) {
   auto next = parlay::pack(in, parlay::delayed_map(ids, [=] (auto b) {return b == id;}));
   
   // recurse on much smaller set, adjusting k as needed
-  return kth_smallest_copy(next, k - offsets[id], less);
+  return kth_smallest_copy(next, k - offsets[id], std::forward<Compare>(less));
 }
 
 template <typename Range, typename Compare = std::less<>>
