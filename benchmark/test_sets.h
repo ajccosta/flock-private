@@ -89,6 +89,7 @@ void test_persistence_concurrent() {
 
 template <typename SetType>
 void test_sets(size_t default_size, commandLine P) {
+    
   // processes to run experiments with
   int p = P.getOptionIntValue("-p", parlay::num_workers());  
 
@@ -168,7 +169,7 @@ void test_sets(size_t default_size, commandLine P) {
     
   } else {  // main test
     using key_type = unsigned long;
-
+  
     // generate 2*n unique numbers in random order
     parlay::sequence<key_type> a;
     key_type max_key;

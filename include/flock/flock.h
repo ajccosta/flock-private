@@ -87,6 +87,12 @@ public:
   // for compatibility with transactions, otherwise do not use
   template <typename Thunk>
   auto read_lock(Thunk f) {return f();}
+
+#ifdef NoHelp
+  bool try_lock_no_unlock() { return get_lock()->try_lock_no_unlock();}
+  void lock_no_unlock() { get_lock()->lock_no_unlock();}
+  void unlock() { get_lock()->unlock();}
+#endif
 };
 
 std::vector<internal::lock> lock::locks{1ul << bucket_bits};
@@ -101,7 +107,7 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
     int multiplier = 1;
     int cnt = 0;
     while (true)  {
-      if (cnt++ == 10000000000ul/(delay*max_multiplier)) {
+      if (cnt++ == 1000000000ul/(delay*max_multiplier)) {
 	std::cout << "problably in an infinite retry loop" << std::endl;
 	abort(); 
 	//deadlock = true;

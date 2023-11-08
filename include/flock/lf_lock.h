@@ -19,7 +19,15 @@ namespace flck {
 namespace internal {
 
 // used for reentrant locks
-static thread_local size_t current_id = parlay::worker_id();
+  static thread_local size_t current_id = 1000000;
+  inline size_t get_current_id() {
+    if (current_id == 1000000)
+      current_id = parlay::worker_id();
+    return current_id;
+  }
+  inline void set_current_id(size_t id) {
+    current_id = id;
+  }
 
 // user facing lock
 using lock_entry_ = size_t;
@@ -46,7 +54,7 @@ struct descriptor {
     done(false), freed(false), f([=] {g();}) {
     lg_array.init();
     epoch_num = get_epoch().get_my_epoch();
-    thread_id = current_id;
+    thread_id = get_current_id();
   }
 
   ~descriptor() { // just for debugging
@@ -109,7 +117,7 @@ private:
   bool is_locked_(lock_entry le) { return Tag::value(le) != nullptr;}
   descriptor* remove_tag(lock_entry le) { return Tag::value(le);}
   bool lock_is_self(lock_entry le) {
-    return current_id == remove_tag(le)->thread_id;
+    return get_current_id() == remove_tag(le)->thread_id;
   }
 
   // runs thunk in appropriate epoch and after it is acquired
@@ -122,8 +130,8 @@ private:
     long other_epoch = desc->epoch_num;
     if (other_epoch < my_epoch)
       get_epoch().set_my_epoch(other_epoch); // inherit epoch of helpee
-    int my_id = current_id; 
-    current_id = desc->thread_id;   // inherit thread id of helpee
+    int my_id = get_current_id(); 
+    set_current_id(desc->thread_id);   // inherit thread id of helpee
     descriptor_pool.acquire(desc);  // mark descriptor as acquired
     still_locked = (read() == le);
     if (still_locked) {
@@ -133,7 +141,7 @@ private:
       clear(desc);    // unset the lock
       helping = hold_h; // reset helping mode
     }
-    current_id = my_id; // reset thread id
+    set_current_id(my_id); // reset thread id
     get_epoch().set_my_epoch(my_epoch); // reset to my epoch
     return still_locked; // return true if did helping
   }

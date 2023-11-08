@@ -38,7 +38,7 @@ namespace verlib {
       if (is_indirect(ptr)) shortcut(&v, ptr);
       versioned* ptr_ = strip_indirect(ptr);
       if (ptr != nullptr && ptr_->get_stamp() > at_stamp) {
-	if (in_lock) old_version_read = true;
+	if (in_lock > 0) old_version_read = true;
 	// chase down version chain
 	do {
 	  ptr = ptr_->get_next_version();
@@ -58,7 +58,7 @@ namespace verlib {
 
       // if not then get the value and add to validate log if in a lock
       versioned* ptr = get_value(v.load());
-      if (in_lock) 
+      if (in_lock > 0) 
 	current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
 
       // returns version at start_stamp for opacity

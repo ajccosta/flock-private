@@ -61,7 +61,7 @@ auto atomic(F f) {
   int max_delay = 0;
   while (true) {
     auto r = flck::with_epoch([&] {
-      in_lock = false;
+      in_lock = 0;
       start_stamp = global_stamp.get_read_stamp();
       old_version_read = false;
       transaction_descriptor* descriptor = trans_descriptor_pool.new_obj();

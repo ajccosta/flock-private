@@ -99,7 +99,7 @@ namespace verlib {
       TS td = stamp_or_descriptor.load();
 #endif
       assert(is_tagged(td));
-      assert(untag_descriptor(td)->owner == flck::internal::current_id);
+      assert(untag_descriptor(td)->owner == flck::internal::get_current_id());
       assert(!check_stamp || untag_descriptor(td)->time_stamp.load() == ts);
       //stamp_or_descriptor = ts;
       stamp_or_descriptor.store_ni(ts);
@@ -239,7 +239,7 @@ namespace verlib {
 
   void validate(transaction_descriptor* descriptor);
 
-  thread_local bool in_lock;
+  thread_local int in_lock;
  
   // If a descriptor is installed then need to resolve whether to
   // return the new value (if succeded) or old value (if not yet in
@@ -247,7 +247,7 @@ namespace verlib {
   template <typename T>
   T resolve_descriptor(transaction_descriptor* descriptor, T old_v, T new_v,
 		       bool validating) {
-    if (descriptor->owner == flck::internal::current_id) {
+    if (descriptor->owner == flck::internal::get_current_id()) {
       assert(is_helping() || descriptor->round == transaction_round);
       assert(validating); // self descriptor should not be installed if not validating
       return old_v; // if validating then should check against old value
@@ -256,7 +256,7 @@ namespace verlib {
     if (desc_ts == tbd || desc_ts == failed) return old_v;
 #ifdef Validate
     if (validating && desc_ts == tbs &&
-	descriptor->owner < flck::internal::current_id) { 
+	descriptor->owner < flck::internal::get_current_id()) { 
       // kill other if they have lower id. prevents validate cycle
       TS old = tbs;
       descriptor->time_stamp.cam(old, failed);

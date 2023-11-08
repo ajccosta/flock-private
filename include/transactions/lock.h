@@ -17,10 +17,9 @@ public:
   auto read_lock(Thunk f) {
     using RT = decltype(f());
     if (current_transaction != nullptr) {
-      bool tmp = in_lock;
-      in_lock = true;
+      in_lock++;
       RT result = f();
-      in_lock = tmp;
+      in_lock--;
       return result;
     } else return f();
   }
@@ -38,10 +37,9 @@ public:
     if (current_transaction != nullptr) {
       //if (lck.is_locked() && !lck.is_self_locked()) return false;
       current_transaction->lock_log.add(&lck);
-      bool tmp = in_lock;
-      in_lock = true;
+      in_lock++;
       bool result = f();
-      in_lock = tmp;
+      in_lock--;
       return result;
     } else return lck.try_lock(f);
 #endif

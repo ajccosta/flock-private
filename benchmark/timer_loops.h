@@ -60,7 +60,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
 			  const parlay::sequence<K>& unique,
 			  float zipfian_param,
 			  commandLine P) {
-
   int m = all.size();
   int nn = unique.size();
   int n = nn/2;
@@ -158,7 +157,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
     // insert n distinct elements
     parlay::parallel_for(0, 2*n, [&] (size_t i) {
-				 //std::cout << unique[i] << std::endl;
+				   //std::cout << unique[i] << std::endl;
       tr.insert(unique[i], default_value);
     }, 10, true);
 
@@ -168,7 +167,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
     }, 10, true);
     if (verbose)
       std::cout << "initial size = " << tr.check() << std::endl;
-
+    
     // insert and delete for a while
     // parlay::parallel_for(0, 10*n, [&] (size_t i) {
     // 	auto k = unique[parlay::hash64(i + i) % nn];

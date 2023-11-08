@@ -16,9 +16,16 @@
 namespace flck {
   bool deadlock = false;
   namespace internal {
+
+  static thread_local size_t current_id = 1000000;
+  inline size_t get_current_id() {
+    if (current_id == 1000000)
+      current_id = parlay::worker_id();
+    return current_id;
+  }
     
 // used for reentrant locks
-static thread_local size_t current_id = parlay::worker_id();
+// static thread_local size_t current_id = parlay::worker_id();
 thread_local bool norelease = false;
 
 // This lock keeps track of how many times it was taken and who has it
@@ -38,10 +45,10 @@ public:
     bool is_locked() { return (le % 2 == 1);}
     size_t get_count() {return le & ((1ul << 32) - 1);}
     lock_entry take_lock() {
-      return lock_entry(((current_id + 1ul) << 32) | get_count()+1);}
+      return lock_entry(((get_current_id() + 1ul) << 32) | get_count()+1);}
     lock_entry release_lock() { return lock_entry(get_count()+1);}
     size_t get_procid() { return (le >> 32) & ((1ul << 16) - 1);}
-    bool is_self_locked() { return current_id + 1 == get_procid();}
+    bool is_self_locked() { return get_current_id() + 1 == get_procid();}
   };
 
 private:
@@ -88,7 +95,34 @@ public:
     }
   }
 
+  bool try_lock_no_unlock() {
+    lock_entry current = lck.load();
+    if (!current.is_locked()) { // unlocked
+      lock_entry newl = current.take_lock();
+      bool r = lck.compare_exchange_strong(current, newl);
+      //if (r) std::cout << "took lock: " << this << std::endl;
+      return r;
+    } else if (current.is_self_locked()) {std::cout << "ouch" << std::endl; return true;}
+    return false;
+  }
+
+  void lock_no_unlock() {
+    const int init_delay = 100;
+    const int max_delay = 2000;
+    int delay = init_delay;
+    long cnt = 0;
+    while(true) {
+      if (try_lock_no_unlock()) return;
+      for (volatile int i=0; i < delay; i++);
+      delay = std::min(2*delay, max_delay);
+      if (cnt++ > 1000000)
+	std::cout << "in loop: " << this << std::endl;
+    }
+  }
+
   void unlock() {
+    //std::cout << "released lock:" << this << ", " << is_locked() << std::endl;
+    if (!is_locked()) abort();
     lck = lck.load().release_lock();
   }
   
