@@ -58,7 +58,7 @@
 # Paths configuration
 # -------------------------
 # list of directories which contain headers (include directories)
-IDIRS:=./src ./src/utils ./src/rideables ./src/tests ./src/persist ./src/persist/api
+IDIRS:=./src ./src/utils ./src/rideables ./src/tests ./src/persist ./src/persist/api ../ ../include
 IDIRS+=./ext/ralloc/src ./ext/tdsl/tskiplist
 IDIRS+= ./ext/lftt/src ./ext/lftt/trans-compile/src ./ext/lftt/src/bench ./ext/lftt/src/translink/skiplist
 
@@ -85,7 +85,7 @@ BINDIR :=./bin
 # C compiler
 CC:=gcc
 # C++ compiler
-CXX:=g++
+CXX:=g++-11
 # linker
 LD:= $(CXX)
 
@@ -139,10 +139,10 @@ WARNING_FLAGS:=-ftrapv -Wreturn-type -W -Wall \
 
 # Default build flags.  
 # CFLAGS:=-pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) 
-CFLAGS:= $(FLAGS) -fopenmp -pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm 
+CFLAGS:= $(FLAGS) -fopenmp -pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DUSE_MALLOC -DNoHelp -DSHM_SIMULATING
 
 # CXXFLAGS:= -pthread -std=c++11 -g -fpic $(WARNING_FLAGS) #-std=c++1y 
-CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -std=c++17 -mclwb -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -mcx16
+CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -std=gnu++17 -mclwb -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -mcx16 -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DUSE_MALLOC -DNoHelp -DSHM_SIMULATING
 # linker flags
 # LDFLAGS := 
 
@@ -157,7 +157,7 @@ CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fn
 # define these build configurations).
 # To run a build, e.g. release, you would invoke:
 # make release
-BUILDS :=release debug ngc vread release32 debug32 medley_tpcc txmon_tpcc tdsl_tpcc of_tpcc pof_tpcc
+BUILDS :=release debug ngc vread release32 debug32 medley_tpcc txmon_tpcc tdsl_tpcc of_tpcc pof_tpcc fuse_tpcc
 DEFAULT_BUILD :=release 
 
 # -------------------------------
@@ -184,6 +184,14 @@ endif
 ifeq ($(BUILD),tdsl_tpcc)
 CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=TDSLSkipList -DTMAP_TYPE=TDSLSkipList
 CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=TDSLSkipList -DTMAP_TYPE=TDSLSkipList
+# we can add additional release customization here
+# e.g. link against different libraries, 
+# define enviroment vars, etc.
+endif
+
+ifeq ($(BUILD),fuse_tpcc)
+CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseLeafTree -DTMAP_TYPE=FuseLeafTree
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseLeafTree -DTMAP_TYPE=FuseLeafTree
 # we can add additional release customization here
 # e.g. link against different libraries, 
 # define enviroment vars, etc.
