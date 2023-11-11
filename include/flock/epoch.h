@@ -36,12 +36,24 @@
 
 namespace flck {
 namespace internal {
+  // thread_local int __count = 0;
 
   inline int worker_id() {
-    return parlay::worker_id();
+    // if(__count++ % 1024 == 0)
+      // std::cerr << "my_thread_id: " << parlay::my_thread_id() << std::endl;
+    return parlay::my_thread_id();
   }
 
-  inline int num_workers() {return parlay::num_workers();}
+  inline int num_workers() {
+    if (const auto env_p = std::getenv("PARLAY_NUM_THREADS")) {
+      return std::stoi(env_p);
+    } else {
+      return std::thread::hardware_concurrency();
+    }
+    // std::cerr << "num_thread_ids: " << parlay::num_thread_ids() << std::endl;
+    // if(parlay::num_thread_ids() == 0) abort();
+    // return parlay::num_thread_ids();
+  }
 
 struct alignas(64) epoch_s {
 	
@@ -81,6 +93,7 @@ struct alignas(64) epoch_s {
 #ifdef NestedEpochs
       long old = -1l;
       bool succeeded = announcements[id].last.compare_exchange_strong(old, current_e);
+      // if(!succeeded) abort();
       if (get_current() == current_e) return std::pair(succeeded, id);
 #else
       long tmp = current_e;

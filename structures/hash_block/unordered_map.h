@@ -123,7 +123,7 @@ private:
   // If a node overflows (cnt > 31), then it becomes a big node and its content
   // is stored indirectly in a parlay sequence.
   struct BigNode : verlib::versioned {
-    using entries_type = parlay::sequence<KV>;
+    using entries_type = std::vector<KV>;
     int cnt;
     entries_type entries;
 
@@ -159,7 +159,7 @@ private:
 
 
   struct Table {
-    parlay::sequence<bucket> table;
+    std::vector<bucket> table;
     size_t size;
     bucket* get_bucket(const K& k) {
       size_t idx = Hash{}(k)  & (size-1u);
@@ -168,7 +168,7 @@ private:
     Table(size_t n) {
       int bits = 1 + parlay::log2_up(n);
       size = 1ul << bits;
-      table = parlay::sequence<bucket>(size);
+      table = std::vector<bucket>(size);
     }
   };
 

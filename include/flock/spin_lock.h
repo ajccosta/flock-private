@@ -7,6 +7,7 @@
 //   is_locked() -> bool
 
 #include <parlay/parallel.h> // needed for worker_id
+#include <flock/epoch.h>  // for worker_id()
 
 #include <atomic>
 #include<chrono>
@@ -20,12 +21,12 @@ namespace flck {
   static thread_local size_t current_id = 1000000;
   inline size_t get_current_id() {
     if (current_id == 1000000)
-      current_id = parlay::worker_id();
+      current_id = flck::internal::worker_id();
     return current_id;
   }
     
 // used for reentrant locks
-// static thread_local size_t current_id = parlay::worker_id();
+// static thread_local size_t current_id = flck::internal::worker_id();
 thread_local bool norelease = false;
 
 // This lock keeps track of how many times it was taken and who has it

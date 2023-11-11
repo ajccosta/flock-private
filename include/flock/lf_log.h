@@ -13,7 +13,12 @@ constexpr int Log_Len = 8;
 using log_entry = std::atomic<void*>;
 struct log_array;
 
-mem_pool<log_array> log_array_pool;
+// mem_pool<log_array> log_array_pool;
+
+inline mem_pool<log_array>& get_log_array_pool() {
+  static mem_pool<log_array> log_array_pool;
+  return log_array_pool;
+}
 
 struct log_array {
   std::array<log_entry,Log_Len> log_entries;
@@ -32,7 +37,7 @@ struct log_array {
 
   ~log_array() {
     if(next != nullptr) {
-      log_array_pool.destruct(next);
+      get_log_array_pool().destruct(next);
     }
   }
 };
@@ -71,13 +76,13 @@ struct Log {
       log_array* next_log_array = vals->next;
       if (next_log_array != nullptr) vals = next_log_array;
       else {  // next_log_array == nullptr, try to commit a new log array
-        log_array* new_log_array = log_array_pool.new_obj();
+        log_array* new_log_array = get_log_array_pool().new_obj();
         new_log_array->init();
         if(vals->next.compare_exchange_strong(next_log_array, new_log_array))
           vals = new_log_array;
         else { // if in meantime someone else allocated it, then return memory
           vals = next_log_array;
-          log_array_pool.destruct(new_log_array);
+          get_log_array_pool().destruct(new_log_array);
         }
       }
     }

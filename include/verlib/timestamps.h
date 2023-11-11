@@ -50,7 +50,7 @@ struct alignas(128) timestamp_tl2 {
 
   // apply if read_only is aborted or as part of get_write_stamp
   TS increment_stamp(TS ts) {
-    TS id = parlay::worker_id();
+    TS id = flck::internal::worker_id();
     TS new_ts = ((ts + step) & ~mask) | id;
     for (volatile int i = 1; i < delay; i++) {}
     if (ts == stamp.load()) 
@@ -63,7 +63,7 @@ struct alignas(128) timestamp_tl2 {
   TS get_write_stamp() {
     TS ts = stamp.load();
     if (ts == last_ts) return increment_stamp(ts);
-    TS id = parlay::worker_id();
+    TS id = flck::internal::worker_id();
     TS new_ts = (ts & ~mask) | id;
     last_ts = new_ts;
     return new_ts;
@@ -223,11 +223,11 @@ struct alignas(64) timestamp_multiple {
   TS get_read_stamp() {
     TS ts = get_write_stamp();
     //int i = sched_getcpu() / 36; //% slots;
-    int i = parlay::worker_id() % slots;
+    int i = flck::internal::worker_id() % slots;
     for(volatile int j = 0; j < delay ; j++);
     TS tsl = stamps[i*gap].load();
     if (ts == get_write_stamp()) {
-      //int i = parlay::worker_id() % slots;
+      //int i = flck::internal::worker_id() % slots;
       stamps[i*gap].compare_exchange_strong(tsl,tsl+1);
     }
     return ts;
@@ -427,7 +427,7 @@ auto with_snapshot(F f, bool unused_parameter=false) {
 }
 #else
 thread_local bool speculative = false;
-parlay::sequence<long> num_retries(parlay::num_workers()*16, 0);
+parlay::sequence<long> num_retries(flck::internal::num_workers()*16, 0);
 void print_retries() {
   std::cout << " retries = " << parlay::reduce(num_retries)
 	    << ", final stamp = " << global_stamp.get_read_stamp() <<std::endl;
@@ -445,7 +445,7 @@ auto with_snapshot(F f, bool use_speculative=true) {
         speculative = false;
         if (aborted) {
           aborted = false;
-          num_retries[parlay::worker_id()*16]++;
+          num_retries[flck::internal::worker_id()*16]++;
           global_stamp.increment_stamp(local_stamp);
           f();
         }
@@ -455,7 +455,7 @@ auto with_snapshot(F f, bool use_speculative=true) {
         speculative = false;
         if (aborted) {
           aborted = false;
-          num_retries[parlay::worker_id()*16]++;
+          num_retries[flck::internal::worker_id()*16]++;
           global_stamp.increment_stamp(local_stamp);
           r = f();
         }

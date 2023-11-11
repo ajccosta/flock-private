@@ -22,7 +22,7 @@ namespace internal {
   static thread_local size_t current_id = 1000000;
   inline size_t get_current_id() {
     if (current_id == 1000000)
-      current_id = parlay::worker_id();
+      current_id = flck::internal::worker_id();
     return current_id;
   }
   inline void set_current_id(size_t id) {
@@ -80,7 +80,12 @@ memory_pool<descriptor> descriptor_pool;
 // If noone is helping (acquire flag is false), then reclaim
 // immediately, otherwise send to epoch-based collector.
 // When helping the acquired flag needs to be set.
-memory_pool<descriptor,acquired_pool<descriptor>> descriptor_pool;
+
+inline memory_pool<descriptor,acquired_pool<descriptor>>& get_descriptor_pool() {
+  static memory_pool<descriptor,acquired_pool<descriptor>> descriptor_pool;
+  return descriptor_pool;
+}
+
 #endif
 
 struct lock {
@@ -132,7 +137,7 @@ private:
       get_epoch().set_my_epoch(other_epoch); // inherit epoch of helpee
     int my_id = get_current_id(); 
     set_current_id(desc->thread_id);   // inherit thread id of helpee
-    descriptor_pool.acquire(desc);  // mark descriptor as acquired
+    get_descriptor_pool().acquire(desc);  // mark descriptor as acquired
     still_locked = (read() == le);
     if (still_locked) {
       bool hold_h = helping; 
@@ -179,11 +184,11 @@ public:
     lock_entry current = read();
 
     // idempotently allocate descriptor
-    auto [my_descriptor, i_own] = descriptor_pool.new_obj_acquired(f);
+    auto [my_descriptor, i_own] = get_descriptor_pool().new_obj_acquired(f);
     
     // if already retired, then done
-    if (descriptor_pool.is_done(my_descriptor)) {
-	auto ret_val = descriptor_pool.done_val_result<RT>(my_descriptor);
+    if (get_descriptor_pool().is_done(my_descriptor)) {
+	auto ret_val = get_descriptor_pool().done_val_result<RT>(my_descriptor);
 	assert(ret_val.has_value()); // with_lock is guaranteed to succeed
 	return ret_val.value(); 
     }
@@ -203,7 +208,7 @@ public:
 
 	// retire the descriptor saving the result in the enclosing
 	// descriptor, if any
-	descriptor_pool.retire_acquired_result(my_descriptor, i_own,
+	get_descriptor_pool().retire_acquired_result(my_descriptor, i_own,
 					       std::optional<RT>(result));
 	return result;
       } else if (locked) {
@@ -227,11 +232,11 @@ public:
       return std::optional(f()); // if so, run without acquiring
 
     // Idempotent allocation of descriptor.  
-    auto [my_descriptor, i_own] = descriptor_pool.new_obj_acquired(f);
+    auto [my_descriptor, i_own] = get_descriptor_pool().new_obj_acquired(f);
     
     // if descriptor is already retired, then done and return value
-    if (descriptor_pool.is_done(my_descriptor)) 
-      return descriptor_pool.done_val_result<RT>(my_descriptor);
+    if (get_descriptor_pool().is_done(my_descriptor)) 
+      return get_descriptor_pool().done_val_result<RT>(my_descriptor);
 	
     if (!is_locked_(current)) {
       // use a CAS to try to acquire the lock
@@ -255,7 +260,7 @@ public:
     }
 
     // retire the thunk
-    descriptor_pool.retire_acquired_result(my_descriptor, i_own, result);
+    get_descriptor_pool().retire_acquired_result(my_descriptor, i_own, result);
     return result;
   }
 

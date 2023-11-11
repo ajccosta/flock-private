@@ -29,13 +29,13 @@ struct ordered_map {
 
   static constexpr int leaf_block_bytes = 64 * 8;
   static constexpr int kv_bytes = leaf_block_bytes - sizeof(header);
-  static constexpr int leaf_block_size = kv_bytes/sizeof(KV);
+  static constexpr int leaf_block_size = std::max(kv_bytes/sizeof(KV), 5ul);
   static constexpr int leaf_min_size = leaf_block_size/5;
   static constexpr int leaf_join_cutoff = leaf_min_size * 4;
 
   static constexpr int node_block_bytes = 64 * 6;
   static constexpr int entry_bytes = node_block_bytes - sizeof(header) - sizeof(verlib::lock) + sizeof(K);
-  static constexpr int node_block_size = entry_bytes/(sizeof(K) + 8);
+  static constexpr int node_block_size = std::max(entry_bytes/(sizeof(K) + 8), 5ul);
   static constexpr int node_min_size = node_block_size/5;
   static constexpr int node_join_cutoff = node_min_size * 4;
 
@@ -672,15 +672,20 @@ struct ordered_map {
   // An empty tree is an empty leaf along with a root pointing tho the
   // leaf.  The root will always contain a single pointer.
   ordered_map() : root(node_pool.new_obj(leaf_pool.new_obj(0))) {}
-  ordered_map(size_t n) : root(node_pool.new_obj(leaf_pool.new_obj(0))) {}
+  ordered_map(size_t n) : root(node_pool.new_obj(leaf_pool.new_obj(0))) {
+    std::cout << "key size: " << sizeof(K) << std::endl;
+    std::cout << "value size: " << sizeof(V) << std::endl;
+  }
 
   static void retire_recursive(node* p) {
     if (p == nullptr) return;
     if (p->is_leaf) {
       leaf_pool.retire((leaf*) p);
     } else {
-      parlay::parallel_for(0, p->size, [&] (size_t i) {
-        retire_recursive(p->children[i].load());});
+      for(int i = 0; i < p->size; i++)
+        retire_recursive(p->children[i].load());
+      // parlay::parallel_for(0, p->size, [&] (size_t i) {
+        // retire_recursive(p->children[i].load());});
       node_pool.retire(p);
     }
   }
