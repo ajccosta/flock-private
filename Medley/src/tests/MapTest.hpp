@@ -190,7 +190,7 @@ public:
 		}
 	}
     int execute(GlobalTestConfig* gtc, LocalTestConfig* ltc){
-        auto time_up = gtc->finish;
+        auto time_up = gtc->finish.load();
         
         uint64_t r = ltc->seed;
         std::mt19937_64 gen_k(r);

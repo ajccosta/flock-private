@@ -4,8 +4,10 @@
 #include "EpochSys.hpp"
 #include "OneFile/OneFileLF.hpp"
 #include "LFTTSkipList.hpp"
+#include <verlib/verlib.h>
+#include <transactions/transactions.h>
 
-enum TxnType { None, NBTC, TDSL, OneFile, LFTT};
+enum TxnType { None, NBTC, TDSL, OneFile, LFTT, Fuse};
 
 template <TxnType txn_type=TxnType::NBTC>
 struct TxnManager {
@@ -30,6 +32,11 @@ struct TxnManager {
 		_tdsl_txns(tdsl_txns){};
 	TxnManager() : TxnManager(nullptr, nullptr) {};
 };
+
+template <>
+void TxnManager<TxnType::Fuse>::do_tx(int tid, std::function<void(void)> f, int){
+    verlib::atomic([&] {f(); return std::optional<int>(0);});
+}
 
 template <>
 void TxnManager<TxnType::None>::do_tx(int tid, std::function<void(void)> f, int){

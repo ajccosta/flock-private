@@ -10,6 +10,8 @@
 #include "RMap.hpp"
 #include "TxnMeta.hpp"
 
+
+#include <Random.hpp>
 #include <iostream>
 
 //KEY_SIZE and VAL_SIZE are only for string kv
@@ -37,14 +39,21 @@ public:
 	int max_op_per_txn;
 	TxnManager<txn_type> txn_manager;
 	std::string value_buffer; // for string kv only
-	TxnMapChurnTest(bool fix_sized_txn, int max_op_per_txn, int p_gets, int p_puts, int p_inserts, int p_removes, int range, int prefill):
+
+	MyRandom** randKeys; //array of pointers
+	MyRandom** randOps;
+	double zipf;
+
+	TxnMapChurnTest(bool fix_sized_txn, int max_op_per_txn, int p_gets, int p_puts, int p_inserts, int p_removes, int range, int prefill, double zipf = 0):
 		ChurnTest(p_gets, p_puts, p_inserts, p_removes, range, prefill),
 		fix_sized_txn(fix_sized_txn),
-		max_op_per_txn(max_op_per_txn){}
-	TxnMapChurnTest(int max_op_per_txn,int p_gets, int p_puts, int p_inserts, int p_removes, int range):
+		max_op_per_txn(max_op_per_txn),
+		zipf(zipf) {}
+	TxnMapChurnTest(int max_op_per_txn,int p_gets, int p_puts, int p_inserts, int p_removes, int range, double zipf = 0):
 		ChurnTest(p_gets, p_puts, p_inserts, p_removes, range),
 		fix_sized_txn(fix_sized_txn),
-		max_op_per_txn(max_op_per_txn){}
+		max_op_per_txn(max_op_per_txn),
+		zipf(zipf) {}
 
 	inline K fromInt(uint64_t v);
 
@@ -65,10 +74,17 @@ public:
             value_buffer += (char)((i % 2 == 0 ? 'A' : 'a') + (gen_v() % 26));
         }
         value_buffer += '\0';
+
+        randKeys = new MyRandom*[gtc->task_num];
+        randOps = new MyRandom*[gtc->task_num];
+
 		ChurnTest::init(gtc);
 	}
 
 	virtual void parInit(GlobalTestConfig* gtc, LocalTestConfig* ltc){
+		int tid = ltc->tid;
+		randKeys[tid] = new MyRandom(5*range/gtc->task_num + 1000, zipf, range, ltc->seed);
+		randOps[tid] = new MyRandom(5*range/gtc->task_num + 1001, 0, 100, ltc->seed+1);
 		m->init_thread(gtc, ltc);
 		ChurnTest::parInit(gtc, ltc);
 	}
@@ -120,6 +136,7 @@ public:
 			int i = 0;
 			while(i<this->prefill){
 				K k = this->fromInt(i%range);
+				// m->insert(((k+100)*2691343689449507681)%47602717,k,0);
 				m->insert(k,k,0);
 				i++;
 			}
@@ -134,12 +151,13 @@ public:
 	}
 
 	int execute(GlobalTestConfig* gtc, LocalTestConfig* ltc) override{
-		auto time_up = gtc->finish;
+		auto time_up = gtc->finish.load();
 		
 		int ops = 0;
+		int cnt = 0;
 		uint64_t seed = ltc->seed;
-		std::mt19937_64 gen_k(seed);
-		std::mt19937_64 gen_p(seed+1);
+		MyRandom &randKey = *randKeys[ltc->tid];
+		MyRandom &randOp = *randOps[ltc->tid];
 		std::mt19937_64 gen_txn_size(seed+2);
 
 		int tid = ltc->tid;
@@ -150,7 +168,7 @@ public:
 
 		while(std::chrono::duration_cast<std::chrono::microseconds>(time_up - now).count()>0){
 
-	        int retry = 0;
+	        uint64_t retry = 0;
 			int sz = 0;
 			if (fix_sized_txn) {
 				sz = max_op_per_txn;
@@ -159,29 +177,31 @@ public:
 			}
 			int r[sz], p[sz]; 
 			for(int i=0;i<sz;i++) {
-				r[i] = abs((long)gen_k()%range);
-				p[i] = abs((long)gen_p()%100);
+				r[i] = randKey.next();
+				p[i] = randOp.next();
 			}
-			// while (true){
+			while (true){
 				try {
 					do_tx(tid, [&] () {
 						for(int i=0;i<sz;i++)
 							operation(r[i], p[i], tid);
 					}, sz);
-					ops++;
-					// break;
+					ops+=sz;
+					cnt+=sz;
+					break;
 				} catch(const pds::TransactionAborted& e) {
-                	if (retry>1000) {
+                	if (retry>1000000ul) {
 						errexit("Retry too many times!");
 						break;
 					} else {
 						retry++;
 					}
 				}
-			// } // while(true)
+			} // while(true)
 			
-			if (ops % 512 == 0){
+			if (cnt > 100){
 				now = std::chrono::high_resolution_clock::now();
+				cnt = 0;
 			}
 			// TODO: replace this with __rdtsc
 			// or use hrtimer (high-resolution timer API in linux.)

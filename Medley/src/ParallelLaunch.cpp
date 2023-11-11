@@ -1,5 +1,6 @@
 #include "ParallelLaunch.hpp"
 #include "HarnessUtils.hpp"
+#include <flock/epoch.h>
 #include <atomic>
 #include <chrono>
 #include <hwloc.h>
@@ -93,6 +94,7 @@ void cleanupTest(GlobalTestConfig* gtc){
 // and continue on to run the specified test
 static void * thread_main (void *lp)
 {
+	// std::cout << "thread_id " << flck::internal::worker_id() << std::endl;
 	atomic_thread_fence(std::memory_order_acq_rel);
 	CombinedTestConfig* ctc = ((CombinedTestConfig *) lp);
 	GlobalTestConfig* gtc = ctc->gtc;
@@ -119,17 +121,23 @@ static void * thread_main (void *lp)
 		gtc->parInit_time = chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - gtc->start).count();
 	}
 
+	auto finish_old = gtc->finish.load();
+
 	barrier(); // barrier all threads before setting times
 
-	if(task_id==0){
-        	gtc->start = chrono::high_resolution_clock::now();
-        	gtc->finish=gtc->start;
-			gtc->finish+=chrono::seconds{(uint64_t)gtc->interval};
-	}
+  // if(!gtc->finish.is_lock_free()) abort();
+  auto startTime = chrono::high_resolution_clock::now();
+  if(gtc->finish.compare_exchange_strong(finish_old, startTime + chrono::seconds{(uint64_t)gtc->interval})) {
+  	gtc->start = startTime;
+  }
 
+	// if(task_id==0){
+  //       	gtc->start = chrono::high_resolution_clock::now();
+  //       	gtc->finish=gtc->start;
+	// 		gtc->finish+=gtc->interval;
+	// }
 
-
-	barrier(); // barrier all threads before starting
+	// barrier(); // barrier all threads before starting
 
 	/* ------- WE WILL DO ALL OF THE WORK!!! ---------*/
 	int ops = executeTest(gtc,ltc);
@@ -144,7 +152,7 @@ static void * thread_main (void *lp)
 	if(task_id==0){
 		auto now = chrono::high_resolution_clock::now();
 		// update interval in case it's a test with undertermined length
-		gtc->interval = chrono::duration_cast<chrono::microseconds>(now - gtc->start).count()/1000000.0;
+		// gtc->interval = chrono::duration_cast<chrono::microseconds>(now - gtc->start).count()/1000000.0;
 		if (gtc->verbose){
 			std::cout<<"actual interval:"<<gtc->interval<<std::endl;
 		}
@@ -182,7 +190,7 @@ void parallelWork(GlobalTestConfig* gtc){
 		ctcs[i].gtc = gtc;
 		ctcs[i].ltc = new LocalTestConfig();
 		ctcs[i].ltc->tid=i;
-		ctcs[i].ltc->seed = rand();
+		ctcs[i].ltc->seed = 2*i;
 	}
 
 	signal(SIGALRM, &alarmhandler);  // set a signal handler
@@ -217,6 +225,7 @@ void parallelWork(GlobalTestConfig* gtc){
     	pthread_join (threads[i], NULL);
 #else
 	// Spawn worker threads and reuse this main thread as worker, too
+  // std::cerr << "task_num: " << task_num << std::endl;
 	for (i = 1; i < task_num; i++) {
 		pthread_create (&threads[i], &attr, thread_main, &ctcs[i]);
 	}

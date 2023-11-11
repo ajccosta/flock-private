@@ -483,6 +483,7 @@ void* GlobalTestConfig::getArg(std::string key){
 
 
 GlobalTestConfig::GlobalTestConfig():
+	// finish(chrono::seconds{0}),
 	rideableFactories(),
 	rideableNames(),
 	tests(),
@@ -515,7 +516,7 @@ void GlobalTestConfig::addRideableOption(RideableFactory* h, const char name[]){
 	rideableNames.push_back(s);
 }
 
-void GlobalTestConfig::addTestOption(Test* t, const char name[]){
+void GlobalTestConfig::addTestOption(Test* t, std::string name){
 	tests.push_back(t);
 	string s = string(name);
 	auto found = std::find(testNames.begin(), testNames.end(), s);

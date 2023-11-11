@@ -14,6 +14,7 @@
 #include <chrono>
 #include <sys/resource.h>
 #include <hwloc.h>
+#include <atomic>
 
 #include "HarnessUtils.hpp"
 #include "Rideable.hpp"
@@ -34,7 +35,8 @@ class RideableFactory;
 class GlobalTestConfig{
 public:
 	int task_num = 4;  // number of threads
-	std::chrono::time_point<std::chrono::high_resolution_clock> start, finish; // timing structures
+	std::chrono::time_point<std::chrono::high_resolution_clock> start;
+	std::atomic<std::chrono::time_point<std::chrono::high_resolution_clock>> finish;  // timing structures
 	double interval = 2.0;  // number of seconds to run test
 	uint64_t parInit_time = 0; // number of seconds to run parInit in total 
 
@@ -85,7 +87,7 @@ public:
 	std::string getRideableName(int rideableType_);
 	void addRideableOption(RideableFactory* r, const char name[]);
 	std::string getTestName();
-	void addTestOption(Test* t, const char name[]);
+	void addTestOption(Test* t, std::string name);
 	int findRideable(std::string rideableName_);
 
 	// for accessing environment and args

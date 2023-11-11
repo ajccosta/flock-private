@@ -1,13 +1,15 @@
 
-#ifndef _FUSE_HASH_TABLE_H_
-#define _FUSE_HASH_TABLE_H_
+#ifndef _FUSE_LEAF_TREE_H_
+#define _FUSE_LEAF_TREE_H_
 
 #include <string>
 #include <algorithm>
 #include <utility>
 #include <functional>
 
-#include <structures/btree/ordered_map.h>
+namespace fuse_leaftree {
+    #include <structures/leaftree/ordered_map.h>
+};
 
 /**
  *
@@ -15,7 +17,7 @@
 template<typename K, typename V>
 class FuseLeafTree : public RMap<K,V> {
 private:
-    ordered_map<K, V> leafTree;
+    fuse_leaftree::ordered_map<K, V> leafTree;
 
 public:
     FuseLeafTree(GlobalTestConfig* gtc) {}
@@ -53,7 +55,7 @@ public:
     }
 
     optional<V> get(K key, int tid) {
-        return leafTree.find(key);
+        return leafTree.find_(key);
     }
 };
 
@@ -65,4 +67,4 @@ class FuseLeafTreeFactory : public RideableFactory{
 };
 
 
-#endif /* _FUSE_HASH_TABLE_H_ */
+#endif /* _FUSE_LEAF_TREE_H_ */

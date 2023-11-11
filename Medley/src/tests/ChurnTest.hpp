@@ -129,7 +129,7 @@ void ChurnTest::init(GlobalTestConfig* gtc){
 }
 
 int ChurnTest::execute(GlobalTestConfig* gtc, LocalTestConfig* ltc){
-	auto time_up = gtc->finish;
+	auto time_up = gtc->finish.load();
 	
 	int ops = 0;
 	uint64_t r = ltc->seed;
