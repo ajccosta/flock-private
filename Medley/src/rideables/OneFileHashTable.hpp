@@ -43,7 +43,7 @@ private:
 
 
 public:
-    OneFileHashTable(GlobalTestConfig* gtc) : capacity{1000000} {
+    OneFileHashTable(GlobalTestConfig* gtc) : capacity{gtc->size} {
         oflf::updateTx([&] () {
             buckets = (oflf::tmtype<Node*>*)oflf::tmMalloc(capacity*sizeof(oflf::tmtype<Node*>));
         });

@@ -28,7 +28,7 @@ namespace oflf {
 //
 
 // Maximum number of registered threads that can execute transactions
-static const int REGISTRY_MAX_THREADS = 128;
+static const int REGISTRY_MAX_THREADS = 256;
 // Maximum number of stores in the WriteSet per transaction
 static const uint64_t TX_MAX_STORES = 10*1024;
 // Number of buckets in the hashmap of the WriteSet.

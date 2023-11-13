@@ -6,10 +6,9 @@
 #include <algorithm>
 #include <utility>
 #include <functional>
+    
+#include <structures/btree/ordered_map.h>
 
-namespace fuse_btree {
-    #include <structures/btree/ordered_map.h>
-};
 
 
 /**
@@ -18,7 +17,7 @@ namespace fuse_btree {
 template<typename K, typename V>
 class FuseBTree : public RMap<K,V> {
 private:
-    fuse_btree::ordered_map<K, V> btree;
+    ordered_map<K, V> btree;
 
 public:
     FuseBTree(GlobalTestConfig* gtc) {}
@@ -34,29 +33,29 @@ public:
 
     // not used in TPCC
     optional<V> replace(K key, V val, int tid) {
-        bool b = btree.insert_(key, val);
+        bool b = btree.insert(key, val);
         if(b) return optional<V>(val);
         else return {};
     }
 
     optional<V> put(K key, V val, int tid) {
-        bool b = btree.insert_(key, val);
+        bool b = btree.upsert(key, val);
         if(b) return optional<V>(val); //TPCC never makes use of return value
         else return {};
     }
 
     bool insert(K key, V val, int tid) {
-        return btree.insert_(key, val);
+        return btree.insert(key, val);
     }
 
     optional<V> remove(K key, int tid) {
-        bool b = btree.remove_(key);
+        bool b = btree.remove(key);
         if(b) return optional<V>(); //TPCC never makes use of return value
         else return {};
     }
 
     optional<V> get(K key, int tid) {
-        return btree.find_(key);
+        return btree.find(key);
     }
 };
 

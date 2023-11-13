@@ -23,7 +23,7 @@
 #include "CustomTypes.hpp"
 #include "Recoverable.hpp"
 
-template <class K, class V, int idxSize=1000000>
+template <class K, class V>
 class MedleyLfHashTable : public RMap<K,V>, public Recoverable{
 private:
     struct Node;
@@ -48,7 +48,8 @@ private:
 
     }__attribute__((aligned(CACHELINE_SIZE)));
     std::hash<K> hash_fn;
-    padded<MarkPtr>* buckets=new padded<MarkPtr>[idxSize]{};
+    int idxSize;
+    padded<MarkPtr>* buckets;
     bool findNode(MarkPtr* &prev, Node* &curr, Node* &next, K key, int tid);
 
     // RCUTracker tracker;
@@ -68,7 +69,7 @@ private:
         return reinterpret_cast<Node*>((uint64_t)d | 1);
     }
 public:
-    MedleyLfHashTable(GlobalTestConfig* gtc) : Recoverable(gtc){
+    MedleyLfHashTable(GlobalTestConfig* gtc) : Recoverable(gtc), idxSize(gtc->size), buckets(new padded<MarkPtr>[idxSize]{}) {
         // tracker(gtc->task_num, 100, 1000, true), 
         // gtc(gtc) {
     };
@@ -115,8 +116,8 @@ class MedleyLfHashTableFactory : public RideableFactory{
 
 
 //-------Definition----------
-template <class K, class V, int idxSize> 
-optional<V> MedleyLfHashTable<K,V,idxSize>::get(K key, int tid) {
+template <class K, class V> 
+optional<V> MedleyLfHashTable<K,V>::get(K key, int tid) {
     TX_OP_SEPARATOR();
     optional<V> res={};
     MarkPtr* prev=nullptr;
@@ -138,8 +139,8 @@ optional<V> MedleyLfHashTable<K,V,idxSize>::get(K key, int tid) {
     return res;
 }
 
-template <class K, class V, int idxSize> 
-optional<V> MedleyLfHashTable<K,V,idxSize>::put(K key, V val, int tid) {
+template <class K, class V> 
+optional<V> MedleyLfHashTable<K,V>::put(K key, V val, int tid) {
     TX_OP_SEPARATOR();
 
     optional<V> res={};
@@ -193,8 +194,8 @@ optional<V> MedleyLfHashTable<K,V,idxSize>::put(K key, V val, int tid) {
     return res;
 }
 
-template <class K, class V, int idxSize> 
-bool MedleyLfHashTable<K,V,idxSize>::insert(K key, V val, int tid){
+template <class K, class V> 
+bool MedleyLfHashTable<K,V>::insert(K key, V val, int tid){
     TX_OP_SEPARATOR();
 
     bool res=false;
@@ -229,8 +230,8 @@ bool MedleyLfHashTable<K,V,idxSize>::insert(K key, V val, int tid){
     return res;
 }
 
-template <class K, class V, int idxSize> 
-optional<V> MedleyLfHashTable<K,V,idxSize>::remove(K key, int tid) {
+template <class K, class V> 
+optional<V> MedleyLfHashTable<K,V>::remove(K key, int tid) {
     TX_OP_SEPARATOR();
 
     optional<V> res={};
@@ -272,8 +273,8 @@ optional<V> MedleyLfHashTable<K,V,idxSize>::remove(K key, int tid) {
     return res;
 }
 
-template <class K, class V, int idxSize> 
-optional<V> MedleyLfHashTable<K,V,idxSize>::replace(K key, V val, int tid) {
+template <class K, class V> 
+optional<V> MedleyLfHashTable<K,V>::replace(K key, V val, int tid) {
     TX_OP_SEPARATOR();
 
     optional<V> res={};
@@ -322,8 +323,8 @@ optional<V> MedleyLfHashTable<K,V,idxSize>::replace(K key, V val, int tid) {
     return res;
 }
 
-template <class K, class V, int idxSize> 
-bool MedleyLfHashTable<K,V,idxSize>::findNode(MarkPtr* &prev, Node* &curr, Node* &next, K key, int tid){
+template <class K, class V> 
+bool MedleyLfHashTable<K,V>::findNode(MarkPtr* &prev, Node* &curr, Node* &next, K key, int tid){
     size_t idx=hash_fn(key)%idxSize;
     while(true){
         bool cmark=false;

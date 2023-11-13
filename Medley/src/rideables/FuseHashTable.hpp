@@ -21,7 +21,7 @@ private:
     FuseHash::unordered_map<K, V> hashtable;
 
 public:
-    FuseHashTable(GlobalTestConfig* gtc) : hashtable(10000000) {}
+    FuseHashTable(GlobalTestConfig* gtc) : hashtable(gtc->size) {}
 
     ~FuseHashTable() {}
 
@@ -40,7 +40,7 @@ public:
     }
 
     optional<V> put(K key, V val, int tid) {
-        bool b = hashtable.insert_(key, val);
+        bool b = hashtable.upsert(key, [&] (auto x) { return val; });
         if(b) return optional<V>(val); //TPCC never makes use of return value
         else return {};
     }
