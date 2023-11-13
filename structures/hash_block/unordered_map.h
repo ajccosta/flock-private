@@ -194,10 +194,10 @@ private:
 
   template <typename F>
   static node* update_node(node* old, const K& k, const F& f) {
-    if (old == nullptr) return (node*) node_pool_1.new_obj(old, k, f);
-    if (old->cnt < 3) return (node*) node_pool_3.new_obj(old, k, f);
-    else if (old->cnt < 7) return (node*) node_pool_7.new_obj(old, k, f);
-    else if (old->cnt < 31) return (node*) node_pool_31.new_obj(old, k, f);
+    if (old->cnt == 1) return (node*) node_pool_1.new_obj(old, k, f);
+    if (old->cnt <= 3) return (node*) node_pool_3.new_obj(old, k, f);
+    else if (old->cnt <= 7) return (node*) node_pool_7.new_obj(old, k, f);
+    else if (old->cnt <= 31) return (node*) node_pool_31.new_obj(old, k, f);
     else return (node*) big_node_pool.new_obj(old, k, f);
   }
 

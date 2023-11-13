@@ -257,22 +257,32 @@ struct ordered_map {
   // Insert a new key-value pair by copying into a new leaf.
   // Old is left intact (but retired).
   // The key k must not already be present in the leaf.
-  static leaf* insert_leaf(leaf* l, const K& k, const V& v) {
+  static leaf* insert_leaf(leaf* l, const K& k, const V& v, bool upsert=false) {
     return leaf_pool.new_init([=] (leaf* new_l) {
-    int size = l->size;
-    assert(size < leaf_block_size);
-    int i=0;
+      int size = l->size;
+      assert(size < leaf_block_size);
+      int i=0;
 
-    // copy part before the new key
-    for (;i < size && less(l->keyvals[i].key, k); i++)
-      new_l->keyvals[i] = l->keyvals[i];
+      // copy part before the new key
+      for (;i < size && less(l->keyvals[i].key, k); i++)
+        new_l->keyvals[i] = l->keyvals[i];
 
-    // copy in the new key and value
-    new_l->keyvals[i] = KV{k,v};
-
-    // copy the part after the new key
-    for (; i < size ; i++ )
-      new_l->keyvals[i+1] = l->keyvals[i];}, l->size + 1);
+      // copy in the new key and value
+      new_l->keyvals[i] = KV{k,v};
+      if(i < size) {
+        if(upsert) {
+          // copy the part after the new key, skipping the key that is equal
+          // can only happen when upserting
+          i++;
+          for (; i < size ; i++ )
+            new_l->keyvals[i] = l->keyvals[i];
+        } else {
+          // copy the part after the new key
+          for (; i < size ; i++ )
+            new_l->keyvals[i+1] = l->keyvals[i];
+        }
+      }
+    }, (upsert ? l->size : l->size + 1));
   }
 
   // Remove a key-value pair from the leaf that matches the key k.
@@ -384,17 +394,17 @@ struct ordered_map {
         if (p->children[cidx].load() != c) return false;
         if (c->is_leaf) {
           gp->children[pidx] = add_child(p, split_leaf(c), cidx);
-	  p->removed = true;
+          p->removed = true;
           leaf_pool.retire((leaf*) c);
-	  node_pool.retire(p);
-	  return true;
+          node_pool.retire(p);
+          return true;
         }
-	return c->lck.try_lock([=] {
-	  gp->children[pidx] = add_child(p, split(c), cidx);
-	  p->removed = c->removed = true;
-	  node_pool.retire(c);
-	  node_pool.retire(p);
-	  return true;});
+        return c->lck.try_lock([=] {
+          gp->children[pidx] = add_child(p, split(c), cidx);
+          p->removed = c->removed = true;
+          node_pool.retire(c);
+          node_pool.retire(p);
+          return true;});
       });});
   }
 
@@ -415,10 +425,10 @@ struct ordered_map {
                  std::make_tuple(cidx-1, other_c, c)); 
         if (c->is_leaf) { // leaf
           if (lc->size + rc->size < leaf_join_cutoff)  // join
-	    gp->children[pidx] = join_children(p, join_leaf(lc, rc), li);
+            gp->children[pidx] = join_children(p, join_leaf(lc, rc), li);
           else   // rebalance
-	    gp->children[pidx] = rebalance_children(p, rebalance_leaf(lc, rc), li);
-	  p->removed = true;
+            gp->children[pidx] = rebalance_children(p, rebalance_leaf(lc, rc), li);
+          p->removed = true;
           node_pool.retire(p);
           leaf_pool.retire((leaf*) lc);
           leaf_pool.retire((leaf*) rc);
@@ -437,19 +447,19 @@ struct ordered_map {
           // node_pool.retire(rc);
           // return true;});
           K& k = p->keys[li];
-	  // lock both children
+          // lock both children
           return lc->lck.try_lock([=] {
             return rc->lck.try_lock([=] {
-	      if (lc->size + rc->size < node_join_cutoff)   // join
-	  	gp->children[pidx] = join_children(p, join(lc, k, rc), li);
-	      else // rebalance
-	  	gp->children[pidx] = rebalance_children(p, rebalance(lc, k, rc), li);
-	      lc->removed = rc->removed = p->removed = true;
-	      node_pool.retire(p);
-	      node_pool.retire(lc);
-	      node_pool.retire(rc);
-	      return true;});});
-	  }});});
+              if (lc->size + rc->size < node_join_cutoff)   // join
+                  gp->children[pidx] = join_children(p, join(lc, k, rc), li);
+              else // rebalance
+                  gp->children[pidx] = rebalance_children(p, rebalance(lc, k, rc), li);
+              lc->removed = rc->removed = p->removed = true;
+              node_pool.retire(p);
+              node_pool.retire(lc);
+              node_pool.retire(rc);
+              return true;});});
+          }});});
   }
 
   static void fix_node(node* gp, int pidx, node* p, int cidx, node* c) {
@@ -521,26 +531,26 @@ struct ordered_map {
       if (c->status == isOver || (!c->is_leaf && c->size == 1))
         fix_root(root, c);
       else while (true) {
-	  if (c->is_leaf) return std::tuple(p, cidx, (leaf*) c);
-	  node* gp = p;
-	  int pidx = cidx;
-	  p = c;
-	  cidx = c->find(k);
-	  c = p->children[cidx].load();
-	  // The following two lines are only useful if hardware
-	  // prefetching is turned off.  They prefetch the next two
-	  // cache lines.
-	  __builtin_prefetch (((char*) c) + 64); 
-	  __builtin_prefetch (((char*) c) + 128);
-	  if (c->status != OK) {
-	    fix_node(gp, pidx, p, cidx, c);
-	    if (cnt++ == 100000000) {
-	      std::cout << "probable infinite loop in find_and_fix" << std::endl;
-	      abort();
-	    }
-	    break;
-	  }
-	}
+          if (c->is_leaf) return std::tuple(p, cidx, (leaf*) c);
+          node* gp = p;
+          int pidx = cidx;
+          p = c;
+          cidx = c->find(k);
+          c = p->children[cidx].load();
+          // The following two lines are only useful if hardware
+          // prefetching is turned off.  They prefetch the next two
+          // cache lines.
+          __builtin_prefetch (((char*) c) + 64); 
+          __builtin_prefetch (((char*) c) + 128);
+          if (c->status != OK) {
+            fix_node(gp, pidx, p, cidx, c);
+            if (cnt++ == 100000000) {
+              std::cout << "probable infinite loop in find_and_fix" << std::endl;
+              abort();
+            }
+            break;
+          }
+        }
     }
   }
 
@@ -571,17 +581,25 @@ struct ordered_map {
   bool insert(const K& k, const V& v) {
     return verlib::with_epoch([=] {return insert_(k, v);}); }
 
-  std::optional<bool> try_insert(const K& k, const V& v) {
+  bool upsert_(const K& k, const V& v) {
+    return flck::try_loop([&] {return try_insert(k, v, true);});}
+  
+  bool upsert(const K& k, const V& v) {
+    return verlib::with_epoch([=] {return upsert_(k, v);}); }
+
+  std::optional<bool> try_insert(const K& k, const V& v, const bool upsert=false) {
     auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
-    if (l->find(k).has_value()) // already there
+    if (!upsert && l->find(k).has_value()) { // already there
       if (p->lck.read_lock([&] {
-	     return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
-	return false;
+             return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
+        return false;
       else return {};
+    }
     else if (p->lck.try_lock([=] {
       if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
-      p->children[cidx] = (node*) insert_leaf(l, k, v);
+      bool upsert_leaf = upsert && l->find(k).has_value();
+      p->children[cidx] = (node*) insert_leaf(l, k, v, upsert_leaf);
       leaf_pool.retire(l);
       return true;})) return true;
     else return {};
@@ -602,8 +620,8 @@ struct ordered_map {
     auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
     if (!l->find(k).has_value()) // not there
       if (p->lck.read_lock([&] {
-	    return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
-	return false;
+            return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
+        return false;
       else return {};
     else if (p->lck.try_lock([=] {
           if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
@@ -671,10 +689,13 @@ struct ordered_map {
 
   // An empty tree is an empty leaf along with a root pointing tho the
   // leaf.  The root will always contain a single pointer.
-  ordered_map() : root(node_pool.new_obj(leaf_pool.new_obj(0))) {}
+  ordered_map() : root(node_pool.new_obj(leaf_pool.new_obj(0))) {
+    // std::cout << "key size: " << sizeof(K) << std::endl;
+    // std::cout << "value size: " << sizeof(V) << std::endl;
+  }
   ordered_map(size_t n) : root(node_pool.new_obj(leaf_pool.new_obj(0))) {
-    std::cout << "key size: " << sizeof(K) << std::endl;
-    std::cout << "value size: " << sizeof(V) << std::endl;
+    // std::cout << "key size: " << sizeof(K) << std::endl;
+    // std::cout << "value size: " << sizeof(V) << std::endl;
   }
 
   static void retire_recursive(node* p) {

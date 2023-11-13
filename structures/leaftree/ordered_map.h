@@ -67,8 +67,11 @@ struct ordered_map {
   bool insert_(const K& k, const V& v) {
     return flck::try_loop([&] {return try_insert(k, v);});}
   
-  bool put_(const K& k, const V& v) {
-    return flck::try_loop([&] {return try_insert(k, v, true);});}
+  bool upsert(const K& k, const V& v) {
+    return verlib::with_epoch([=] {
+      return flck::try_loop([&] {return try_insert(k, v, true);});
+    });
+  }
 
   bool insert(const K& k, const V& v) {
     return verlib::with_epoch([=] {return insert_(k, v);}); }
