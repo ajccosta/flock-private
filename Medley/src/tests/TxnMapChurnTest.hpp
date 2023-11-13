@@ -109,6 +109,7 @@ public:
 		// set up txn for TDSL
 		txn_manager._tdsl_txns = new padded<::tdsl::SkipListTransaction>[gtc->task_num];
         gtc->setUpTDSLTxns(reinterpret_cast<void*>(txn_manager._tdsl_txns));
+        gtc->size = range/2;
 
 		Rideable* ptr = gtc->allocRideable();
 		m = dynamic_cast<RMap<K, V>*>(ptr);
@@ -179,6 +180,7 @@ public:
 			for(int i=0;i<sz;i++) {
 				r[i] = randKey.next();
 				p[i] = randOp.next();
+				// std::cout << "key: " << r[i] << ", op: " << p[i] << std::endl;
 			}
 			while (true){
 				try {

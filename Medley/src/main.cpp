@@ -77,15 +77,15 @@ int main(int argc, char *argv[])
 	// gtc.addTestOption(new MapChurnTest<uint64_t,uint64_t>(50, 0, 25, 25, 1000000, 500000), "MapChurnTest<uint64_t>:g50p0i25rm25:range=100000:prefill=500000");
 
 	/* transactional TPCC benchmark */
-	gtc.addTestOption(new tpcc::TPCC<TxnType::NBTC>(50,50,0,0,0),"TPCC<NBTC>");
-	gtc.addTestOption(new tpcc::TPCC<TxnType::TDSL>(50,50,0,0,0),"TPCC<TDSL>");
-	gtc.addTestOption(new tpcc::TPCC<TxnType::OneFile>(50,50,0,0,0),"TPCC<OneFile>");
-	gtc.addTestOption(new tpcc::TPCC<TxnType::Fuse>(50,50,0,0,0),"TPCC<Fuse>");
+	gtc.addTestOption(new tpcc::TPCC<TxnType::NBTC>(50,50,0,0,0),"NBTC:TPCC");
+	gtc.addTestOption(new tpcc::TPCC<TxnType::TDSL>(50,50,0,0,0),"TDSL:TPCC");
+	gtc.addTestOption(new tpcc::TPCC<TxnType::OneFile>(50,50,0,0,0),"OneFile:TPCC");
+	gtc.addTestOption(new tpcc::TPCC<TxnType::Fuse>(50,50,0,0,0),"Fuse:TPCC");
 
 	std::vector<int> sizes {100000, 10000000};
-	std::vector<double> zipfs {0, 0.75, 0.9, 0.99};
+	std::vector<double> zipfs {0, 0.25, 0.75, 0.9, 0.99};
 	std::vector<int> updates {0, 10, 50, 100};
-	std::vector<int> trans_sizes {16};
+	std::vector<int> trans_sizes {1, 2, 16};
 	bool fixed_size_trans = true;
 
 	/* transactional microbenchmark */

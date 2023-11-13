@@ -26,6 +26,10 @@
 #include <thread>
 #include <unordered_set>
 
+#include <typeinfo>
+
+#include <include/flock/epoch.h>
+
 namespace tpcc {
 
 template <TxnType txn_type=TxnType::NBTC>
@@ -195,6 +199,9 @@ public:
     }
     int execute(GlobalTestConfig* gtc, LocalTestConfig* ltc){
         auto time_up = gtc->finish.load();
+        // std::stringstream ss;
+        // ss << "worker_id: " << flck::internal::worker_id() << std::endl;
+        // std::cout << ss.str();
 
         int ops = 0;
         uint64_t seed = ltc->seed;
@@ -323,6 +330,7 @@ public:
         ssize_t ret = 0;
         try {
             do_tx(tid, [&] () {
+                ret = 0;
 
                 const customer::key k_c(warehouse_id, districtID, customerID);
                 auto v_c = tbl_customer[warehouse_id-1]->get(k_c, tid);
@@ -336,6 +344,9 @@ public:
 
                 const district::key k_d(warehouse_id, districtID);
                 auto v_d = tbl_district[warehouse_id-1]->get(k_d, tid);
+
+                // std::cout << typeid(tbl_district).name() << std::endl;
+                // std::cout << typeid(v_d).name() << std::endl;
                 assert(v_d.has_value());
                 SanityCheckDistrict(&k_d, &(*v_d));
 
@@ -350,6 +361,7 @@ public:
 
                 if (!g_new_order_fast_id_gen) {
                     district::value v_d_new(*v_d);
+                    // abort();
                     v_d_new.d_next_o_id++;
                     tbl_district[warehouse_id-1]->put(k_d, v_d_new, tid);
                 }
@@ -452,7 +464,7 @@ public:
         try {
             // tx_begin(tid);
             do_tx(tid, [&] () {
-
+                ret = 0;
                 const warehouse::key k_w(warehouse_id);
                 auto v_w = tbl_warehouse[warehouse_id-1]->get(k_w, tid);
                 assert(v_w.has_value());
@@ -581,7 +593,7 @@ public:
     }
 
     void cleanup(GlobalTestConfig* gtc){
-        TPCC_TABLE_LIST(TPCC_TABLE_CLEANUP)
+        // TPCC_TABLE_LIST(TPCC_TABLE_CLEANUP)
     }
 
     inline atomic<size_t> &

@@ -53,7 +53,7 @@ void GlobalTestConfig::printargdef(){
 	for(i = 0; i< rideableFactories.size(); i++){
 		fprintf(stderr, "Rideable %lu : %s\n",i,rideableNames[i].c_str());
 	}
-	for(i = 0; i< tests.size(); i++){
+	for(i = 0; i< std::min(5, (int) tests.size()); i++){
 		fprintf(stderr, "Test Mode %lu : %s\n",i,testNames[i].c_str());
 	}
 	exit(0);

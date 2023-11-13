@@ -44,6 +44,7 @@ public:
 	hwloc_topology_t topology;
 	
 	int num_procs=24;
+	int size=0;
 	Test* test=NULL;
 	int testType=0;
 	int rideableType=0;
