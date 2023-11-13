@@ -51,16 +51,23 @@ struct alignas(128) MyRandom {
 
   // MyRandom(int n, int max, double seed) : MyRandom(n, 0, max, seed) {}
 
-  MyRandom(int n, double zipf, int max, double seed) : N(n), zipfian(zipf), nums(new uint64_t[N]), index(0), max(max) {
+  MyRandom(int n, double zipf, int max, uint64_t seed) : N(n), zipfian(zipf), nums(new uint64_t[N]), index(0), max(max) {
     // int P = std::thread::hardware_concurrency();
     // std::vector<std::thread> threads;
     // int work = (N+P-1)/P;
+    std::mt19937_64 stdRand(seed);
+
     seed = parlay::hash64(seed) / 2;
     if(zipfian == 0) {
-      for(int i = 0; i < N; i++) nums[i] = parlay::hash64(seed+i) % max;
+      for(int i = 0; i < N; i++) {
+        // nums[i] = stdRand() % max;
+        nums[i] = parlay::hash64(seed+i) % max;
+        // std::cout << "seed: " << seed << ", i: " << i << ", hash: "<< parlay::hash64(seed+i) << std::endl;
+      }
     } else {
       Zipfian z(max, zipfian, seed);
       // std::cout << "using zipfian parameter: " << zipfian << std::endl;
+      // abort();
       for(int i = 0; i < N; i++) nums[i] = z(i);
     }
     // for(int p = 0; p < P; p++) {
@@ -77,6 +84,7 @@ struct alignas(128) MyRandom {
   }
 
   uint64_t next() {
+    // std::cout << "index " << index << ", nums[index] " << nums[index] << std::endl;
     uint64_t ret = nums[index++];
     if(index >= N) index = 0;
     return ret;

@@ -92,7 +92,9 @@ struct alignas(64) epoch_s {
       long current_e = get_current();
 #ifdef NestedEpochs
       long old = -1l;
-      bool succeeded = announcements[id].last.compare_exchange_strong(old, current_e);
+      bool succeeded = false;
+      if(announcements[id].last.load() == old)
+        succeeded = announcements[id].last.compare_exchange_strong(old, current_e);
       // if(!succeeded) abort();
       if (get_current() == current_e) return std::pair(succeeded, id);
 #else

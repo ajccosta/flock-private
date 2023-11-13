@@ -139,10 +139,10 @@ WARNING_FLAGS:=-ftrapv -Wreturn-type -W -Wall \
 
 # Default build flags.  
 # CFLAGS:=-pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) 
-CFLAGS:= $(FLAGS) -fopenmp -pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DUSE_MALLOC -DSHM_SIMULATING
+CFLAGS:= $(FLAGS) -fopenmp -pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DSHM_SIMULATING -DNestedEpochs
 
 # CXXFLAGS:= -pthread -std=c++11 -g -fpic $(WARNING_FLAGS) #-std=c++1y 
-CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -std=gnu++17 -mclwb -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -mcx16 -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DUSE_MALLOC -DSHM_SIMULATING
+CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -std=gnu++17 -mclwb -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -mcx16 -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DSHM_SIMULATING -DNestedEpochs
 # linker flags
 # LDFLAGS := 
 
