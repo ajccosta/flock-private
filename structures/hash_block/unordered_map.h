@@ -249,13 +249,14 @@ private:
 
   static std::optional<bool> try_insert_at(bucket* s, const K& k, const V& v) {
     node* old_node = s->load();
-    if (old_node != nullptr && old_node->find_index(k) != -1)
+    if (old_node != nullptr && old_node->find_index(k) != -1) {
 #ifndef UseCAS
       if (s->read_lock([&] {return s->load() == old_node;})) return false;
       else return {};
 #else
       return false;
 #endif
+    }
     return try_update(s, old_node, insert_to_node(old_node, k, v), true);
   }
 
@@ -281,13 +282,14 @@ private:
 
   static std::optional<bool> try_remove_at(bucket* s, const K& k) {
     node* old_node = s->load();
-    if (old_node == nullptr || old_node->find_index(k) == -1)
+    if (old_node == nullptr || old_node->find_index(k) == -1) {
 #ifndef UseCAS
       if (s->read_lock([&] {return s->load() == old_node;})) return false;
       else return {};
 #else
       return false;
 #endif
+    }
     return try_update(s, old_node, remove_from_node(old_node, k), true);
   }
 

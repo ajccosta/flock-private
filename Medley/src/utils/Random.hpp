@@ -30,7 +30,7 @@ public:
 
   static double Zeta(uint64_t cur_num, double theta) {
     double sum = 0;
-    for(int i = 0; i < cur_num; i++) {
+    for(uint64_t i = 0; i < cur_num; i++) {
       sum += 1.0/ std::pow(i+1, theta);
     }
     return sum;

@@ -24,7 +24,7 @@ struct ordered_map {
     //flck::atomic_write_once<bool> removed;
     int size;
     header(bool is_leaf, Status status, int size)
-      : is_leaf(is_leaf), status(status), size(size), removed(false) {}
+      : is_leaf(is_leaf), status(status), removed(false), size(size) {}
   };
 
   static constexpr int leaf_block_bytes = 64 * 8;
@@ -51,11 +51,11 @@ struct ordered_map {
     verlib::versioned_ptr<node> children[node_block_size];
     verlib::lock lck;
     
-    int find(const K& k, uint i=0) {
+    int find(const K& k, int i=0) {
       //while (i < header::size-1 && !less(k, keys[i])) i++;
       //return i;
       if (header::size == 1) return 0;
-      uint mid = (header::size-1)/2;
+      int mid = (header::size-1)/2;
       if (less(k, keys[mid])) // first half
           while (!less(k, keys[i])) i++;
       else {
@@ -219,9 +219,9 @@ struct ordered_map {
     KV keyvals[leaf_block_size];
     
     std::optional<V> find(const K& k) {
-      uint i=0;
+      int i=0;
       // if (header::size == 0) return std::optional<V>();
-      // uint mid = header::size/2;
+      // int mid = header::size/2;
       // if (!less(keyvals[mid].key, k)) // first half
       //     while (less(keyvals[i].key, k)) i++;
       // else {

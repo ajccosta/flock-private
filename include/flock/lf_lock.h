@@ -51,7 +51,7 @@ struct descriptor {
   
   template <typename Thunk>
   descriptor(Thunk& g) : 
-    done(false), freed(false), f([=] {g();}) {
+    f([=] {g();}), done(false), freed(false) {
     lg_array.init();
     epoch_num = get_epoch().get_my_epoch();
     thread_id = get_current_id();
@@ -122,7 +122,7 @@ private:
   bool is_locked_(lock_entry le) { return Tag::value(le) != nullptr;}
   descriptor* remove_tag(lock_entry le) { return Tag::value(le);}
   bool lock_is_self(lock_entry le) {
-    return get_current_id() == remove_tag(le)->thread_id;
+    return ((int)get_current_id()) == remove_tag(le)->thread_id;
   }
 
   // runs thunk in appropriate epoch and after it is acquired

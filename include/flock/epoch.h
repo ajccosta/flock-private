@@ -48,7 +48,7 @@ namespace internal {
     if (const auto env_p = std::getenv("PARLAY_NUM_THREADS")) {
       return std::stoi(env_p);
     } else {
-      return std::thread::hardware_concurrency();
+      return std::thread::hardware_concurrency()+2;
     }
     // std::cerr << "num_thread_ids: " << parlay::num_thread_ids() << std::endl;
     // if(parlay::num_thread_ids() == 0) abort();
@@ -56,7 +56,7 @@ namespace internal {
   }
 
 struct alignas(64) epoch_s {
-	
+        
   // functions to run when epoch is incremented
   std::vector<std::function<void()>> before_epoch_hooks;
   std::vector<std::function<void()>> after_epoch_hooks;
@@ -118,14 +118,14 @@ struct alignas(64) epoch_s {
     // check if everyone is done with earlier epochs
     for (int i=0; i < workers; i++)
       if ((announcements[i].last != -1l) && announcements[i].last < current_e) {
-	all_there = false;
-	break;
+        all_there = false;
+        break;
       }
     // if so then increment current epoch
     if (all_there) {
       for (auto h : before_epoch_hooks) h();
       if (current_epoch.compare_exchange_strong(current_e, current_e+1)) {
-	for (auto h : after_epoch_hooks) h();
+        for (auto h : after_epoch_hooks) h();
       }
     }
   }
@@ -210,15 +210,15 @@ private:
       ptr = ptr->next;
       if (!tmp->skip) {
 #ifdef EpochMemCheck
-	paddedT* x = pad_from_T((T*) tmp->value);
-	if (x->head != 10 || x->tail != 10) {
-	  if (x->head == 55) std::cerr << "double free" << std::endl;
-	  else std::cerr << "corrupted head" << std::endl;
-	  if (x->tail != 10) std::cerr << "corrupted tail" << std::endl;
-	  assert(false);
-	}
+        paddedT* x = pad_from_T((T*) tmp->value);
+        if (x->head != 10 || x->tail != 10) {
+          if (x->head == 55) std::cerr << "double free" << std::endl;
+          else std::cerr << "corrupted head" << std::endl;
+          if (x->tail != 10) std::cerr << "corrupted tail" << std::endl;
+          assert(false);
+        }
 #endif
-	destruct((T*) tmp->value);
+        destruct((T*) tmp->value);
       }
       free_link(tmp);
     }
@@ -235,8 +235,8 @@ private:
     // a heuristic
     auto now = system_clock::now();
     if (++pid.count == update_threshold  ||
-	duration_cast<milliseconds>(now - pid.time).count() >
-	milliseconds_between_epoch_updates * (1 + ((float) i)/workers)) {
+        duration_cast<milliseconds>(now - pid.time).count() >
+        milliseconds_between_epoch_updates * (1 + ((float) i)/workers)) {
       pid.count = 0;
       pid.time = now;
       epoch.update_epoch();
@@ -319,7 +319,7 @@ public:
 #endif
     return true;
   }
-			   
+                           
   template <typename F, typename ... Args>
   // f is a function that initializes a new object before it is shared
   T* new_init(const F& f, Args... args) {

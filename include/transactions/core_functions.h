@@ -81,9 +81,9 @@ namespace verlib {
     std::pair<transaction_descriptor*, TS> get_descriptor_and_stamp() {
       TS td = stamp_or_descriptor.load();
       if (is_tagged(td)) {
-      	transaction_descriptor* descriptor = untag_descriptor(td);
-      	trans_descriptor_pool.acquire(descriptor);
-      	td = stamp_or_descriptor.load();
+              transaction_descriptor* descriptor = untag_descriptor(td);
+              trans_descriptor_pool.acquire(descriptor);
+              td = stamp_or_descriptor.load();
       } 
       if (is_tagged(td)) return std::pair(untag_descriptor(td), tbd);
       else return std::pair(nullptr, td);
@@ -109,10 +109,10 @@ namespace verlib {
       // This gets run in a non-idempotent context (i.e., with no log), so needs to be
       // idempotent on its own.
       if (next_version.load_ni() == init_ptr) {
-	// the order of the next two matter when using
-	// with lock free locks.
-	stamp_or_descriptor.store_ni(zero_stamp); // ok since write once
-	next_version.store_ni(nullptr); // ok since write once
+        // the order of the next two matter when using
+        // with lock free locks.
+        stamp_or_descriptor.store_ni(zero_stamp); // ok since write once
+        next_version.store_ni(nullptr); // ok since write once
       }
     }
 
@@ -149,9 +149,9 @@ namespace verlib {
       TS td = stamp_or_descriptor.load_ni();
       assert(!is_tagged(td));    
       if (td == tbd) {
-	TS new_t = global_stamp.get_write_stamp();
-	if (stamp_or_descriptor.load_ni() == tbd) 
-	  stamp_or_descriptor.cas_ni(tbd, new_t);
+        TS new_t = global_stamp.get_write_stamp();
+        if (stamp_or_descriptor.load_ni() == tbd) 
+          stamp_or_descriptor.cas_ni(tbd, new_t);
       }
     }
   };
@@ -183,8 +183,8 @@ namespace verlib {
   // - Otherwise set the timestamp and no finalization is required.
   std::pair<versioned*,versioned*>
   install_store(flck::atomic<versioned*>* loc,
-		versioned* ptr,
-		transaction_descriptor* descriptor) {
+                versioned* ptr,
+                transaction_descriptor* descriptor) {
     assert(current_transaction == nullptr);
     versioned* old_v = loc->load();
     versioned* new_v = ptr;
@@ -211,8 +211,8 @@ namespace verlib {
       versioned* val = loc->load(); // logged
       ver_link* old_l = (ver_link*) strip_indirect(old_v);
       if (val == old_l->value) { // if has been concurrently shortcut
-	old_v = old_l->value;
-	loc->cam(old_v, new_v); // logged, but unusal
+        old_v = old_l->value;
+        loc->cam(old_v, new_v); // logged, but unusal
       } else link_pool.retire_on_success(descriptor, old_l);
     } else *loc = new_v; // logged 
 #endif
@@ -225,8 +225,8 @@ namespace verlib {
   }
 
   void finalize_store(flck::atomic<versioned*>* loc,
-				std::pair<versioned*,versioned*> pointers,
-				TS time_stamp) {
+                                std::pair<versioned*,versioned*> pointers,
+                                TS time_stamp) {
     assert(loc != nullptr);
     auto [old_ptr, new_ptr] = pointers;
 
@@ -246,8 +246,8 @@ namespace verlib {
   // validation stage or if failed).
   template <typename T>
   T resolve_descriptor(transaction_descriptor* descriptor, T old_v, T new_v,
-		       bool validating) {
-    if (descriptor->owner == flck::internal::get_current_id()) {
+                       bool validating) {
+    if ((size_t) descriptor->owner == flck::internal::get_current_id()) {
       assert(is_helping() || descriptor->round == transaction_round);
       assert(validating); // self descriptor should not be installed if not validating
       return old_v; // if validating then should check against old value
@@ -256,14 +256,14 @@ namespace verlib {
     if (desc_ts == tbd || desc_ts == failed) return old_v;
 #ifdef Validate
     if (validating && desc_ts == tbs &&
-	descriptor->owner < flck::internal::get_current_id()) { 
+        (size_t) descriptor->owner < flck::internal::get_current_id()) { 
       // kill other if they have lower id. prevents validate cycle
       TS old = tbs;
       descriptor->time_stamp.cam(old, failed);
     } else { //otherwise wait for a while to see if other is done, then help if not
       int cnt = 0;
       while (descriptor->time_stamp.load() == tbs && cnt++ < 50)
-      	for (volatile int i=0; i < 100; i++);
+              for (volatile int i=0; i < 100; i++);
       if (descriptor->time_stamp.load() == tbs) validate(descriptor);
     }
     if (descriptor->time_stamp.load() == failed) return old_v;
@@ -284,14 +284,14 @@ namespace verlib {
       return tagged_ptr; }
     // a transaction descriptor is installed, need to resolve the state
     return resolve_descriptor(descriptor, ptr->get_next_version(),
-			      tagged_ptr, validating);
+                              tagged_ptr, validating);
   }
 
   bool validate_pointer(flck::atomic<versioned*>* location, versioned* expected) {
     versioned* ptr = get_value(location->load(), true);
     // second condition is to deal with shortcutting
     return (ptr == expected || (is_indirect(expected) &&
-				ptr == ((ver_link*) strip_indirect(expected))->value));
+                                ptr == ((ver_link*) strip_indirect(expected))->value));
   }
 
   thread_local int try_count;
