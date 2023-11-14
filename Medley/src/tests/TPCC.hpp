@@ -328,103 +328,112 @@ public:
         //   num_txn_contexts : 9
         
         ssize_t ret = 0;
-        try {
-            do_tx(tid, [&] () {
-                ret = 0;
+        uint64_t retry = 0;
+        while(true) {
+            try {
+                do_tx(tid, [&] () {
+                    ret = 0;
 
-                const customer::key k_c(warehouse_id, districtID, customerID);
-                auto v_c = tbl_customer[warehouse_id-1]->get(k_c, tid);
-                assert(v_c.has_value());
-                SanityCheckCustomer(&k_c, &(*v_c));
+                    const customer::key k_c(warehouse_id, districtID, customerID);
+                    auto v_c = tbl_customer[warehouse_id-1]->get(k_c, tid);
+                    assert(v_c.has_value());
+                    SanityCheckCustomer(&k_c, &(*v_c));
 
-                const warehouse::key k_w(warehouse_id);
-                auto v_w = tbl_warehouse[warehouse_id-1]->get(k_w, tid);
-                assert(v_w.has_value());
-                SanityCheckWarehouse(&k_w, &(*v_w));
+                    const warehouse::key k_w(warehouse_id);
+                    auto v_w = tbl_warehouse[warehouse_id-1]->get(k_w, tid);
+                    assert(v_w.has_value());
+                    SanityCheckWarehouse(&k_w, &(*v_w));
 
-                const district::key k_d(warehouse_id, districtID);
-                auto v_d = tbl_district[warehouse_id-1]->get(k_d, tid);
+                    const district::key k_d(warehouse_id, districtID);
+                    auto v_d = tbl_district[warehouse_id-1]->get(k_d, tid);
 
-                // std::cout << typeid(tbl_district).name() << std::endl;
-                // std::cout << typeid(v_d).name() << std::endl;
-                assert(v_d.has_value());
-                SanityCheckDistrict(&k_d, &(*v_d));
+                    // std::cout << typeid(tbl_district).name() << std::endl;
+                    // std::cout << typeid(v_d).name() << std::endl;
+                    assert(v_d.has_value());
+                    SanityCheckDistrict(&k_d, &(*v_d));
 
-                const uint64_t my_next_o_id = g_new_order_fast_id_gen ?
-                    FastNewOrderIdGen(warehouse_id, districtID) : v_d->d_next_o_id;
+                    const uint64_t my_next_o_id = g_new_order_fast_id_gen ?
+                        FastNewOrderIdGen(warehouse_id, districtID) : v_d->d_next_o_id;
 
-                const new_order::key k_no(warehouse_id, districtID, my_next_o_id);
-                const new_order::value v_no;
-                const size_t new_order_sz = sizeof(v_no);
-                tbl_new_order[warehouse_id-1]->insert(k_no, v_no, tid);
-                ret += new_order_sz;
+                    const new_order::key k_no(warehouse_id, districtID, my_next_o_id);
+                    const new_order::value v_no;
+                    const size_t new_order_sz = sizeof(v_no);
+                    tbl_new_order[warehouse_id-1]->insert(k_no, v_no, tid);
+                    ret += new_order_sz;
 
-                if (!g_new_order_fast_id_gen) {
-                    district::value v_d_new(*v_d);
-                    // abort();
-                    v_d_new.d_next_o_id++;
-                    tbl_district[warehouse_id-1]->put(k_d, v_d_new, tid);
+                    if (!g_new_order_fast_id_gen) {
+                        district::value v_d_new(*v_d);
+                        // abort();
+                        v_d_new.d_next_o_id++;
+                        tbl_district[warehouse_id-1]->put(k_d, v_d_new, tid);
+                    }
+
+                    const oorder::key k_oo(warehouse_id, districtID, k_no.no_o_id);
+                    oorder::value v_oo;
+                    v_oo.o_c_id = int32_t(customerID);
+                    v_oo.o_carrier_id = 0; // seems to be ignored
+                    v_oo.o_ol_cnt = int8_t(numItems);
+                    v_oo.o_all_local = true;
+                    v_oo.o_entry_d = GetCurrentTimeMillis();
+
+                    const size_t oorder_sz = sizeof(v_oo);
+                    tbl_oorder[warehouse_id-1]->insert(k_oo, v_oo, tid);
+                    ret += oorder_sz;
+
+                    const oorder_c_id_idx::key k_oo_idx(warehouse_id, districtID, customerID, k_no.no_o_id);
+                    const oorder_c_id_idx::value v_oo_idx(0);
+
+                    tbl_oorder_c_id_idx[warehouse_id-1]->insert(k_oo_idx, v_oo_idx, tid);
+
+                    for (uint ol_number = 1; ol_number <= numItems; ol_number++) {
+                        const uint ol_supply_w_id = supplierWarehouseIDs[ol_number - 1];
+                        const uint ol_i_id = itemIDs[ol_number - 1];
+                        const uint ol_quantity = orderQuantities[ol_number - 1];
+
+                        const item::key k_i(ol_i_id);
+                        auto v_i = tbl_item[0]->get(k_i, tid);
+                        SanityCheckItem(&k_i, &(*v_i));
+
+                        const stock::key k_s(ol_supply_w_id, ol_i_id);
+                        auto v_s = tbl_stock[ol_supply_w_id-1]->get(k_s, tid);
+                        SanityCheckStock(&k_s, &(*v_s));
+
+                        stock::value v_s_new(*v_s);
+                        if (v_s_new.s_quantity - ol_quantity >= 10)
+                            v_s_new.s_quantity -= ol_quantity;
+                        else
+                            v_s_new.s_quantity += -int32_t(ol_quantity) + 91;
+                        v_s_new.s_ytd += ol_quantity;
+                        v_s_new.s_remote_cnt += (ol_supply_w_id == warehouse_id) ? 0 : 1;
+
+                        tbl_stock[ol_supply_w_id-1]->put(k_s, v_s_new, tid);
+
+                        const order_line::key k_ol(warehouse_id, districtID, k_no.no_o_id, ol_number);
+                        order_line::value v_ol;
+                        v_ol.ol_i_id = int32_t(ol_i_id);
+                        v_ol.ol_delivery_d = 0; // not delivered yet
+                        v_ol.ol_amount = float(ol_quantity) * v_i->i_price;
+                        v_ol.ol_supply_w_id = int32_t(ol_supply_w_id);
+                        v_ol.ol_quantity = int8_t(ol_quantity);
+
+                        const size_t order_line_sz = sizeof(v_ol);
+                        tbl_order_line[warehouse_id-1]->insert(k_ol, v_ol, tid);
+                        ret += order_line_sz;
+                    }
+                });
+                // tx_end(tid);
+
+                return txn_result(true, ret);
+            } catch (const pds::TransactionAborted& e) {
+                // txn aborted
+                retry++;
+                if(retry > 10000) {
+                    std::cerr << "too many retries" << std::endl;
+                    abort();
                 }
-
-                const oorder::key k_oo(warehouse_id, districtID, k_no.no_o_id);
-                oorder::value v_oo;
-                v_oo.o_c_id = int32_t(customerID);
-                v_oo.o_carrier_id = 0; // seems to be ignored
-                v_oo.o_ol_cnt = int8_t(numItems);
-                v_oo.o_all_local = true;
-                v_oo.o_entry_d = GetCurrentTimeMillis();
-
-                const size_t oorder_sz = sizeof(v_oo);
-                tbl_oorder[warehouse_id-1]->insert(k_oo, v_oo, tid);
-                ret += oorder_sz;
-
-                const oorder_c_id_idx::key k_oo_idx(warehouse_id, districtID, customerID, k_no.no_o_id);
-                const oorder_c_id_idx::value v_oo_idx(0);
-
-                tbl_oorder_c_id_idx[warehouse_id-1]->insert(k_oo_idx, v_oo_idx, tid);
-
-                for (uint ol_number = 1; ol_number <= numItems; ol_number++) {
-                    const uint ol_supply_w_id = supplierWarehouseIDs[ol_number - 1];
-                    const uint ol_i_id = itemIDs[ol_number - 1];
-                    const uint ol_quantity = orderQuantities[ol_number - 1];
-
-                    const item::key k_i(ol_i_id);
-                    auto v_i = tbl_item[0]->get(k_i, tid);
-                    SanityCheckItem(&k_i, &(*v_i));
-
-                    const stock::key k_s(ol_supply_w_id, ol_i_id);
-                    auto v_s = tbl_stock[ol_supply_w_id-1]->get(k_s, tid);
-                    SanityCheckStock(&k_s, &(*v_s));
-
-                    stock::value v_s_new(*v_s);
-                    if (v_s_new.s_quantity - ol_quantity >= 10)
-                        v_s_new.s_quantity -= ol_quantity;
-                    else
-                        v_s_new.s_quantity += -int32_t(ol_quantity) + 91;
-                    v_s_new.s_ytd += ol_quantity;
-                    v_s_new.s_remote_cnt += (ol_supply_w_id == warehouse_id) ? 0 : 1;
-
-                    tbl_stock[ol_supply_w_id-1]->put(k_s, v_s_new, tid);
-
-                    const order_line::key k_ol(warehouse_id, districtID, k_no.no_o_id, ol_number);
-                    order_line::value v_ol;
-                    v_ol.ol_i_id = int32_t(ol_i_id);
-                    v_ol.ol_delivery_d = 0; // not delivered yet
-                    v_ol.ol_amount = float(ol_quantity) * v_i->i_price;
-                    v_ol.ol_supply_w_id = int32_t(ol_supply_w_id);
-                    v_ol.ol_quantity = int8_t(ol_quantity);
-
-                    const size_t order_line_sz = sizeof(v_ol);
-                    tbl_order_line[warehouse_id-1]->insert(k_ol, v_ol, tid);
-                    ret += order_line_sz;
-                }
-            });
-            // tx_end(tid);
-
-            return txn_result(true, ret);
-        } catch (const pds::TransactionAborted& e) {
-            // txn aborted
+            }
         }
+        
         return txn_result(false, 0);
     }
 
@@ -461,104 +470,114 @@ public:
         //   num_txn_contexts : 5
 
         ssize_t ret = 0;
-        try {
-            // tx_begin(tid);
-            do_tx(tid, [&] () {
-                ret = 0;
-                const warehouse::key k_w(warehouse_id);
-                auto v_w = tbl_warehouse[warehouse_id-1]->get(k_w, tid);
-                assert(v_w.has_value());
-                SanityCheckWarehouse(&k_w, &(*v_w));
+        uint64_t retry = 0;
+        while(true) {
+            try {
+                // tx_begin(tid);
+                do_tx(tid, [&] () {
+                    ret = 0;
+                    const warehouse::key k_w(warehouse_id);
+                    auto v_w = tbl_warehouse[warehouse_id-1]->get(k_w, tid);
+                    assert(v_w.has_value());
+                    SanityCheckWarehouse(&k_w, &(*v_w));
 
-                warehouse::value v_w_new(*v_w);
-                v_w_new.w_ytd += paymentAmount;
-                tbl_warehouse[warehouse_id-1]->put(k_w, v_w_new, tid);
+                    warehouse::value v_w_new(*v_w);
+                    v_w_new.w_ytd += paymentAmount;
+                    tbl_warehouse[warehouse_id-1]->put(k_w, v_w_new, tid);
 
-                const district::key k_d(warehouse_id, districtID);
-                auto v_d = tbl_district[warehouse_id-1]->get(k_d, tid);
-                assert(v_d.has_value());
-                SanityCheckDistrict(&k_d, &(*v_d));
+                    const district::key k_d(warehouse_id, districtID);
+                    auto v_d = tbl_district[warehouse_id-1]->get(k_d, tid);
+                    assert(v_d.has_value());
+                    SanityCheckDistrict(&k_d, &(*v_d));
 
-                district::value v_d_new(*v_d);
-                v_d_new.d_ytd += paymentAmount;
-                tbl_district[warehouse_id-1]->put(k_d, v_d_new, tid);
+                    district::value v_d_new(*v_d);
+                    v_d_new.d_ytd += paymentAmount;
+                    tbl_district[warehouse_id-1]->put(k_d, v_d_new, tid);
 
-                customer::key k_c;
-                if (RandomNumber(r, 1, 100) <= 60) {
-                    // cust by name
-                    uint8_t lastname_buf[CustomerLastNameMaxSize + 1];
-                    static_assert(sizeof(lastname_buf) == 16, "xx");
-                    memset(lastname_buf, 0, sizeof(lastname_buf));
-                    GetNonUniformCustomerLastNameRun(r, lastname_buf);
+                    customer::key k_c;
+                    if (RandomNumber(r, 1, 100) <= 60) {
+                        // cust by name
+                        uint8_t lastname_buf[CustomerLastNameMaxSize + 1];
+                        static_assert(sizeof(lastname_buf) == 16, "xx");
+                        memset(lastname_buf, 0, sizeof(lastname_buf));
+                        GetNonUniformCustomerLastNameRun(r, lastname_buf);
 
-                    customer_name_idx::key k_c_idx;
-                    k_c_idx.c_w_id = customerWarehouseID;
-                    k_c_idx.c_d_id = customerDistrictID;
-                    k_c_idx.c_last.assign((const char *) lastname_buf, 16);
+                        customer_name_idx::key k_c_idx;
+                        k_c_idx.c_w_id = customerWarehouseID;
+                        k_c_idx.c_d_id = customerDistrictID;
+                        k_c_idx.c_last.assign((const char *) lastname_buf, 16);
 
-                    auto v_c_idx = tbl_customer_name_idx[customerWarehouseID-1]->get(k_c_idx, tid);
-                    assert(v_c_idx.has_value() && v_c_idx->c_id_idx->size() > 0);
-                    assert(v_c_idx->c_id_idx->size() < NMaxCustomerIdxScanElems); // we should detect this
-                    int index = v_c_idx->c_id_idx->size() / 2;
-                    if (v_c_idx->c_id_idx->size() % 2 == 0)
-                        index--;
+                        auto v_c_idx = tbl_customer_name_idx[customerWarehouseID-1]->get(k_c_idx, tid);
+                        assert(v_c_idx.has_value() && v_c_idx->c_id_idx->size() > 0);
+                        assert(v_c_idx->c_id_idx->size() < NMaxCustomerIdxScanElems); // we should detect this
+                        int index = v_c_idx->c_id_idx->size() / 2;
+                        if (v_c_idx->c_id_idx->size() % 2 == 0)
+                            index--;
 
-                    k_c.c_w_id = customerWarehouseID;
-                    k_c.c_d_id = customerDistrictID;
-                    k_c.c_id = (*(v_c_idx->c_id_idx))[index].first.c_id;
-                } else {
-                    // cust by ID
-                    const uint customerID = GetCustomerId(r);
-                    k_c.c_w_id = customerWarehouseID;
-                    k_c.c_d_id = customerDistrictID;
-                    k_c.c_id = customerID;
+                        k_c.c_w_id = customerWarehouseID;
+                        k_c.c_d_id = customerDistrictID;
+                        k_c.c_id = (*(v_c_idx->c_id_idx))[index].first.c_id;
+                    } else {
+                        // cust by ID
+                        const uint customerID = GetCustomerId(r);
+                        k_c.c_w_id = customerWarehouseID;
+                        k_c.c_d_id = customerDistrictID;
+                        k_c.c_id = customerID;
+                    }
+                    auto v_c = tbl_customer[customerWarehouseID-1]->get(k_c, tid);
+                    assert(v_c.has_value());
+                    SanityCheckCustomer(&k_c, &(*v_c));
+                    customer::value v_c_new(*v_c);
+
+                    v_c_new.c_balance -= paymentAmount;
+                    v_c_new.c_ytd_payment += paymentAmount;
+                    v_c_new.c_payment_cnt++;
+                    if (strncmp(v_c->c_credit.data(), "BC", 2) == 0) {
+                    char buf[501];
+                    int n = snprintf(buf, sizeof(buf), "%d %d %d %d %d %f | %s",
+                                    k_c.c_id,
+                                    k_c.c_d_id,
+                                    k_c.c_w_id,
+                                    districtID,
+                                    warehouse_id,
+                                    paymentAmount,
+                                    v_c->c_data.c_str());
+                    v_c_new.c_data.resize_junk(
+                        min(static_cast<size_t>(n), v_c_new.c_data.max_size()));
+                    memcpy((void *) v_c_new.c_data.data(), &buf[0], v_c_new.c_data.size());
+                    }
+
+                    tbl_customer[customerWarehouseID-1]->put(k_c, v_c_new, tid);
+
+                    const history::key k_h(k_c.c_d_id, k_c.c_w_id, k_c.c_id, districtID, warehouse_id, ts);
+                    history::value v_h;
+                    v_h.h_amount = paymentAmount;
+                    v_h.h_data.resize_junk(v_h.h_data.max_size());
+                    int n = snprintf((char *) v_h.h_data.data(), v_h.h_data.max_size() + 1,
+                                    "%.10s    %.10s",
+                                    v_w->w_name.c_str(),
+                                    v_d->d_name.c_str());
+                    v_h.h_data.resize_junk(min(static_cast<size_t>(n), v_h.h_data.max_size()));
+
+                    const size_t history_sz = sizeof(v_h);
+                    tbl_history[warehouse_id-1]->insert(k_h, v_h, tid);
+                    ret += history_sz;
+                });
+
+                // tx_end(tid);
+
+                return txn_result(true, ret);
+            } catch (const pds::TransactionAborted& e) {
+                // txn aborted
+                // std::cerr << "transaction aborted 2" << std::endl;
+                retry++;
+                if(retry > 10000) {
+                    std::cerr << "too many retries" << std::endl;
+                    abort();
                 }
-                auto v_c = tbl_customer[customerWarehouseID-1]->get(k_c, tid);
-                assert(v_c.has_value());
-                SanityCheckCustomer(&k_c, &(*v_c));
-                customer::value v_c_new(*v_c);
-
-                v_c_new.c_balance -= paymentAmount;
-                v_c_new.c_ytd_payment += paymentAmount;
-                v_c_new.c_payment_cnt++;
-                if (strncmp(v_c->c_credit.data(), "BC", 2) == 0) {
-                char buf[501];
-                int n = snprintf(buf, sizeof(buf), "%d %d %d %d %d %f | %s",
-                                k_c.c_id,
-                                k_c.c_d_id,
-                                k_c.c_w_id,
-                                districtID,
-                                warehouse_id,
-                                paymentAmount,
-                                v_c->c_data.c_str());
-                v_c_new.c_data.resize_junk(
-                    min(static_cast<size_t>(n), v_c_new.c_data.max_size()));
-                memcpy((void *) v_c_new.c_data.data(), &buf[0], v_c_new.c_data.size());
-                }
-
-                tbl_customer[customerWarehouseID-1]->put(k_c, v_c_new, tid);
-
-                const history::key k_h(k_c.c_d_id, k_c.c_w_id, k_c.c_id, districtID, warehouse_id, ts);
-                history::value v_h;
-                v_h.h_amount = paymentAmount;
-                v_h.h_data.resize_junk(v_h.h_data.max_size());
-                int n = snprintf((char *) v_h.h_data.data(), v_h.h_data.max_size() + 1,
-                                "%.10s    %.10s",
-                                v_w->w_name.c_str(),
-                                v_d->d_name.c_str());
-                v_h.h_data.resize_junk(min(static_cast<size_t>(n), v_h.h_data.max_size()));
-
-                const size_t history_sz = sizeof(v_h);
-                tbl_history[warehouse_id-1]->insert(k_h, v_h, tid);
-                ret += history_sz;
-            });
-
-            // tx_end(tid);
-
-            return txn_result(true, ret);
-        } catch (const pds::TransactionAborted& e) {
-            // txn aborted
+            }
         }
+        
         return txn_result(false, 0);
     }
 

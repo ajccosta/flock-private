@@ -11,7 +11,7 @@
 namespace tpcc{
     constexpr int g_uniform_item_dist = 0;
     constexpr int g_disable_xpartition_txn = 0;
-    constexpr int g_new_order_fast_id_gen = 0;
+    constexpr int g_new_order_fast_id_gen = 1;
     constexpr int g_new_order_remote_item_pct = 1;
 
     constexpr size_t NumItems = 100000;
