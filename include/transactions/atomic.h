@@ -70,52 +70,52 @@ auto atomic(F f) {
       current_transaction = nullptr;
       bool passed = x.has_value(); 
       if (passed && descriptor->write_ptr_log.size() > 0) {
-	// if transactions has stores and an old version was read, then abort
-	if (old_version_read) passed = false;
-	else { // otherwise acquire locks in sorted order, and commit
-	  bool use_help = (try_count % 100) == 99;
-	  std::sort(descriptor->lock_log.data(),
-		    descriptor->lock_log.data() + descriptor->lock_log.size());
-	  passed = run_with_locks_rec(0, descriptor, [=] {
-	       commit(descriptor); return true;}, use_help);
-	  passed = passed && (descriptor->time_stamp.load() != failed);
-	}
+        // if transactions has stores and an old version was read, then abort
+        if (old_version_read) passed = false;
+        else { // otherwise acquire locks in sorted order, and commit
+          bool use_help = (try_count % 100) == 99;
+          std::sort(descriptor->lock_log.data(),
+                    descriptor->lock_log.data() + descriptor->lock_log.size());
+          passed = run_with_locks_rec(0, descriptor, [=] {
+               commit(descriptor); return true;}, use_help);
+          passed = passed && (descriptor->time_stamp.load() != failed);
+        }
       }
       assert(current_transaction == nullptr);
       if (passed) {
-	trans_descriptor_pool.retire(descriptor);
-	return x;
+        trans_descriptor_pool.retire(descriptor);
+        return x;
       } else {
-	auto& retired_log = descriptor->retired_log;
+        auto& retired_log = descriptor->retired_log;
 
-	// undo the logged retires
-	for (int i=0; i < retired_log.size(); i++)
-	  flck::internal::undo_retire(retired_log[i]);
+        // undo the logged retires
+        for (int i=0; i < retired_log.size(); i++)
+          flck::internal::undo_retire(retired_log[i]);
 
-	// undo logged allocates
-	auto& allocated_log = descriptor->allocated_log;
-	for (int i=0; i < allocated_log.size(); i++)
-	  flck::internal::undo_allocate(allocated_log[i]);
+        // undo logged allocates
+        auto& allocated_log = descriptor->allocated_log;
+        for (int i=0; i < allocated_log.size(); i++)
+          flck::internal::undo_allocate(allocated_log[i]);
 
-	if (delay == 0) {
+        if (delay == 0) {
 #ifdef Validate
-	  delay = 5 * (1  + 4 * descriptor->lock_log.size());
-	  max_delay = 16 * delay;
+          delay = 5 * (1  + 4 * descriptor->lock_log.size());
+          max_delay = 16 * delay;
 #else
-	  delay = 100 * (1  + 4 * descriptor->lock_log.size());
-	  max_delay = 16 * delay;
+          delay = 100 * (1  + 4 * descriptor->lock_log.size());
+          max_delay = 16 * delay;
 #endif
-	} else delay = std::min((int) std::ceil(1.2 * delay), max_delay);
-	for (volatile int i=0; i < delay; i++);
+        } else delay = std::min((int) std::ceil(1.2 * delay), max_delay);
+        for (volatile int i=0; i < delay; i++);
 
-	if (try_count++ > 1000000000l/max_delay) {
-	  std::cout << "looks like an infinite retry loop" << std::endl;
-	  abort();
-	}
+        if (try_count++ > 1000000000l/max_delay) {
+          std::cout << "looks like an infinite retry loop" << std::endl;
+          abort();
+        }
 
-	trans_descriptor_pool.retire(descriptor);
-	using RT = decltype(x);
-	return RT();
+        trans_descriptor_pool.retire(descriptor);
+        using RT = decltype(x);
+        return RT();
       }});
     if (r.has_value()) return *r;
   }
