@@ -9,6 +9,8 @@
 
 namespace verlib {
 
+#include<Medley/src/RMap.hpp>
+
 thread_local TS start_stamp = 0;
 
 // validate the versioned pointers that were read
@@ -86,6 +88,9 @@ auto atomic(F f) {
         trans_descriptor_pool.retire(descriptor);
         return x;
       } else {
+#ifdef TPCC_STATS
+        tpcc_aborts[flck::internal::worker_id()*TPCC_PADDING]++;
+#endif
         auto& retired_log = descriptor->retired_log;
 
         // undo the logged retires
