@@ -176,23 +176,24 @@ public:
 			} else {
 				sz = abs((long)gen_txn_size()%max_op_per_txn)+1;
 			}
-			int r[sz], p[sz]; 
-			for(int i=0;i<sz;i++) {
-				r[i] = randKey.next();
-				p[i] = randOp.next();
-				// std::cout << "key: " << r[i] << ", op: " << p[i] << std::endl;
-			}
+			// int r[sz], p[sz]; 
+			// for(int i=0;i<sz;i++) {
+			// 	r[i] = randKey.next();
+			// 	p[i] = ;
+			// 	// std::cout << "key: " << r[i] << ", op: " << p[i] << std::endl;
+			// }
+			// TODO change randKey and randOp to match flock sizes
 			while (true){
 				try {
 					do_tx(tid, [&] () {
 						for(int i=0;i<sz;i++)
-							operation(r[i], p[i], tid);
+							operation(randKey.next(), randOp.next(), tid);
 					}, sz);
 					ops+=sz;
 					cnt+=sz;
 					break;
 				} catch(const pds::TransactionAborted& e) {
-                	if (retry>1000000ul) {
+                	if (retry>100000ul) {
 						errexit("Retry too many times!");
 						break;
 					} else {

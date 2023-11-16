@@ -25,6 +25,62 @@ limitations under the License.
 
 #include "optional.hpp"
 
+#ifdef TPCC_STATS
+    const int TPCC_MAX_TH = 1000;
+    const int TPCC_PADDING = 64;
+    int tpcc_padding[16];
+    uint64_t tpcc_aborts[TPCC_MAX_TH*TPCC_PADDING];
+    uint64_t tpcc_puts[TPCC_MAX_TH*TPCC_PADDING];
+    uint64_t tpcc_inserts[TPCC_MAX_TH*TPCC_PADDING];
+    uint64_t tpcc_removes[TPCC_MAX_TH*TPCC_PADDING];
+    uint64_t tpcc_gets[TPCC_MAX_TH*TPCC_PADDING];
+
+    void reset_tpcc_stats() {
+        for(int i = 0; i < TPCC_MAX_TH; i++) {
+            tpcc_aborts[i*TPCC_PADDING] = 0;
+            tpcc_puts[i*TPCC_PADDING] = 0;
+            tpcc_gets[i*TPCC_PADDING] = 0;
+            tpcc_removes[i*TPCC_PADDING] = 0;
+            tpcc_inserts[i*TPCC_PADDING] = 0;
+        }
+    }
+
+    uint64_t num_tpcc_puts() {
+        uint64_t sum = 0;
+        for(int i = 0; i < TPCC_MAX_TH; i++)
+            sum += tpcc_puts[i*TPCC_PADDING];
+        return sum;
+    }
+
+    uint64_t num_tpcc_gets() {
+        uint64_t sum = 0;
+        for(int i = 0; i < TPCC_MAX_TH; i++)
+            sum += tpcc_gets[i*TPCC_PADDING];
+        return sum;
+    }
+
+    uint64_t num_tpcc_removes() {
+        uint64_t sum = 0;
+        for(int i = 0; i < TPCC_MAX_TH; i++)
+            sum += tpcc_removes[i*TPCC_PADDING];
+        return sum;
+    }
+
+    uint64_t num_tpcc_inserts() {
+        uint64_t sum = 0;
+        for(int i = 0; i < TPCC_MAX_TH; i++)
+            sum += tpcc_inserts[i*TPCC_PADDING];
+        return sum;
+    }
+
+    uint64_t num_tpcc_aborts() {
+        uint64_t sum = 0;
+        for(int i = 0; i < TPCC_MAX_TH; i++)
+            sum += tpcc_aborts[i*TPCC_PADDING];
+        return sum;
+    }
+#endif
+
 template <class K, class V> class RMap : public virtual Rideable{
 public:
 
@@ -50,6 +106,8 @@ public:
     // if the key is already present in the map
     // returns : the replaced value, or NULL if replace was unsuccessful
     virtual optional<V> replace(K key, V val, int tid)=0;
+
+    virtual size_t check() { return 0; };
 };
 
 #endif   

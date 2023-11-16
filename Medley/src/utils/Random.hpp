@@ -42,6 +42,7 @@ public:
   double theta_, zeta_n_, eta_, alpha_, zeta_2_, seed;
 };
 
+// template<typename T >
 struct alignas(128) MyRandom {
   int N;
   double zipfian;

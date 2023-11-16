@@ -443,6 +443,9 @@ bool MedleyFraserSkipList<K,V>::do_update(const K& key, Value* val, int tid, opt
 template<class K, class V>
 optional<V> MedleyFraserSkipList<K,V>::get(K key, int tid)
 {
+#ifdef TPCC_STATS
+        tpcc_gets[tid*TPCC_PADDING]++;
+#endif
     TX_OP_SEPARATOR();
     optional<V> res = {};
     Node* x = nullptr;
@@ -466,6 +469,9 @@ optional<V> MedleyFraserSkipList<K,V>::get(K key, int tid)
 
 template<class K, class V>
 optional<V> MedleyFraserSkipList<K,V>::remove(K key, int tid){
+#ifdef TPCC_STATS
+        tpcc_removes[tid*TPCC_PADDING]++;
+#endif
     TX_OP_SEPARATOR();
     optional<V> res = {};
     Value* v = nullptr;
@@ -537,6 +543,9 @@ optional<V> MedleyFraserSkipList<K,V>::remove(K key, int tid){
 
 template<class K, class V>
 optional<V> MedleyFraserSkipList<K,V>::put(K key, V val, int tid){
+#ifdef TPCC_STATS
+        tpcc_puts[tid*TPCC_PADDING]++;
+#endif
     TX_OP_SEPARATOR();
     optional<V> res = {};
     // XXX(wentao): this tnew automatically detects whether the type
@@ -549,6 +558,9 @@ optional<V> MedleyFraserSkipList<K,V>::put(K key, V val, int tid){
 
 template<class K, class V>
 bool MedleyFraserSkipList<K,V>::insert(K key, V val, int tid) {
+#ifdef TPCC_STATS
+        tpcc_inserts[tid*TPCC_PADDING]++;
+#endif
     TX_OP_SEPARATOR();
     optional<V> res = {};
     Value* _v = tnew<Value>(val);

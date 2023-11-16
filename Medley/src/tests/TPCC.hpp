@@ -125,6 +125,10 @@ public:
         TPCC_TABLE_LIST(TPCC_TABLE_INIT)
 
         doPrefill(gtc);
+
+#ifdef TPCC_STATS
+        reset_tpcc_stats();
+#endif
     }
 
     virtual void parInit(GlobalTestConfig* gtc, LocalTestConfig* ltc){
@@ -426,6 +430,9 @@ public:
                 return txn_result(true, ret);
             } catch (const pds::TransactionAborted& e) {
                 // txn aborted
+                #ifdef TPCC_STATS
+                    tpcc_aborts[tid*TPCC_PADDING]++;
+                #endif
                 retry++;
                 if(retry > 10000) {
                     std::cerr << "too many retries" << std::endl;
@@ -570,6 +577,9 @@ public:
             } catch (const pds::TransactionAborted& e) {
                 // txn aborted
                 // std::cerr << "transaction aborted 2" << std::endl;
+                #ifdef TPCC_STATS
+                    tpcc_aborts[tid*TPCC_PADDING]++;
+                #endif
                 retry++;
                 if(retry > 10000) {
                     std::cerr << "too many retries" << std::endl;
@@ -612,7 +622,11 @@ public:
     }
 
     void cleanup(GlobalTestConfig* gtc){
+        // TPCC_TABLE_LIST(TPCC_TABLE_SIZES)
         // TPCC_TABLE_LIST(TPCC_TABLE_CLEANUP)
+#ifdef TPCC_STATS
+        std::cout << "puts=" << num_tpcc_puts()*1.0/gtc->total_operations << ", inserts=" << num_tpcc_inserts()*1.0/gtc->total_operations << ", gets=" << num_tpcc_gets()*1.0/gtc->total_operations << ", aborts=" << num_tpcc_aborts()*1.0/gtc->total_operations << std::endl;
+#endif
     }
 
     inline atomic<size_t> &

@@ -157,7 +157,7 @@ CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fn
 # define these build configurations).
 # To run a build, e.g. release, you would invoke:
 # make release
-BUILDS :=release debug ngc vread release32 debug32 medley_tpcc txmon_tpcc tdsl_tpcc of_tpcc pof_tpcc fuse_tpcc fuse_hashtable_tpcc
+BUILDS :=release debug ngc vread release32 debug32 medley_tpcc txmon_tpcc tdsl_tpcc of_tpcc pof_tpcc fuse_tpcc fuse_hashtable_tpcc fuse_tpcc_lck medley_hashtable_tpcc medley_hashtable_tpcc_lck fuse_hashtable_tpcc_lck
 DEFAULT_BUILD :=release 
 
 # -------------------------------
@@ -190,24 +190,48 @@ CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=TDSLSkipList -DTMAP_TYPE=TDSLSkipList
 endif
 
 ifeq ($(BUILD),fuse_tpcc)
-CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree
-CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree
+CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree -DTPCC_STATS
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree -DTPCC_STATS
+# we can add additional release customization here
+# e.g. link against different libraries, 
+# define enviroment vars, etc.
+endif
+
+ifeq ($(BUILD),fuse_tpcc_lck)
+CXXFLAGS += -DNoHelp -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree # -DTPCC_STATS
+CFLAGS += -DNoHelp -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree # -DTPCC_STATS
 # we can add additional release customization here
 # e.g. link against different libraries, 
 # define enviroment vars, etc.
 endif
 
 ifeq ($(BUILD),fuse_hashtable_tpcc)
-CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable
-CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable
+CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable # -DTPCC_STATS
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable  # -DTPCC_STATS
+# we can add additional release customization here
+# e.g. link against different libraries, 
+# define enviroment vars, etc.
+endif
+
+ifeq ($(BUILD),fuse_hashtable_tpcc_lck)
+CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable   -DNoHelp # -DTPCC_STATS
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable    -DNoHelp # -DTPCC_STATS
 # we can add additional release customization here
 # e.g. link against different libraries, 
 # define enviroment vars, etc.
 endif
 
 ifeq ($(BUILD),medley_tpcc)
-CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyFraserSkipList -DTMAP_TYPE=MedleyFraserSkipList
-CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyFraserSkipList -DTMAP_TYPE=MedleyFraserSkipList
+CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyFraserSkipList -DTMAP_TYPE=MedleyFraserSkipList  #-DTPCC_STATS
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyFraserSkipList -DTMAP_TYPE=MedleyFraserSkipList # -DTPCC_STATS
+# we can add additional release customization here
+# e.g. link against different libraries, 
+# define enviroment vars, etc.
+endif
+
+ifeq ($(BUILD),medley_hashtable_tpcc)
+CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyLfHashTable -DTMAP_TYPE=MedleyLfHashTable # -DTPCC_STATS
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyLfHashTable -DTMAP_TYPE=MedleyLfHashTable  #-DTPCC_STATS
 # we can add additional release customization here
 # e.g. link against different libraries, 
 # define enviroment vars, etc.

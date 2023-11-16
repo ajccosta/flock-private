@@ -748,9 +748,10 @@ struct ordered_map {
     parlay::parallel_for(0, p->size - 1, [&] (size_t i) {
     if (!less(std::get<1>(r[i]), p->keys[i]) ||
         less(std::get<0>(r[i+1]), p->keys[i])) {
-      std::cout << "keys not ordered around key: " << p->keys[i]
-            << " max before = " << std::get<1>(r[i])
-            << " min after = " << std::get<0>(r[i+1]) << std::endl;
+      std::cout << "keys not ordered" << std::endl;
+      // std::cout << "keys not ordered around key: " << p->keys[i]
+            // << " max before = " << std::get<1>(r[i])
+            // << " min after = " << std::get<0>(r[i+1]) << std::endl;
       abort();
     }});
     return rtup(std::get<0>(r[0]),std::get<1>(r[r.size()-1]), total);

@@ -69,7 +69,7 @@ private:
         return reinterpret_cast<Node*>((uint64_t)d | 1);
     }
 public:
-    MedleyLfHashTable(GlobalTestConfig* gtc) : Recoverable(gtc), idxSize(gtc->size), buckets(new padded<MarkPtr>[idxSize]{}) {
+    MedleyLfHashTable(GlobalTestConfig* gtc) : Recoverable(gtc), idxSize(gtc->size == 0 ? 1000000 : gtc->size), buckets(new padded<MarkPtr>[idxSize]{}) {
         // tracker(gtc->task_num, 100, 1000, true), 
         // gtc(gtc) {
     };
@@ -118,6 +118,9 @@ class MedleyLfHashTableFactory : public RideableFactory{
 //-------Definition----------
 template <class K, class V> 
 optional<V> MedleyLfHashTable<K,V>::get(K key, int tid) {
+#ifdef TPCC_STATS
+        tpcc_gets[tid*TPCC_PADDING]++;
+#endif
     TX_OP_SEPARATOR();
     optional<V> res={};
     MarkPtr* prev=nullptr;
@@ -141,6 +144,9 @@ optional<V> MedleyLfHashTable<K,V>::get(K key, int tid) {
 
 template <class K, class V> 
 optional<V> MedleyLfHashTable<K,V>::put(K key, V val, int tid) {
+#ifdef TPCC_STATS
+        tpcc_puts[tid*TPCC_PADDING]++;
+#endif
     TX_OP_SEPARATOR();
 
     optional<V> res={};
@@ -196,6 +202,9 @@ optional<V> MedleyLfHashTable<K,V>::put(K key, V val, int tid) {
 
 template <class K, class V> 
 bool MedleyLfHashTable<K,V>::insert(K key, V val, int tid){
+#ifdef TPCC_STATS
+        tpcc_inserts[tid*TPCC_PADDING]++;
+#endif
     TX_OP_SEPARATOR();
 
     bool res=false;
@@ -232,6 +241,9 @@ bool MedleyLfHashTable<K,V>::insert(K key, V val, int tid){
 
 template <class K, class V> 
 optional<V> MedleyLfHashTable<K,V>::remove(K key, int tid) {
+#ifdef TPCC_STATS
+        tpcc_removes[tid*TPCC_PADDING]++;
+#endif
     TX_OP_SEPARATOR();
 
     optional<V> res={};

@@ -10,12 +10,11 @@
 #include <structures/btree/ordered_map.h>
 
 
-
 /**
  *
  */
 template<typename K, typename V>
-class FuseBTree : public RMap<K,V> {
+class alignas(128) FuseBTree : public RMap<K,V> {
 private:
     ordered_map<K, V> btree;
 
@@ -39,24 +38,38 @@ public:
     }
 
     optional<V> put(K key, V val, int tid) {
+#ifdef TPCC_STATS
+        tpcc_puts[tid*TPCC_PADDING]++;
+#endif
         bool b = btree.upsert(key, val);
         if(b) return optional<V>(val); //TPCC never makes use of return value
         else return {};
     }
 
     bool insert(K key, V val, int tid) {
+#ifdef TPCC_STATS
+        tpcc_inserts[tid*TPCC_PADDING]++;
+#endif
         return btree.insert(key, val);
     }
 
     optional<V> remove(K key, int tid) {
+#ifdef TPCC_STATS
+        tpcc_removes[tid*TPCC_PADDING]++;
+#endif
         bool b = btree.remove(key);
         if(b) return optional<V>(); //TPCC never makes use of return value
         else return {};
     }
 
     optional<V> get(K key, int tid) {
+#ifdef TPCC_STATS
+        tpcc_gets[tid*TPCC_PADDING]++;
+#endif
         return btree.find(key);
     }
+
+    size_t check() { return btree.check(); }
 };
 
 template <class T> 
