@@ -111,8 +111,6 @@ int main(int argc, char *argv[])
 	gtc.parseCommandLine(argc, argv);
         omp_set_num_threads(gtc.task_num);
 	gtc.runTest();
-
-	// print out results
 	if(gtc.verbose){
 		printf("Operations/sec: %ld\n",(uint64_t)(gtc.total_operations/gtc.interval));
 	}
@@ -126,4 +124,20 @@ int main(int argc, char *argv[])
 		}
 		printf("%d,%ld,%s,%s\n",gtc.task_num,(uint64_t)(gtc.total_operations/gtc.interval),rideable_name.c_str(),gtc.getTestName().c_str());
 	}
+	// gtc.total_operations = 0;
+	// gtc.runTest();
+	// // print out results
+	// if(gtc.verbose){
+	// 	printf("Operations/sec: %ld\n",(uint64_t)(gtc.total_operations/gtc.interval));
+	// }
+	// else{
+	// 	string rideable_name = gtc.getRideableName().c_str();
+	// 	if(gtc.getEnv("PersistStrat") == "No") {
+	// 		rideable_name = "NoPersist"+rideable_name;
+	// 	}
+	// 	if(gtc.getEnv("Liveness") == "Nonblocking") {
+	// 		rideable_name = "nb"+rideable_name;
+	// 	}
+	// 	printf("%d,%ld,%s,%s\n",gtc.task_num,(uint64_t)(gtc.total_operations/gtc.interval),rideable_name.c_str(),gtc.getTestName().c_str());
+	// }
 }

@@ -108,6 +108,8 @@ public:
     virtual optional<V> replace(K key, V val, int tid)=0;
 
     virtual size_t check() { return 0; };
+
+    virtual void stats() {};
 };
 
 #endif   

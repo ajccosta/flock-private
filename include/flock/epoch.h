@@ -74,6 +74,17 @@ struct alignas(64) epoch_s {
     current_epoch = 0;
   }
 
+  void print_announce() {
+    for(auto& ann : announcements)
+      std::cout << ann.last << " ";
+    std::cout << std::endl;
+  }
+
+  void clear_announce() {
+    for(auto& ann : announcements)
+      ann.last = -1;
+  }
+
   long get_current() {
     return current_epoch.load();
   }
@@ -107,6 +118,8 @@ struct alignas(64) epoch_s {
   }
 
   void unannounce(size_t id) {
+    if(announcements[id].last.load() == -1l)  
+      std::cout << "announcement == -1 during unannounce" << std::endl;
     announcements[id].last.store(-1l, std::memory_order_release);
   }
 
@@ -205,6 +218,7 @@ private:
 
   // destructs and frees a linked list of objects 
   void clear_list(Link* ptr) {
+    // abort();
     while (ptr != nullptr) {
       Link* tmp = ptr;
       ptr = ptr->next;
@@ -222,6 +236,17 @@ private:
       }
       free_link(tmp);
     }
+  }
+
+  // destructs and frees a linked list of objects 
+  long size_of(Link* ptr) {
+    long sum = 0;
+    while (ptr != nullptr) {
+      Link* tmp = ptr;
+      ptr = ptr->next;
+      sum++;
+    }
+    return sum;
   }
 
   void advance_epoch(int i, old_current& pid) {
@@ -350,6 +375,12 @@ public:
   }
 
   void stats() {
+    get_epoch().print_announce();
+    // get_epoch().clear_announce();
+    std::cout << "epoch number: " << get_epoch().get_current() << std::endl;
+    for (int i=0; i < pools.size(); i++) {
+      std::cout << "pool[" << i << "] = " << size_of(pools[i].old) << ", " << size_of(pools[i].current) << std::endl;
+    }
 #ifndef USE_MALLOC
     Allocator::print_stats();
 #endif

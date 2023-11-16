@@ -139,10 +139,10 @@ WARNING_FLAGS:=-ftrapv -Wreturn-type -W -Wall \
 
 # Default build flags.  
 # CFLAGS:=-pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) 
-CFLAGS:= $(FLAGS) -fopenmp -pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DSHM_SIMULATING -DNestedEpochs
+CFLAGS:= $(FLAGS) -fopenmp -pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DSHM_SIMULATING # -DNestedEpochs
 
 # CXXFLAGS:= -pthread -std=c++11 -g -fpic $(WARNING_FLAGS) #-std=c++1y 
-CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -std=gnu++17 -mclwb -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -mcx16 -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DSHM_SIMULATING -DNestedEpochs
+CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -std=gnu++17 -mclwb -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -mcx16 -DHWWriteStamp -DHashLock -DTransUndo -DTransactional -DValidate -DVersioned -DSHM_SIMULATING #-DNestedEpochs
 # linker flags
 # LDFLAGS := 
 
@@ -214,8 +214,8 @@ CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable  # -D
 endif
 
 ifeq ($(BUILD),fuse_hashtable_tpcc_lck)
-CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable   -DNoHelp # -DTPCC_STATS
-CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable    -DNoHelp # -DTPCC_STATS
+CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable  -DNoHelp # -DTPCC_STATS  
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseHashTable -DTMAP_TYPE=FuseHashTable -DNoHelp  # -DTPCC_STATS  
 # we can add additional release customization here
 # e.g. link against different libraries, 
 # define enviroment vars, etc.
@@ -231,11 +231,12 @@ endif
 
 ifeq ($(BUILD),medley_hashtable_tpcc)
 CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyLfHashTable -DTMAP_TYPE=MedleyLfHashTable # -DTPCC_STATS
-CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyLfHashTable -DTMAP_TYPE=MedleyLfHashTable  #-DTPCC_STATS
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=MedleyLfHashTable -DTMAP_TYPE=MedleyLfHashTable # -DTPCC_STATS
 # we can add additional release customization here
 # e.g. link against different libraries, 
 # define enviroment vars, etc.
 endif
+
 
 ifeq ($(BUILD),txmon_tpcc)
 CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=txMontageFraserSkipList -DTMAP_TYPE=MedleyFraserSkipList

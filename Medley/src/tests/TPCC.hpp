@@ -122,6 +122,10 @@ public:
         txn_manager._tdsl_txns = new padded<::tdsl::SkipListTransaction>[gtc->task_num];
         gtc->setUpTDSLTxns(reinterpret_cast<void*>(txn_manager._tdsl_txns));
 
+#if PMAP_TYPE == FuseBTree
+        // PMAP_TYPE::reserve(10000000);
+#endif
+
         TPCC_TABLE_LIST(TPCC_TABLE_INIT)
 
         doPrefill(gtc);
@@ -623,7 +627,8 @@ public:
 
     void cleanup(GlobalTestConfig* gtc){
         // TPCC_TABLE_LIST(TPCC_TABLE_SIZES)
-        // TPCC_TABLE_LIST(TPCC_TABLE_CLEANUP)
+        tbl_order_line[0]->stats();
+        TPCC_TABLE_LIST(TPCC_TABLE_CLEANUP)
 #ifdef TPCC_STATS
         std::cout << "puts=" << num_tpcc_puts()*1.0/gtc->total_operations << ", inserts=" << num_tpcc_inserts()*1.0/gtc->total_operations << ", gets=" << num_tpcc_gets()*1.0/gtc->total_operations << ", aborts=" << num_tpcc_aborts()*1.0/gtc->total_operations << std::endl;
 #endif

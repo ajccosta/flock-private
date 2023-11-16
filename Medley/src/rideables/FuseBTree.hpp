@@ -32,7 +32,7 @@ public:
 
     // not used in TPCC
     optional<V> replace(K key, V val, int tid) {
-        bool b = btree.insert(key, val);
+        bool b = btree.insert_(key, val);
         if(b) return optional<V>(val);
         else return {};
     }
@@ -41,7 +41,7 @@ public:
 #ifdef TPCC_STATS
         tpcc_puts[tid*TPCC_PADDING]++;
 #endif
-        bool b = btree.upsert(key, val);
+        bool b = btree.upsert_(key, val);
         if(b) return optional<V>(val); //TPCC never makes use of return value
         else return {};
     }
@@ -50,14 +50,14 @@ public:
 #ifdef TPCC_STATS
         tpcc_inserts[tid*TPCC_PADDING]++;
 #endif
-        return btree.insert(key, val);
+        return btree.insert_(key, val);
     }
 
     optional<V> remove(K key, int tid) {
 #ifdef TPCC_STATS
         tpcc_removes[tid*TPCC_PADDING]++;
 #endif
-        bool b = btree.remove(key);
+        bool b = btree.remove_(key);
         if(b) return optional<V>(); //TPCC never makes use of return value
         else return {};
     }
@@ -66,10 +66,11 @@ public:
 #ifdef TPCC_STATS
         tpcc_gets[tid*TPCC_PADDING]++;
 #endif
-        return btree.find(key);
+        return btree.find_(key);
     }
 
     size_t check() { return btree.check(); }
+    void stats() { btree.stats(); }
 };
 
 template <class T> 

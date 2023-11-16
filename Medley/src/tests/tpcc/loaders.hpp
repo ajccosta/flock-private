@@ -13,6 +13,10 @@
 #include "TestConfig.hpp"
 #include "helpers.hpp"
 
+#if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+    #include <include/flock/epoch.h>
+#endif
+
 namespace tpcc{
 class tpcc_loader{
 public:
@@ -91,13 +95,24 @@ protected:
             const size_t sz = sizeof(v);
             warehouse_total_sz += sz;
             n_warehouses++;
-            tbl_warehouse[i-1]->insert(k, v, tid);
+            #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+            flck::with_epoch([&]{
+            #endif
+                tbl_warehouse[i-1]->insert(k, v, tid);
+            #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+            });
+            #endif
 
             warehouses.push_back(v);
         }
         for (uint i = 1; i <= NumWarehouses; i++) {
             const warehouse::key k(i);
+
+            #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+            auto v = flck::with_epoch([&]{return tbl_warehouse[i-1]->get(k, tid);});
+            #else
             auto v = tbl_warehouse[i-1]->get(k, tid);
+            #endif
             assert(v.has_value());
             assert(warehouses[i - 1] == *v);
 
@@ -149,7 +164,13 @@ protected:
             SanityCheckItem(&k, &v);
             const size_t sz = sizeof(v);
             total_sz += sz;
-            tbl_item[0]->insert(k, v, tid); 
+            #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+            flck::with_epoch([&]{
+            #endif
+                tbl_item[0]->insert(k, v, tid); 
+            #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+            });
+            #endif
         }
         if (gtc->verbose) {
             std::cerr << "[INFO] finished loading item" << std::endl;
@@ -231,8 +252,14 @@ protected:
                     const size_t sz = sizeof(v);
                     stock_total_sz += sz;
                     n_stocks++;
-                    tbl_stock[w-1]->insert(k, v, tid);
-                    tbl_stock_data[w-1]->insert(k_data, v_data, tid);
+                    #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                    flck::with_epoch([&]{
+                    #endif
+                        tbl_stock[w-1]->insert(k, v, tid);
+                        tbl_stock_data[w-1]->insert(k_data, v_data, tid);
+                    #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                    });
+                    #endif
                 }
                 b++;
             }
@@ -289,7 +316,13 @@ protected:
                 const size_t sz = sizeof(v);
                 district_total_sz += sz;
                 n_districts++;
-                tbl_district[w-1]->insert(k, v, tid);
+                #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                flck::with_epoch([&]{
+                #endif
+                    tbl_district[w-1]->insert(k, v, tid);
+                #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                });
+                #endif
             }
         }
 
@@ -379,19 +412,35 @@ protected:
                         SanityCheckCustomer(&k, &v);
                         const size_t sz = sizeof(v);
                         total_sz += sz;
-                        tbl_customer[w-1]->insert(k, v, tid);
-
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        flck::with_epoch([&]{
+                        #endif
+                            tbl_customer[w-1]->insert(k, v, tid);
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        });
+                        #endif
                         // customer name index
                         const customer_name_idx::key k_idx(k.c_w_id, k.c_d_id, v.c_last.str(true));
                         CUSTOMER_ID_IDX_MAP_TYPE *v_idx_temp = nullptr;
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        auto curr_v_idx = flck::with_epoch([&]{return tbl_customer_name_idx[w-1]->get(k_idx, tid);});
+                        #else
                         auto curr_v_idx = tbl_customer_name_idx[w-1]->get(k_idx, tid);
+                        #endif
                         if(curr_v_idx.has_value()) {
                             v_idx_temp = curr_v_idx->c_id_idx;
                         } else {
                             v_idx_temp = new CUSTOMER_ID_IDX_MAP_TYPE ();
                             const customer_name_idx::value v_idx(v_idx_temp);
-                            tbl_customer_name_idx[w-1]->insert(k_idx, v_idx, tid);
+                            #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                            flck::with_epoch([&]{
+                            #endif
+                                tbl_customer_name_idx[w-1]->insert(k_idx, v_idx, tid);
+                            #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                            });
+                            #endif
                         }
+                        
                         // index structure is:
                         // (c_w_id, c_d_id, c_last) -> (vector of (c_id -> c_first))
                         const customer_id_idx::key k_id_idx(k.c_id);
@@ -409,8 +458,13 @@ protected:
                         history::value v_hist;
                         v_hist.h_amount = 10;
                         v_hist.h_data.assign(RandomStr(r, RandomNumber(r, 10, 24)));
-
-                        tbl_history[w-1]->insert(k_hist, v_hist, tid);
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        flck::with_epoch([&]{
+                        #endif
+                            tbl_history[w-1]->insert(k_hist, v_hist, tid);
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        });
+                        #endif
                     }
                     batch++;
                 }
@@ -498,12 +552,23 @@ protected:
                     const size_t sz = sizeof(v_oo);
                     oorder_total_sz += sz;
                     n_oorders++;
-                    tbl_oorder[w-1]->insert(k_oo, v_oo, tid);
+                    #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                    flck::with_epoch([&]{
+                    #endif
+                        tbl_oorder[w-1]->insert(k_oo, v_oo, tid);
+                    #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                    });
+                    #endif
 
                     const oorder_c_id_idx::key k_oo_idx(k_oo.o_w_id, k_oo.o_d_id, v_oo.o_c_id, k_oo.o_id);
                     const oorder_c_id_idx::value v_oo_idx(0);
-
-                    tbl_oorder_c_id_idx[w-1]->insert(k_oo_idx, v_oo_idx, tid);
+                    #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                    flck::with_epoch([&]{
+                    #endif
+                        tbl_oorder_c_id_idx[w-1]->insert(k_oo_idx, v_oo_idx, tid);
+                    #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                    });
+                    #endif
 
                     if (c >= 2101) {
                         const new_order::key k_no(w, d, c);
@@ -513,7 +578,13 @@ protected:
                         const size_t sz = sizeof(v_no);
                         new_order_total_sz += sz;
                         n_new_orders++;
-                        tbl_new_order[w-1]->insert(k_no, v_no, tid);
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        flck::with_epoch([&]{
+                        #endif
+                            tbl_new_order[w-1]->insert(k_no, v_no, tid);
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        });
+                        #endif
                     }
 
                     for (uint l = 1; l <= uint(v_oo.o_ol_cnt); l++) {
@@ -539,7 +610,13 @@ protected:
                         const size_t sz = sizeof(v_ol);
                         order_line_total_sz += sz;
                         n_order_lines++;
-                        tbl_order_line[w-1]->insert(k_ol, v_ol, tid);
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        flck::with_epoch([&]{
+                        #endif
+                            tbl_order_line[w-1]->insert(k_ol, v_ol, tid);
+                        #if PMAP_TYPE == FuseBTree || PMAP_TYPE == FuseHashTable
+                        });
+                        #endif
                     }
                     c++;
                 }

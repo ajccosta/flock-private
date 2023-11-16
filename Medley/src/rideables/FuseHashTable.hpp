@@ -34,7 +34,7 @@ public:
 
     // not used in TPCC
     optional<V> replace(K key, V val, int tid) {
-        bool b = hashtable.insert(key, val);
+        bool b = hashtable.insert_(key, val);
         if(b) return optional<V>(val);
         else return {};
     }
@@ -43,7 +43,7 @@ public:
 #ifdef TPCC_STATS
         tpcc_puts[tid*TPCC_PADDING]++;
 #endif
-        bool b = hashtable.upsert(key, [&] (auto x) { return val; });
+        bool b = hashtable.upsert_(key, [&] (auto x) { return val; });
         if(b) return optional<V>(val); //TPCC never makes use of return value
         else return {};
     }
@@ -52,14 +52,14 @@ public:
 #ifdef TPCC_STATS
         tpcc_inserts[tid*TPCC_PADDING]++;
 #endif
-        return hashtable.insert(key, val);
+        return hashtable.insert_(key, val);
     }
 
     optional<V> remove(K key, int tid) {
 #ifdef TPCC_STATS
         tpcc_removes[tid*TPCC_PADDING]++;
 #endif
-        bool b = hashtable.remove(key);
+        bool b = hashtable.remove_(key);
         if(b) return optional<V>(); //TPCC never makes use of return value
         else return {};
     }
@@ -68,7 +68,7 @@ public:
 #ifdef TPCC_STATS
         tpcc_gets[tid*TPCC_PADDING]++;
 #endif
-        return hashtable.find(key);
+        return hashtable.find_(key);
     }
 };
 
