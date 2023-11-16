@@ -42,17 +42,17 @@ public:
   double theta_, zeta_n_, eta_, alpha_, zeta_2_, seed;
 };
 
-// template<typename T >
+template<typename T>
 struct alignas(128) MyRandom {
   int N;
   double zipfian;
-  uint64_t* nums;
+  T* nums;
   int index;
   int max;
 
   // MyRandom(int n, int max, double seed) : MyRandom(n, 0, max, seed) {}
 
-  MyRandom(int n, double zipf, int max, uint64_t seed) : N(n), zipfian(zipf), nums(new uint64_t[N]), index(0), max(max) {
+  MyRandom(int n, double zipf, int max, uint64_t seed) : N(n), zipfian(zipf), nums(new T[N]), index(0), max(max) {
     // int P = std::thread::hardware_concurrency();
     // std::vector<std::thread> threads;
     // int work = (N+P-1)/P;
@@ -62,7 +62,7 @@ struct alignas(128) MyRandom {
     if(zipfian == 0) {
       for(int i = 0; i < N; i++) {
         // nums[i] = stdRand() % max;
-        nums[i] = parlay::hash64(seed+i) % max;
+        nums[i] = (T) (parlay::hash64(seed+i) % max);
         // std::cout << "seed: " << seed << ", i: " << i << ", hash: "<< parlay::hash64(seed+i) << std::endl;
       }
     } else {
@@ -84,9 +84,9 @@ struct alignas(128) MyRandom {
     // for(auto th : threads) th.join();
   }
 
-  uint64_t next() {
+  T next() {
     // std::cout << "index " << index << ", nums[index] " << nums[index] << std::endl;
-    uint64_t ret = nums[index++];
+    T ret = nums[index++];
     if(index >= N) index = 0;
     return ret;
   }

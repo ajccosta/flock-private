@@ -341,7 +341,6 @@ DO_STRUCT(warehouse, WAREHOUSE_KEY_FIELDS, WAREHOUSE_VALUE_FIELDS)
 
 #define TPCC_TABLE_CLEANUP(name, type) \
   for (uint i=0; i<NumWarehouses; i++) { \
-     // std::cout << "size of " << #name << " = " << tbl_ ## name[i]->check() << std::endl;  \
     delete tbl_ ## name[i]; \
   } \
   tbl_ ## name.clear();

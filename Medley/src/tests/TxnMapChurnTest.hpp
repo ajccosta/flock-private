@@ -40,8 +40,8 @@ public:
 	TxnManager<txn_type> txn_manager;
 	std::string value_buffer; // for string kv only
 
-	MyRandom** randKeys; //array of pointers
-	MyRandom** randOps;
+	MyRandom<uint64_t>** randKeys; //array of pointers
+	MyRandom<uint8_t>** randOps;
 	double zipf;
 
 	TxnMapChurnTest(bool fix_sized_txn, int max_op_per_txn, int p_gets, int p_puts, int p_inserts, int p_removes, int range, int prefill, double zipf = 0):
@@ -75,16 +75,16 @@ public:
         }
         value_buffer += '\0';
 
-        randKeys = new MyRandom*[gtc->task_num];
-        randOps = new MyRandom*[gtc->task_num];
+        randKeys = new MyRandom<uint64_t>*[gtc->task_num];
+        randOps = new MyRandom<uint8_t>*[gtc->task_num];
 
 		ChurnTest::init(gtc);
 	}
 
 	virtual void parInit(GlobalTestConfig* gtc, LocalTestConfig* ltc){
 		int tid = ltc->tid;
-		randKeys[tid] = new MyRandom(5*range/gtc->task_num + 1000, zipf, range, ltc->seed);
-		randOps[tid] = new MyRandom(5*range/gtc->task_num + 1001, 0, 100, ltc->seed+1);
+		randKeys[tid] = new MyRandom<uint64_t>(5*range/gtc->task_num + 1000, zipf, range, ltc->seed);
+		randOps[tid] = new MyRandom<uint8_t>(5*range/gtc->task_num + 1001, 0, 100, ltc->seed+1);
 		m->init_thread(gtc, ltc);
 		ChurnTest::parInit(gtc, ltc);
 	}
@@ -157,8 +157,8 @@ public:
 		int ops = 0;
 		int cnt = 0;
 		uint64_t seed = ltc->seed;
-		MyRandom &randKey = *randKeys[ltc->tid];
-		MyRandom &randOp = *randOps[ltc->tid];
+		MyRandom<uint64_t> &randKey = *randKeys[ltc->tid];
+		MyRandom<uint8_t> &randOp = *randOps[ltc->tid];
 		std::mt19937_64 gen_txn_size(seed+2);
 
 		int tid = ltc->tid;
@@ -176,13 +176,6 @@ public:
 			} else {
 				sz = abs((long)gen_txn_size()%max_op_per_txn)+1;
 			}
-			// int r[sz], p[sz]; 
-			// for(int i=0;i<sz;i++) {
-			// 	r[i] = randKey.next();
-			// 	p[i] = ;
-			// 	// std::cout << "key: " << r[i] << ", op: " << p[i] << std::endl;
-			// }
-			// TODO change randKey and randOp to match flock sizes
 			while (true){
 				try {
 					do_tx(tid, [&] () {
