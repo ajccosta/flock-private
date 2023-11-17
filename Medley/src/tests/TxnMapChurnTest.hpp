@@ -135,21 +135,21 @@ public:
 			// std::mt19937_64 gen_k(0);
 			// int stride = this->range/this->prefill;
 			int i = 0;
-			int worker_id = flck::internal::worker_id();
-			std::cout << "initial thread_id: " << worker_id << std::endl;
+			// int worker_id = flck::internal::worker_id();
+			// std::cout << "initial thread_id: " << worker_id << std::endl;
 
 			while(i<this->prefill){
 				K k = this->fromInt(i%range);
 				// m->insert(((k+100)*2691343689449507681)%47602717,k,0);
 				m->insert(k,k,0);
-				if(flck::internal::worker_id() != worker_id)
-				{
-					worker_id = flck::internal::worker_id();
-					std::cout << "thread_id: " << worker_id << std::endl;
-				}
+				// if(flck::internal::worker_id() != worker_id)
+				// {
+				// 	worker_id = flck::internal::worker_id();
+				// 	std::cout << "thread_id: " << worker_id << std::endl;
+				// }
 				i++;
 			}
-			m->stats();
+			// m->stats();
 			if(gtc->verbose){
 				printf("Prefilled %d\n",i);
 			}
@@ -232,8 +232,8 @@ public:
 		}
 	}
 	void cleanup(GlobalTestConfig* gtc){
-		std::cout << "starting cleanup" << std::endl;
-		m->stats();
+		// std::cout << "starting cleanup" << std::endl;
+		// m->stats();
 		ChurnTest::cleanup(gtc);
 #ifndef PRONTO
 		// Pronto handles deletion by its own
@@ -277,7 +277,6 @@ inline void TxnMapChurnTest<std::string,std::string,TxnType::NBTC>::doPrefill(Gl
 			rec->sync();
 		}
 	}
-	std::cout << "Should not happen" << std::endl;
 }
 
 template<>

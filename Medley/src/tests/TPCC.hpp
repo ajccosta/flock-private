@@ -627,7 +627,7 @@ public:
 
     void cleanup(GlobalTestConfig* gtc){
         // TPCC_TABLE_LIST(TPCC_TABLE_SIZES)
-        tbl_order_line[0]->stats();
+        // tbl_order_line[0]->stats();
         TPCC_TABLE_LIST(TPCC_TABLE_CLEANUP)
 #ifdef TPCC_STATS
         std::cout << "puts=" << num_tpcc_puts()*1.0/gtc->total_operations << ", inserts=" << num_tpcc_inserts()*1.0/gtc->total_operations << ", gets=" << num_tpcc_gets()*1.0/gtc->total_operations << ", aborts=" << num_tpcc_aborts()*1.0/gtc->total_operations << std::endl;

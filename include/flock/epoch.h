@@ -118,8 +118,7 @@ struct alignas(64) epoch_s {
   }
 
   void unannounce(size_t id) {
-    if(announcements[id].last.load() == -1l)  
-      std::cout << "announcement == -1 during unannounce" << std::endl;
+    assert(announcements[id].last.load() != -1l);
     announcements[id].last.store(-1l, std::memory_order_release);
   }
 
@@ -238,7 +237,7 @@ private:
     }
   }
 
-  // destructs and frees a linked list of objects 
+  // computes size of list
   long size_of(Link* ptr) {
     long sum = 0;
     while (ptr != nullptr) {

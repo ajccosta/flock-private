@@ -190,8 +190,8 @@ CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=TDSLSkipList -DTMAP_TYPE=TDSLSkipList
 endif
 
 ifeq ($(BUILD),fuse_tpcc)
-CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree -DTPCC_STATS
-CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree -DTPCC_STATS
+CXXFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree # -DTPCC_STATS
+CFLAGS += -O3 -DNDEBUG -DPMAP_TYPE=FuseBTree -DTMAP_TYPE=FuseBTree # -DTPCC_STATS
 # we can add additional release customization here
 # e.g. link against different libraries, 
 # define enviroment vars, etc.
