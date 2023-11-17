@@ -9,7 +9,9 @@
 
 namespace verlib {
 
+#ifdef TPCC_STATS
 #include<Medley/src/RMap.hpp>
+#endif
 
 thread_local TS start_stamp = 0;
 

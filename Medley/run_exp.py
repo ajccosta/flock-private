@@ -18,9 +18,10 @@ tm_list = ['Fuse', 'NBTC', 'OneFile', 'Fuse', 'NBTC', 'OneFile']
 
 preamble = " numactl -i all "
 
-test_only = True
+test_only = False
 
-runtime = 3
+runtime = 2
+repeats = 3
 if test_only:
   runtime = 1
 
@@ -40,7 +41,8 @@ def runstring(op) :
 
 def runtest(ds, tm, txn_size, up, sz, zipf, th):
   cmd = "PARLAY_NUM_THREADS=" + str(th+3) + preamble + "./bin/release/main -t " + str(th) + " -i " + str(runtime) + " -R " + ds + " -M " + tm + ":txn=" + str(txn_size) + ":update=" + str(up) + ":size=" + str(sz) + ":zipf=" + str(zipf)
-  runstring(cmd)
+  for i in range(repeats):
+    runstring(cmd)
 
 
 for i in range(len(ds_list)):
