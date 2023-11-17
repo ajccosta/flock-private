@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 
 	std::vector<int> sizes {100000, 10000000};
 	std::vector<double> zipfs {0, 0.25, 0.75, 0.9, 0.99};
-	std::vector<int> updates {0, 10, 50, 100};
+	std::vector<int> updates {0, 5, 10, 50, 100};
 	std::vector<int> trans_sizes {1, 2, 16};
 	bool fixed_size_trans = true;
 
