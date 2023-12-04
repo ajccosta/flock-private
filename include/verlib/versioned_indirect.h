@@ -43,7 +43,7 @@ private:
   }
 
   static version_link* init_ptr(V* ptr) {
-    return link_pool.new_obj(zero_stamp, nullptr, (void*) ptr);
+    return link_pool.New(zero_stamp, nullptr, (void*) ptr);
   }
 
   bool idempotent_cas(version_link* old_v, version_link* new_v) {
@@ -60,7 +60,7 @@ public:
 
   versioned_ptr(): v(init_ptr(nullptr)) {}
   versioned_ptr(V* ptr) : v(init_ptr(ptr)) {}
-  ~versioned_ptr() { link_pool.destruct(v.load()); }
+  ~versioned_ptr() { link_pool.Delete(v.load()); }
   void init(V* ptr) {v = init_ptr(ptr);}
   
   V* read_snapshot() {
@@ -86,10 +86,10 @@ public:
 
   void store(V* ptr) {
     version_link* old_link = v.load();
-    version_link* new_link = link_pool.new_obj(tbd, old_link, (void*) ptr);
+    version_link* new_link = link_pool.New(tbd, old_link, (void*) ptr);
     v = new_link;
     set_stamp(new_link);
-    link_pool.retire(old_link);    
+    link_pool.Retire(old_link);    
   }
 
   bool cas(V* old_v, V* new_v) {
@@ -97,14 +97,14 @@ public:
     if(old_link != nullptr) set_stamp(old_link);
     if (old_v != old_link->value) return false;
     if (old_v == new_v) return true;
-    version_link* new_link = link_pool.new_obj(tbd, old_link, (void*) new_v);
+    version_link* new_link = link_pool.New(tbd, old_link, (void*) new_v);
     if (idempotent_cas(old_link, new_link)) {
       set_stamp(new_link);
-      link_pool.retire(old_link);
+      link_pool.Retire(old_link);
       return true;
     }
     set_stamp(v.load());
-    link_pool.destruct(new_link);
+    link_pool.Delete(new_link);
     return false;
   }
 

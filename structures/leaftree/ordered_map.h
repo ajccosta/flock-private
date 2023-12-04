@@ -90,12 +90,12 @@ struct ordered_map {
     bool r = p->lck.try_lock([=] {
 	auto l_new = ptr->load();
 	if (p->removed.load() || l_new != l) return false;
-	node* new_l = leaf_pool.new_obj(k, v);
+	node* new_l = leaf_pool.New(k, v);
 	//if (!l->is_sentinal && equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
 	//else
 	*ptr = (Less(k, l) ?
-		internal_pool.new_obj(l->key, new_l, l) :
-		internal_pool.new_obj(k, l, new_l));
+		internal_pool.New(l->key, new_l, l) :
+		internal_pool.New(k, l, new_l));
 	return true;});
     if (r) return !Equal(k, l); 
     else return {};
@@ -127,8 +127,8 @@ struct ordered_map {
 	  if (lr != l) return false;
 	  p->removed = true;
 	  (*ptr) = ll; // shortcut
-	  internal_pool.retire(p);
-	  leaf_pool.retire(l);
+	  internal_pool.Retire(p);
+	  leaf_pool.Retire(l);
 	  return true; });}))
       return std::optional<bool>(true);
     else return {};
@@ -164,9 +164,9 @@ struct ordered_map {
     return ot();
   }
 
-  ordered_map() : root(internal_pool.new_obj(leaf_pool.new_obj())) {}
-  ordered_map(size_t n) : root(internal_pool.new_obj(leaf_pool.new_obj())) {}
-  ~ordered_map() { retire(root);}
+  ordered_map() : root(internal_pool.New(leaf_pool.New())) {}
+  ordered_map(size_t n) : root(internal_pool.New(leaf_pool.New())) {}
+  ~ordered_map() { Retire(root);}
   
   void print() {
     std::function<void(node*)> prec;
@@ -185,14 +185,14 @@ struct ordered_map {
     std::cout << "]" << std::endl;
   }
 
-  static void retire(node* p) {
+  static void Retire(node* p) {
     if (p == nullptr) return;
-    if (p->is_leaf) leaf_pool.retire((leaf*) p);
+    if (p->is_leaf) leaf_pool.Retire((leaf*) p);
     else {
       internal* pp = (internal*) p;
-      parlay::par_do([&] () { retire((pp->left).load()); },
-		     [&] () { retire((pp->right).load()); });
-      internal_pool.retire(pp);
+      parlay::par_do([&] () { Retire((pp->left).load()); },
+		     [&] () { Retire((pp->right).load()); });
+      internal_pool.Retire(pp);
     }
   }
   

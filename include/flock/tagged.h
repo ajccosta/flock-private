@@ -27,22 +27,22 @@ struct write_annoucements {
   std::atomic<size_t>* announcements;
   const int stride = {16};
   write_annoucements() {
-    announcements = new std::atomic<size_t>[flck::internal::num_workers()*stride];
+    announcements = new std::atomic<size_t>[epoch::internal::num_workers()*stride];
   }
   ~write_annoucements() {
     delete[] announcements;
   }
   std::vector<size_t> scan() {
     std::vector<size_t> announced_tags;
-    for(int i = 0; i < flck::internal::num_workers()*stride; i += stride)
+    for(int i = 0; i < epoch::internal::num_workers()*stride; i += stride)
       announced_tags.push_back(announcements[i]);
     return announced_tags;
   }
   void set(size_t val) {
-    int id = flck::internal::worker_id();
+    int id = epoch::internal::worker_id();
     announcements[id*stride] = val;}
   void clear() {
-    int id = flck::internal::worker_id();
+    int id = epoch::internal::worker_id();
     announcements[id*stride].store(0, std::memory_order::memory_order_release);}
 };
 

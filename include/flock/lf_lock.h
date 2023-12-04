@@ -22,7 +22,7 @@ namespace internal {
   static thread_local size_t current_id = 1000000;
   inline size_t get_current_id() {
     if (current_id == 1000000)
-      current_id = flck::internal::worker_id();
+      current_id = epoch::internal::worker_id();
     return current_id;
   }
   inline void set_current_id(size_t id) {
@@ -53,7 +53,7 @@ struct descriptor {
   descriptor(Thunk& g) : 
     f([=] {g();}), done(false), freed(false) {
     lg_array.init();
-    epoch_num = get_epoch().get_my_epoch();
+    epoch_num = epoch::internal::get_epoch().get_my_epoch();
     thread_id = get_current_id();
   }
 
@@ -131,10 +131,10 @@ private:
     descriptor* desc = remove_tag(le);
     bool still_locked = (read() == le);
     if (!still_locked) return false;
-    long my_epoch = get_epoch().get_my_epoch();
+    long my_epoch = epoch::internal::get_epoch().get_my_epoch();
     long other_epoch = desc->epoch_num;
     if (other_epoch < my_epoch)
-      get_epoch().set_my_epoch(other_epoch); // inherit epoch of helpee
+      epoch::internal::get_epoch().set_my_epoch(other_epoch); // inherit epoch of helpee
     int my_id = get_current_id(); 
     set_current_id(desc->thread_id);   // inherit thread id of helpee
     get_descriptor_pool().acquire(desc);  // mark descriptor as acquired
@@ -147,7 +147,7 @@ private:
       helping = hold_h; // reset helping mode
     }
     set_current_id(my_id); // reset thread id
-    get_epoch().set_my_epoch(my_epoch); // reset to my epoch
+    epoch::internal::get_epoch().set_my_epoch(my_epoch); // reset to my epoch
     return still_locked; // return true if did helping
   }
 

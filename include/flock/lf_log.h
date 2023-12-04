@@ -15,6 +15,9 @@ struct log_array;
 
 // mem_pool<log_array> log_array_pool;
 
+  template <typename T>
+  using mem_pool = epoch::memory_pool<T>;
+   
 inline mem_pool<log_array>& get_log_array_pool() {
   static mem_pool<log_array> log_array_pool;
   return log_array_pool;
@@ -37,7 +40,7 @@ struct log_array {
 
   ~log_array() {
     if(next != nullptr) {
-      get_log_array_pool().destruct(next);
+      get_log_array_pool().Delete(next);
     }
   }
 };
@@ -76,13 +79,13 @@ struct Log {
       log_array* next_log_array = vals->next;
       if (next_log_array != nullptr) vals = next_log_array;
       else {  // next_log_array == nullptr, try to commit a new log array
-        log_array* new_log_array = get_log_array_pool().new_obj();
+        log_array* new_log_array = get_log_array_pool().New();
         new_log_array->init();
         if(vals->next.compare_exchange_strong(next_log_array, new_log_array))
           vals = new_log_array;
         else { // if in meantime someone else allocated it, then return memory
           vals = next_log_array;
-          get_log_array_pool().destruct(new_log_array);
+          get_log_array_pool().Delete(new_log_array);
         }
       }
     }

@@ -109,8 +109,8 @@ struct ordered_map {
 	      if (p->removed.load() || ptr->load() != l) return false;
 	      // if the leaf is the left sentinal then create new node
 	      if (old_l->is_sentinal) {
-		leaf* new_l = leaf_pool.new_obj(KV(k,v));
-		(*ptr) = node_pool.new_obj(k, l, (node*) new_l);
+		leaf* new_l = leaf_pool.New(KV(k,v));
+		(*ptr) = node_pool.New(k, l, (node*) new_l);
 		return true;
 	      }
 
@@ -146,13 +146,13 @@ struct ordered_map {
 		      new_lr->keyvals[i] = new_l->keyvals[i + size_l];
 		    new_lr->size = size_r;
 		  });
-		(*ptr) = node_pool.new_obj(new_l->keyvals[size_l].key,
+		(*ptr) = node_pool.New(new_l->keyvals[size_l].key,
 					   (node*) new_ll, (node*) new_lr);
-		leaf_pool.retire(new_l);
+		leaf_pool.Retire(new_l);
 	      } else (*ptr) = (node*) new_l;
 
 	      // retire the old block
-	      leaf_pool.retire(old_l);
+	      leaf_pool.Retire(old_l);
 	      return true;
 	    })) {
 	  //if (balanced) balance.rebalance(p, root, k);
@@ -190,7 +190,7 @@ struct ordered_map {
 
 		// update parent to point to new leaf, and retire old
 		(*ptr) = (node*) new_l;
-		leaf_pool.retire(old_l);
+		leaf_pool.Retire(old_l);
 		return true;
 	      }))
 	    return true;
@@ -214,8 +214,8 @@ struct ordered_map {
 		  if (lr != l) return false;
 		  p->removed = true;
 		  (*ptr) = ll; // shortcut
-		  node_pool.retire(p);
-		  leaf_pool.retire((leaf*) l);
+		  node_pool.Retire(p);
+		  leaf_pool.Retire((leaf*) l);
 		  return true; });}))
 	    return true;
 	} else return true;
@@ -240,24 +240,24 @@ struct ordered_map {
   }
   
   node* empty() {
-    leaf* l = leaf_pool.new_obj();
+    leaf* l = leaf_pool.New();
     l->size = 0;
     l->is_sentinal = true;
-    return node_pool.new_obj((node*) l);
+    return node_pool.New((node*) l);
   }
 
   ordered_map() : root(empty()) {}
   ordered_map(size_t n) : root(empty()) {}
-  ~ordered_map() { retire(root);}
+  ~ordered_map() { Retire(root);}
 
-  static void retire(node* p) {
+  static void Retire(node* p) {
     return;
     if (p == nullptr) return;
-    if (p->is_leaf) leaf_pool.retire((leaf*) p);
+    if (p->is_leaf) leaf_pool.Retire((leaf*) p);
     else {
-      parlay::par_do([&] () { retire((p->left).load()); },
-		     [&] () { retire((p->right).load()); });
-      node_pool.retire(p);
+      parlay::par_do([&] () { Retire((p->left).load()); },
+		     [&] () { Retire((p->right).load()); });
+      node_pool.Retire(p);
     }
   }
 

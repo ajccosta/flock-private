@@ -34,7 +34,7 @@
 // epoch structure
 // ***************************
 
-namespace flck {
+namespace epoch {
 namespace internal {
   // thread_local int __count = 0;
 
@@ -160,7 +160,7 @@ struct Link {
 };
 
   // x should point to the skip field of a link
-  inline void undo_retire(bool* x) { *x = true;}
+  inline void undo_Retire(bool* x) { *x = true;}
   inline void undo_allocate(bool* x) { *x = false;}
 
 #ifdef USE_MALLOC
@@ -175,7 +175,7 @@ struct Link {
   using namespace std::chrono;
 
 template <typename xT>
-struct alignas(64) mem_pool {
+struct alignas(64) memory_pool {
 private:
 
   static constexpr double milliseconds_between_epoch_updates = 20.0;
@@ -231,7 +231,7 @@ private:
           assert(false);
         }
 #endif
-        destruct((T*) tmp->value);
+        Delete((T*) tmp->value);
       }
       free_link(tmp);
     }
@@ -285,7 +285,7 @@ private:
 public:
   using T = xT;
   
-  mem_pool() {
+  memory_pool() {
     workers = num_workers();
     update_threshold = 10 * workers;
     pools = std::vector<old_current>(workers);
@@ -295,8 +295,8 @@ public:
     }
   }
 
-  mem_pool(const mem_pool&) = delete;
-  ~mem_pool() {} // clear(); }
+  memory_pool(const memory_pool&) = delete;
+  ~memory_pool() {} // clear(); }
 
   // noop since epoch announce is used for the whole operation
   void acquire(T* p) { }
@@ -307,7 +307,7 @@ public:
   }
   
   // destructs and frees the object immediately
-  void destruct(T* p) {
+  void Delete(T* p) {
      p->~T();
 #ifdef EpochMemCheck
      paddedT* x = pad_from_T(p);
@@ -319,7 +319,7 @@ public:
   }
 
   template <typename ... Args>
-  T* new_obj(Args... args) {
+  T* New(Args... args) {
 #ifdef EpochMemCheck
     paddedT* x = allocate_node();
     x->pad = x->head = x->tail = 10;
@@ -336,9 +336,9 @@ public:
   bool check_not_corrupted(T* ptr) {
 #ifdef EpochMemCheck
     paddedT* x = pad_from_T(ptr);
-    if (x->pad != 10) std::cerr << "mem_pool: pad word corrupted" << std::endl;
-    if (x->head != 10) std::cerr << "mem_pool: head word corrupted" << std::endl;
-     if (x->tail != 10) std::cerr << "mem_pool: tail word corrupted" << std::endl;
+    if (x->pad != 10) std::cerr << "memory_pool: pad word corrupted" << std::endl;
+    if (x->head != 10) std::cerr << "memory_pool: head word corrupted" << std::endl;
+     if (x->tail != 10) std::cerr << "memory_pool: tail word corrupted" << std::endl;
     return (x->pad == 10 && x->head == 10 && x->tail == 10);
 #endif
     return true;
@@ -347,13 +347,13 @@ public:
   template <typename F, typename ... Args>
   // f is a function that initializes a new object before it is shared
   T* new_init(const F& f, Args... args) {
-    T* x = new_obj(args...);
+    T* x = New(args...);
     f(x);
     return x;
   }
 
   // retire and return a pointer if want to undo the retire
-  bool* retire(T* p) {
+  bool* Retire(T* p) {
     return add_to_current_list((void*) p);}
   
   // clears all the lists 
@@ -390,8 +390,8 @@ public:
 };
 
 template <typename T>
-extern inline mem_pool<T>& get_pool() {
-  static mem_pool<T> pool;
+extern inline memory_pool<T>& get_pool() {
+  static memory_pool<T> pool;
   return pool;
 }
 
@@ -418,12 +418,15 @@ auto with_epoch(Thunk f) {
 }
 
   template <typename T>
+  using memory_pool = internal::memory_pool<T>;
+
+  template <typename T>
   struct memory_pool_ {
     template <typename ... Args>
     static T* New(Args... args) {
-      return internal::get_pool<T>().new_obj(std::forward<Args>(args)...);}
-    static void Delete(T* p) {internal::get_pool<T>().destruct(p);}
-    static bool* Retire(T* p) {return internal::get_pool<T>().retire(p);}
+      return internal::get_pool<T>().New(std::forward<Args>(args)...);}
+    static void Delete(T* p) {internal::get_pool<T>().Delete(p);}
+    static bool* Retire(T* p) {return internal::get_pool<T>().Retire(p);}
     static void clear() {internal::get_pool<T>().clear();}
   };
 

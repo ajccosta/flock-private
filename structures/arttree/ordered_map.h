@@ -284,7 +284,7 @@ struct ordered_map {
           return false;
         return p->lck.try_lock([=] {
             if (get_child(p,k) != nullptr) return false;
-            node* c = (node*) small_leaf_pool.new_obj(k, v);
+            node* c = (node*) small_leaf_pool.New(k, v);
             if (p->nt == Indirect) {
               indirect_node* i_n = (indirect_node*) p;
               i_n->removed = true; 
@@ -314,7 +314,7 @@ struct ordered_map {
                     i_c->ptr[i].init(i_n->ptr[i].load());
                   i_c->init_child(k, c);});
                 }
-                indirect_pool.retire(i_n);
+                indirect_pool.Retire(i_n);
               } else { // (p->nt == Sparse)
                 sparse_node* s_n = (sparse_node*) p;
                 s_n->removed = true;
@@ -343,7 +343,7 @@ struct ordered_map {
                     }
                     s_c->init_child(k, c);});
                 }
-                sparse_pool.retire(s_n);
+                sparse_pool.Retire(s_n);
             }
             return true;}); // end try_lock(p->lck
         return true;}); // end try_lock(gp->lck
@@ -378,8 +378,8 @@ struct ordered_map {
 
   static node* new_leaf(int byte_pos, KV* start, KV* end) {
     if ((end-start) > max_small_leaf_size)
-      return (node*) big_leaf_pool.new_obj(byte_pos, start, end);
-    else return (node*) small_leaf_pool.new_obj(byte_pos, start, end);
+      return (node*) big_leaf_pool.New(byte_pos, start, end);
+    else return (node*) small_leaf_pool.New(byte_pos, start, end);
   }
   
   bool insert_(const K& k, const V& v) {
@@ -404,20 +404,20 @@ struct ordered_map {
 
           // fill a null pointer with the new leaf
           if (c == nullptr)
-            (*cptr) = (node*) small_leaf_pool.new_obj(k, v);
+            (*cptr) = (node*) small_leaf_pool.New(k, v);
           else if (c->is_leaf()) {
             leaf* l = (leaf*) c;
             small_leaf* sl = (small_leaf*) c;
             big_leaf* bl = (big_leaf*) c;
             if (l->size < max_small_leaf_size) {
-              *cptr = (node*) small_leaf_pool.new_obj(byte_pos, l, k, v);
-              small_leaf_pool.retire(sl);
+              *cptr = (node*) small_leaf_pool.New(byte_pos, l, k, v);
+              small_leaf_pool.Retire(sl);
             } else if (l->size == max_small_leaf_size) {
-              *cptr = (node*) big_leaf_pool.new_obj(byte_pos, l, k, v);
-              small_leaf_pool.retire(sl);
+              *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v);
+              small_leaf_pool.Retire(sl);
             } else if (l->size < max_big_leaf_size) {
-              *cptr = (node*) big_leaf_pool.new_obj(byte_pos, l, k, v);
-              big_leaf_pool.retire(bl);
+              *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v);
+              big_leaf_pool.Retire(bl);
             } else { // too large
               int n = max_big_leaf_size + 1;
 
@@ -445,12 +445,12 @@ struct ordered_map {
               children[j++] = new_leaf(byte_pos+1, &tmp[start], &tmp[n]);
 
               // insert the new leaves into a sparse node
-              *cptr = (node*) sparse_pool.new_obj(byte_pos, &children[0], &children[j]);
-              big_leaf_pool.retire(bl);
+              *cptr = (node*) sparse_pool.New(byte_pos, &children[0], &children[j]);
+              big_leaf_pool.Retire(bl);
             }
           } else { // not a leaf
-            node* new_l = (node*) small_leaf_pool.new_obj(k, v);
-            *cptr = (node*) sparse_pool.new_obj(byte_pos, c, c->key,
+            node* new_l = (node*) small_leaf_pool.New(k, v);
+            *cptr = (node*) sparse_pool.New(byte_pos, c, c->key,
                                                 new_l, k);
           }
           return true;})) return true;
@@ -505,25 +505,25 @@ struct ordered_map {
                 // return false;
           //     *child_ptr = other_child;
           //     p->removed = true;
-          //     sparse_pool.retire((sparse_node*) p);
-          //     small_leaf_pool.retire((small_leaf*) l);
+          //     sparse_pool.Retire((sparse_node*) p);
+          //     small_leaf_pool.Retire((small_leaf*) l);
           //     return true;});
           // } else 
     { // just remove child
             *cptr = nullptr;
-            small_leaf_pool.retire((small_leaf*) l);
+            small_leaf_pool.Retire((small_leaf*) l);
             return true;
           }
         } else { // at least 2 in leaf
           if (l->size > max_small_leaf_size + 1) {
-            *cptr = (node*) big_leaf_pool.new_obj(l, k);
-            big_leaf_pool.retire((big_leaf*) l);
+            *cptr = (node*) big_leaf_pool.New(l, k);
+            big_leaf_pool.Retire((big_leaf*) l);
           } else if (l->size == max_small_leaf_size + 1) {
-            *cptr = (node*) small_leaf_pool.new_obj(l, k);
-            big_leaf_pool.retire((big_leaf*) l);
+            *cptr = (node*) small_leaf_pool.New(l, k);
+            big_leaf_pool.Retire((big_leaf*) l);
           } else {
-            *cptr = (node*) small_leaf_pool.new_obj(l, k);
-            small_leaf_pool.retire((small_leaf*) l);
+            *cptr = (node*) small_leaf_pool.New(l, k);
+            small_leaf_pool.Retire((small_leaf*) l);
           }
           return true;
         }})) return true;
@@ -616,13 +616,13 @@ struct ordered_map {
   }
 
   ordered_map() {
-    auto r = full_pool.new_obj();
+    auto r = full_pool.New();
     r->byte_num = 0;
     root = (node*) r;
   }
 
   ordered_map(size_t n) {
-    auto r = full_pool.new_obj();
+    auto r = full_pool.New();
     r->byte_num = 0;
     root = (node*) r;
   }
@@ -672,24 +672,24 @@ struct ordered_map {
     if (p == nullptr) return;
     if (p->nt == Leaf) {
       if (p->size > max_small_leaf_size)
-        big_leaf_pool.retire((big_leaf*) p);
-      else small_leaf_pool.retire((small_leaf*) p);
+        big_leaf_pool.Retire((big_leaf*) p);
+      else small_leaf_pool.Retire((small_leaf*) p);
     }
     else if (p->nt == Sparse) {
       auto pp = (sparse_node*) p;
       parlay::parallel_for(0, pp->size, [&] (size_t i) {
           retire_recursive(pp->ptr[i].load());});
-      sparse_pool.retire(pp);
+      sparse_pool.Retire(pp);
     } else if (p->nt == Indirect) {
       auto pp = (indirect_node*) p;
       parlay::parallel_for(0, pp->size, [&] (size_t i) {
           retire_recursive(pp->ptr[i].load());});
-      indirect_pool.retire(pp);
+      indirect_pool.Retire(pp);
     } else {
       auto pp = (full_node*) p;
       parlay::parallel_for(0, 256, [&] (size_t i) {
           retire_recursive(pp->children[i].load());});
-      full_pool.retire(pp);
+      full_pool.Retire(pp);
     }
   }
   ~ordered_map() { retire_recursive(root);}

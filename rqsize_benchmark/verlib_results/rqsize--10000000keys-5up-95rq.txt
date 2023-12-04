@@ -1,160 +1,69 @@
-numactl -i all ./../build/benchmark/btree_ver_ls -u 100 -n 10000000 -rs 8 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00103
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=171.2,update_throughput=4.625
-average range size = 8, retry percent = 0.01545
-duration: 5.001
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=170.9,update_throughput=4.601
-average range size = 8, retry percent = 0.01545
-duration: 5.001
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=169.9,update_throughput=4.59
-average range size = 8, retry percent = 0.01547
-numactl -i all ./../build/benchmark/btree_ver_ws -u 100 -n 10000000 -rs 128 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00101
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=34.95,update_throughput=3.323
-average range size = 128
-duration: 5.001
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=34.02,update_throughput=3.153
-average range size = 128
-duration: 5.001
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=34.18,update_throughput=3.137
-average range size = 128
-numactl -i all ./../build/benchmark/btree_ver_ws -u 100 -n 10000000 -rs 2048 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00104
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.879,update_throughput=3.225
-average range size = 2048
-duration: 5.001
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.863,update_throughput=3.191
-average range size = 2047
-duration: 5.001
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.887,update_throughput=3.182
-average range size = 2048
-numactl -i all ./../build/benchmark/btree_ver_ws -u 100 -n 10000000 -rs 32768 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.0016
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.18,update_throughput=3.311
-average range size = 3.271e+04
-duration: 5.002
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1803,update_throughput=3.485
-average range size = 3.271e+04
-duration: 5.002
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1784,update_throughput=3.346
-average range size = 3.271e+04
-numactl -i all ./../build/benchmark/btree_ver_rs -u 100 -n 10000000 -rs 8 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00101
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=40.6,update_throughput=3.775
-average range size = 7.999
-duration: 5.001
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=42.73,update_throughput=3.779
-average range size = 7.999
-duration: 5.001
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=40.64,update_throughput=3.478
-average range size = 7.999
-numactl -i all ./../build/benchmark/btree_ver_rs -u 100 -n 10000000 -rs 128 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00101
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=26.07,update_throughput=3.686
-average range size = 128
-duration: 5.001
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=25.85,update_throughput=3.66
-average range size = 128
-duration: 5.001
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=25.94,update_throughput=3.666
-average range size = 128
-numactl -i all ./../build/benchmark/btree_ver_rs -u 100 -n 10000000 -rs 2048 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00105
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.864,update_throughput=3.523
-average range size = 2048
-duration: 5.001
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.85,update_throughput=3.664
-average range size = 2048
-duration: 5.001
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.846,update_throughput=3.389
-average range size = 2048
-numactl -i all ./../build/benchmark/btree_ver_rs -u 100 -n 10000000 -rs 32768 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00155
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.183,update_throughput=3.405
-average range size = 3.271e+04
-duration: 5.002
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1802,update_throughput=3.379
-average range size = 3.271e+04
-duration: 5.002
-./../build/benchmark/btree_ver_rs,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1783,update_throughput=3.364
-average range size = 3.271e+04
-numactl -i all ./../build/benchmark/btree_ver_ls -u 100 -n 10000000 -rs 128 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00101
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=36.8,update_throughput=3.924
-average range size = 128, retry percent = 0.07372
-duration: 5.001
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=36.72,update_throughput=3.911
-average range size = 128, retry percent = 0.07362
-duration: 5.001
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=36.62,update_throughput=3.886
-average range size = 128, retry percent = 0.07345
-numactl -i all ./../build/benchmark/btree_ver_ls -u 100 -n 10000000 -rs 2048 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00105
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.825,update_throughput=3.661
-average range size = 2048, retry percent = 1.428
-duration: 5.001
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.83,update_throughput=3.666
-average range size = 2048, retry percent = 1.429
-duration: 5.001
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.842,update_throughput=3.701
-average range size = 2048, retry percent = 1.434
-numactl -i all ./../build/benchmark/btree_ver_ls -u 100 -n 10000000 -rs 32768 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00167
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1675,update_throughput=3.49
-average range size = 3.271e+04, retry percent = 46.56
-duration: 5.002
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1664,update_throughput=3.543
-average range size = 3.271e+04, retry percent = 47.08
-duration: 5.002
-./../build/benchmark/btree_ver_ls,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1652,update_throughput=3.469
-average range size = 3.271e+04, retry percent = 46.72
-numactl -i all ./../build/benchmark/btree_ver_hw -u 100 -n 10000000 -rs 8 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00101
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=159.7,update_throughput=4.733
-average range size = 7.999
-duration: 5.001
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=158.4,update_throughput=4.675
-average range size = 7.998
-duration: 5.001
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=159,update_throughput=4.688
-average range size = 7.999
-numactl -i all ./../build/benchmark/btree_ver_hw -u 100 -n 10000000 -rs 128 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00101
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=36.94,update_throughput=3.824
-average range size = 128
-duration: 5.001
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=36.63,update_throughput=3.892
-average range size = 128
-duration: 5.001
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=128,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=36.44,update_throughput=3.836
-average range size = 128
-numactl -i all ./../build/benchmark/btree_ver_hw -u 100 -n 10000000 -rs 2048 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00106
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.845,update_throughput=3.574
-average range size = 2048
-duration: 5.001
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.833,update_throughput=3.488
-average range size = 2048
-duration: 5.001
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=2048,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=2.852,update_throughput=3.56
-average range size = 2048
-numactl -i all ./../build/benchmark/btree_ver_hw -u 100 -n 10000000 -rs 32768 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00152
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1821,update_throughput=3.438
-average range size = 3.271e+04
-duration: 5.002
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1816,update_throughput=3.393
-average range size = 3.271e+04
-duration: 5.002
-./../build/benchmark/btree_ver_hw,100%update,0%range,0%mfind,rs=32768,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.1801,update_throughput=3.418
-average range size = 3.271e+04
-numactl -i all ./../build/benchmark/btree_ver_ws -u 100 -n 10000000 -rs 8 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
-duration: 5.00101
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=100.2,update_throughput=3.45
-average range size = 8
-duration: 5.001
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=101.5,update_throughput=3.439
-average range size = 7.999
-duration: 5.001
-./../build/benchmark/btree_ver_ws,100%update,0%range,0%mfind,rs=8,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=110.7,update_throughput=3.553
-average range size = 7.999
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_ls -u 100 -n 10000000 -rs 8 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=100,update_throughput=3.375
+bad average range size: 7
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=99.76,update_throughput=3.505
+bad average range size: 7
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=97.58,update_throughput=3.29
+bad average range size: 7
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_hs -u 100 -n 10000000 -rs 524288 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004482,update_throughput=2.106
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004324,update_throughput=2.071
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004301,update_throughput=2.051
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_rs -u 100 -n 10000000 -rs 8 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=28.67,update_throughput=2.586
+bad average range size: 7
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=29.44,update_throughput=2.673
+bad average range size: 7
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=28.17,update_throughput=2.457
+bad average range size: 7
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_rs -u 100 -n 10000000 -rs 128 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=15.35,update_throughput=2.583
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=15.27,update_throughput=2.65
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=15.27,update_throughput=2.717
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_rs -u 100 -n 10000000 -rs 2048 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.475,update_throughput=2.618
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.489,update_throughput=2.708
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.467,update_throughput=2.521
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_rs -u 100 -n 10000000 -rs 32768 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.09143,update_throughput=2.441
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.0909,update_throughput=2.42
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.09013,update_throughput=2.257
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_rs -u 100 -n 10000000 -rs 524288 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004607,update_throughput=2.109
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004462,update_throughput=2.008
+./../build/benchmark/verlib/btree_lf_versioned_rs,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004526,update_throughput=1.979
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_ls -u 100 -n 10000000 -rs 128 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=19.82,update_throughput=2.939
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=19.87,update_throughput=2.925
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=19.59,update_throughput=3.025
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_ls -u 100 -n 10000000 -rs 2048 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.46,update_throughput=2.681
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.462,update_throughput=2.599
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.457,update_throughput=2.622
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_ls -u 100 -n 10000000 -rs 32768 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.08063,update_throughput=2.418
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.08118,update_throughput=2.478
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.08069,update_throughput=2.484
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_ls -u 100 -n 10000000 -rs 524288 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004288,update_throughput=2.176
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004269,update_throughput=2.222
+./../build/benchmark/verlib/btree_lf_versioned_ls,100%update,0%range,rs=524288,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.004314,update_throughput=2.109
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_hs -u 100 -n 10000000 -rs 8 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=100.7,update_throughput=3.323
+bad average range size: 7
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=95.9,update_throughput=3.312
+bad average range size: 7
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=8,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=98.82,update_throughput=3.225
+bad average range size: 7
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_hs -u 100 -n 10000000 -rs 128 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=19.93,update_throughput=2.846
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=19.9,update_throughput=2.882
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=128,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=19.6,update_throughput=2.757
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_hs -u 100 -n 10000000 -rs 2048 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.491,update_throughput=2.585
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.481,update_throughput=2.388
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=2048,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=1.469,update_throughput=2.494
+numactl -i all ./../build/benchmark/verlib/btree_lf_versioned_hs -u 100 -n 10000000 -rs 32768 -tt 5 -p 100 -rqthreads 95 -id  -r 3 -dense
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.08542,update_throughput=2.326
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.0843,update_throughput=2.469
+./../build/benchmark/verlib/btree_lf_versioned_hs,100%update,0%range,rs=32768,trans=0,n=10000000,p=100,rq_threads=95,z=0,rq_throughput=0.08409,update_throughput=2.109

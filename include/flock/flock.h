@@ -65,6 +65,8 @@ namespace flck {
 // structure.  However, the hashing can create lock cycles so this
 // cannot be used with a strict lock, just a try_lock.
 
+  using epoch::with_epoch;
+  
 #ifdef HashLock
 struct lock {
 private:
@@ -142,7 +144,7 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
 
   template <typename T, typename ... Args>
   inline T* New(Args... args) {
-    return get_pool<T>().new_obj(std::forward<Args>(args)...);}
+    return get_pool<T>().New(std::forward<Args>(args)...);}
 
   // f is a function that initializes a new object before it is shared
   template <typename T, typename F, typename ... Args>
@@ -151,10 +153,10 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
   }
 
   template <typename T>
-  inline void Delete(T* p) {get_pool<T>().destruct(p);}
+  inline void Delete(T* p) {get_pool<T>().Delete(p);}
 
   template <typename T>
-  inline bool* Retire(T* p) {return get_pool<T>().retire(p);}
+  inline bool* Retire(T* p) {return get_pool<T>().Retire(p);}
 
   template <typename T>
   inline void clear_pool() {get_pool<T>().clear();}

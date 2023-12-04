@@ -185,47 +185,47 @@ private:
   static verlib::memory_pool<BigNode> big_node_pool;
 
   static node* insert_to_node(node* old, const K& k, const V& v) {
-    if (old == nullptr) return (node*) node_pool_1.new_obj(old, k, v);
-    if (old->cnt < 3) return (node*) node_pool_3.new_obj(old, k, v);
-    else if (old->cnt < 7) return (node*) node_pool_7.new_obj(old, k, v);
-    else if (old->cnt < 31) return (node*) node_pool_31.new_obj(old, k, v);
-    else return (node*) big_node_pool.new_obj(old, k, v);
+    if (old == nullptr) return (node*) node_pool_1.New(old, k, v);
+    if (old->cnt < 3) return (node*) node_pool_3.New(old, k, v);
+    else if (old->cnt < 7) return (node*) node_pool_7.New(old, k, v);
+    else if (old->cnt < 31) return (node*) node_pool_31.New(old, k, v);
+    else return (node*) big_node_pool.New(old, k, v);
   }
 
   template <typename F>
   static node* update_node(node* old, const K& k, const F& f) {
-    if (old->cnt == 1) return (node*) node_pool_1.new_obj(old, k, f);
-    if (old->cnt <= 3) return (node*) node_pool_3.new_obj(old, k, f);
-    else if (old->cnt <= 7) return (node*) node_pool_7.new_obj(old, k, f);
-    else if (old->cnt <= 31) return (node*) node_pool_31.new_obj(old, k, f);
-    else return (node*) big_node_pool.new_obj(old, k, f);
+    if (old->cnt == 1) return (node*) node_pool_1.New(old, k, f);
+    if (old->cnt <= 3) return (node*) node_pool_3.New(old, k, f);
+    else if (old->cnt <= 7) return (node*) node_pool_7.New(old, k, f);
+    else if (old->cnt <= 31) return (node*) node_pool_31.New(old, k, f);
+    else return (node*) big_node_pool.New(old, k, f);
   }
 
   static node* remove_from_node(node* old, const K& k) {
     if (old->cnt == 1) return (node*) nullptr;
-    if (old->cnt == 2) return (node*) node_pool_1.new_obj(old, k);
-    else if (old->cnt <= 4) return (node*) node_pool_3.new_obj(old, k);
-    else if (old->cnt <= 8) return (node*) node_pool_7.new_obj(old, k);
-    else if (old->cnt <= 32) return (node*) node_pool_31.new_obj(old, k);
-    else return (node*) big_node_pool.new_obj(old, k);
+    if (old->cnt == 2) return (node*) node_pool_1.New(old, k);
+    else if (old->cnt <= 4) return (node*) node_pool_3.New(old, k);
+    else if (old->cnt <= 8) return (node*) node_pool_7.New(old, k);
+    else if (old->cnt <= 32) return (node*) node_pool_31.New(old, k);
+    else return (node*) big_node_pool.New(old, k);
   }
 
   static void retire_node(node* old) {
     if (old == nullptr);
-    else if (old->cnt == 1) node_pool_1.retire((Node1*) old);
-    else if (old->cnt <= 3) node_pool_3.retire((Node3*) old);
-    else if (old->cnt <= 7) node_pool_7.retire((Node7*) old);
-    else if (old->cnt <= 31) node_pool_31.retire((Node31*) old);
-    else big_node_pool.retire((BigNode*) old);
+    else if (old->cnt == 1) node_pool_1.Retire((Node1*) old);
+    else if (old->cnt <= 3) node_pool_3.Retire((Node3*) old);
+    else if (old->cnt <= 7) node_pool_7.Retire((Node7*) old);
+    else if (old->cnt <= 31) node_pool_31.Retire((Node31*) old);
+    else big_node_pool.Retire((BigNode*) old);
   }
 
   static void destruct_node(node* old) {
     if (old == nullptr);
-    else if (old->cnt == 1) node_pool_1.destruct((Node1*) old);
-    else if (old->cnt <= 3) node_pool_3.destruct((Node3*) old);
-    else if (old->cnt <= 7) node_pool_7.destruct((Node7*) old);
-    else if (old->cnt <= 31) node_pool_31.destruct((Node31*) old);
-    else big_node_pool.destruct((BigNode*) old);
+    else if (old->cnt == 1) node_pool_1.Delete((Node1*) old);
+    else if (old->cnt <= 3) node_pool_3.Delete((Node3*) old);
+    else if (old->cnt <= 7) node_pool_7.Delete((Node7*) old);
+    else if (old->cnt <= 31) node_pool_31.Delete((Node31*) old);
+    else big_node_pool.Delete((BigNode*) old);
   }
 
   // try to install a new node in bucket s

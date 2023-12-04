@@ -57,7 +57,8 @@ template <typename V>
 using atomic_aba_free = atomic_write_once<V>;
   
 template <typename T>
-using memory_pool = internal::mem_pool<T>;
+//using memory_pool = internal::mem_pool<T>;
+using memory_pool = epoch::memory_pool<T>;
 
   // to make consistent with lock free implementation
   namespace internal {

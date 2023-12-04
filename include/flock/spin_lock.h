@@ -21,7 +21,7 @@ namespace flck {
   static thread_local size_t current_id = 1000000;
   inline size_t get_current_id() {
     if (current_id == 1000000)
-      current_id = flck::internal::worker_id();
+      current_id = epoch::internal::worker_id();
     return current_id;
   }
     

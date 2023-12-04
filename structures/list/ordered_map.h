@@ -48,7 +48,7 @@ struct ordered_map {
       else return {};
     if (cur->lck.try_lock([=] {
       if (!cur->removed.load() && (cur->next).load() == nxt) {
-	node* new_node = node_pool.new_obj(k, v, nxt);
+	node* new_node = node_pool.New(k, v, nxt);
 	cur->next = new_node; // splice in
 	return true;
       } else return false;})) return true;
@@ -77,14 +77,14 @@ struct ordered_map {
 	return nxtnxt->lck.try_lock([=] {
           nxt->removed = true;
 	  nxtnxt->removed = true;
-	  cur->next = node_pool.new_obj(nxtnxt); // copy nxt->next
-	  node_pool.retire(nxt);
-	  node_pool.retire(nxtnxt); 
+	  cur->next = node_pool.New(nxtnxt); // copy nxt->next
+	  node_pool.Retire(nxt);
+	  node_pool.Retire(nxtnxt); 
 	  return true;});
 #else
 	nxt->removed = true;
 	cur->next = nxtnxt; // shortcut
-	node_pool.retire(nxt);
+	node_pool.Retire(nxt);
 	return true;
 #endif
         });}))
@@ -142,8 +142,8 @@ struct ordered_map {
     }
   }
 
-  ordered_map() : root(node_pool.new_obj(node_pool.new_obj(nullptr,true),false)) {}
-  ordered_map(size_t n) : root(node_pool.new_obj(node_pool.new_obj(nullptr,true),false)) {}
+  ordered_map() : root(node_pool.New(node_pool.New(nullptr,true),false)) {}
+  ordered_map(size_t n) : root(node_pool.New(node_pool.New(nullptr,true),false)) {}
 
   void print() {
     node* ptr = (root->next).load();
@@ -156,7 +156,7 @@ struct ordered_map {
 
   void retire_recursive(node* p) {
     if (!p->is_end) retire_recursive(p->next.load());
-    node_pool.retire(p);
+    node_pool.Retire(p);
   }
 
   ~ordered_map() {retire_recursive(root);}

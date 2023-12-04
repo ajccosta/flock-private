@@ -197,7 +197,7 @@ void test_sets(size_t default_size, commandLine P) {
       b = parlay::tabulate(m, [&] (int i) {return a[parlay::hash64(i) % nn]; });
 
     if (fixed_time) {
-      run_mixed_operations<SetType>(b, a, zipfian_param, P);
+      run_mixed_operations<SetType>(b, a, zipfian_param, max_key, P);
 
     } else {
       run_insert_find_remove<SetType>(b, nn, P);

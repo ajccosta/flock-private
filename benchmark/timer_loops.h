@@ -59,6 +59,7 @@ template<typename SetType, typename K>
 void run_mixed_operations(parlay::sequence<K>& all,
                           const parlay::sequence<K>& unique,
                           float zipfian_param,
+			  K max_key,
                           commandLine P) {
   int m = all.size();
   int nn = unique.size();
@@ -88,7 +89,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
   int range_query_threads = P.getOptionIntValue("-rqthreads", 0);
   
 #ifdef Range_Search
-  K max_key = ~0ul;
   K range_gap = (max_key/n)*range_size;
 
 #else

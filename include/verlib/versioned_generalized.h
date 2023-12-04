@@ -46,10 +46,10 @@ private:
   
 public:
 
-  versioned_ptr(): verlist(link_pool.new_obj(0, 0, nullptr, nullptr)), value(nullptr) {}
-  versioned_ptr(V* ptr) : verlist(link_pool.new_obj(0, 0, nullptr, nullptr)), value(ptr) {}
+  versioned_ptr(): verlist(link_pool.New(0, 0, nullptr, nullptr)), value(nullptr) {}
+  versioned_ptr(V* ptr) : verlist(link_pool.New(0, 0, nullptr, nullptr)), value(ptr) {}
 
-  ~versioned_ptr() { link_pool.destruct(verlist.load()); }
+  ~versioned_ptr() { link_pool.Delete(verlist.load()); }
   void init(V* ptr) { store(ptr); }
   
   bool forward() {
@@ -57,12 +57,12 @@ public:
     TS ts = global_stamp.get_stamp();  // ts = ver from pseudo-code
     if(ts <= head->upper_time_stamp) return true;
     // abort();
-    version_link* node = link_pool.new_obj(head->upper_time_stamp, ts, head, value.load());
+    version_link* node = link_pool.New(head->upper_time_stamp, ts, head, value.load());
     if(verlist.compare_exchange_strong(head, node)) {
-        link_pool.retire(head);   
+        link_pool.Retire(head);   
         return true;
     }
-    link_pool.destruct(node);
+    link_pool.Delete(node);
     return false;
   }
 

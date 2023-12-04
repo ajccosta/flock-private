@@ -395,15 +395,15 @@ struct ordered_map {
         if (c->is_leaf) {
           gp->children[pidx] = add_child(p, split_leaf(c), cidx);
           p->removed = true;
-          leaf_pool.retire((leaf*) c);
-          node_pool.retire(p);
+          leaf_pool.Retire((leaf*) c);
+          node_pool.Retire(p);
           return true;
         }
         return c->lck.try_lock([=] {
           gp->children[pidx] = add_child(p, split(c), cidx);
           p->removed = c->removed = true;
-          node_pool.retire(c);
-          node_pool.retire(p);
+          node_pool.Retire(c);
+          node_pool.Retire(p);
           return true;});
       });});
   }
@@ -429,9 +429,9 @@ struct ordered_map {
           else   // rebalance
             gp->children[pidx] = rebalance_children(p, rebalance_leaf(lc, rc), li);
           p->removed = true;
-          node_pool.retire(p);
-          leaf_pool.retire((leaf*) lc);
-          leaf_pool.retire((leaf*) rc);
+          node_pool.Retire(p);
+          leaf_pool.Retire((leaf*) lc);
+          leaf_pool.Retire((leaf*) rc);
           return true;
         } else { // internal node
           // K& k = p->keys[li];
@@ -442,9 +442,9 @@ struct ordered_map {
           //   gp->children[pidx] = join_children(p, join(lc, k, rc), li);
           // else // rebalance
           //   gp->children[pidx] = rebalance_children(p, rebalance(lc, k, rc), li);
-          // node_pool.retire(p);
-          // node_pool.retire(lc);
-          // node_pool.retire(rc);
+          // node_pool.Retire(p);
+          // node_pool.Retire(lc);
+          // node_pool.Retire(rc);
           // return true;});
           K& k = p->keys[li];
           // lock both children
@@ -455,9 +455,9 @@ struct ordered_map {
               else // rebalance
                   gp->children[pidx] = rebalance_children(p, rebalance(lc, k, rc), li);
               lc->removed = rc->removed = p->removed = true;
-              node_pool.retire(p);
-              node_pool.retire(lc);
-              node_pool.retire(rc);
+              node_pool.Retire(p);
+              node_pool.Retire(lc);
+              node_pool.Retire(rc);
               return true;});});
           }});});
   }
@@ -470,12 +470,12 @@ struct ordered_map {
   static node* copy_node_or_leaf(node* p) {
     if (p->is_leaf) {
       node* r = (node*) copy_leaf((leaf*) p);
-      leaf_pool.retire((leaf*) p);
+      leaf_pool.Retire((leaf*) p);
       return r;
     } else {
       node* r = copy_node(p);
       p->removed = true;
-      node_pool.retire(p);
+      node_pool.Retire(p);
       return r;
     }
   }
@@ -491,11 +491,11 @@ struct ordered_map {
     if (root->children[0].load() != c) return false;
     if (c->status == isOver) {
       if (c->is_leaf) {
-        root->children[0] = node_pool.new_obj(split_leaf(c));
-        leaf_pool.retire((leaf*) c);
+        root->children[0] = node_pool.New(split_leaf(c));
+        leaf_pool.Retire((leaf*) c);
       } else {
-        root->children[0] = node_pool.new_obj(split(c));
-        node_pool.retire(c);
+        root->children[0] = node_pool.New(split(c));
+        node_pool.Retire(c);
       }
       return true;
     } else { // c has degree 1 and not a leaf
@@ -503,12 +503,12 @@ struct ordered_map {
       // if recorded once then child of c needs to be copied
       return c->lck.try_lock([=] {
           root->children[0] = copy_node_or_leaf(c->children[0].load());
-          node_pool.retire(c);
+          node_pool.Retire(c);
           return true;});
 #else
       // if not recorded once then can be updated in place
       root->children[0] = c->children[0].load();
-      node_pool.retire(c);
+      node_pool.Retire(c);
       return true;
 #endif
     }});
@@ -600,7 +600,7 @@ struct ordered_map {
         return false;
       bool upsert_leaf = upsert && l->find(k).has_value();
       p->children[cidx] = (node*) insert_leaf(l, k, v, upsert_leaf);
-      leaf_pool.retire(l);
+      leaf_pool.Retire(l);
       return true;})) return true;
     else return {};
   }
@@ -627,7 +627,7 @@ struct ordered_map {
           if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
           p->children[cidx] = (node*) remove_leaf(l, k);
-          leaf_pool.retire(l);
+          leaf_pool.Retire(l);
           return true;})) return true;
     else return {};
   }
@@ -689,11 +689,11 @@ struct ordered_map {
 
   // An empty tree is an empty leaf along with a root pointing tho the
   // leaf.  The root will always contain a single pointer.
-  ordered_map() : root(node_pool.new_obj(leaf_pool.new_obj(0))) {
+  ordered_map() : root(node_pool.New(leaf_pool.New(0))) {
     // std::cout << "key size: " << sizeof(K) << std::endl;
     // std::cout << "value size: " << sizeof(V) << std::endl;
   }
-  ordered_map(size_t n) : root(node_pool.new_obj(leaf_pool.new_obj(0))) {
+  ordered_map(size_t n) : root(node_pool.New(leaf_pool.New(0))) {
     // std::cout << "key size: " << sizeof(K) << std::endl;
     // std::cout << "value size: " << sizeof(V) << std::endl;
   }
@@ -701,13 +701,13 @@ struct ordered_map {
   static void retire_recursive(node* p) {
     if (p == nullptr) return;
     if (p->is_leaf) {
-      leaf_pool.retire((leaf*) p);
+      leaf_pool.Retire((leaf*) p);
     } else {
       for(int i = 0; i < p->size; i++)
         retire_recursive(p->children[i].load());
       // parlay::parallel_for(0, p->size, [&] (size_t i) {
         // retire_recursive(p->children[i].load());});
-      node_pool.retire(p);
+      node_pool.Retire(p);
     }
   }
 

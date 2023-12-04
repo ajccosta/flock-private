@@ -183,4 +183,3 @@ struct ordered_map {
   static void stats() { flck::pool_stats<node>();}
 
 };
-
