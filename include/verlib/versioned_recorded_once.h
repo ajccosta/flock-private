@@ -140,10 +140,10 @@ public:
     newv->next_version = expv;
     if(v.compare_exchange_strong(oldv, newv)) {
       set_stamp(newv);
-      return false;
+      return true;
     } else {
       set_stamp(v.load());
-      return true;
+      return false;
     }
   }
 
