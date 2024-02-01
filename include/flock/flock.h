@@ -110,8 +110,8 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
     int cnt = 0;
     while (true)  {
       if ((unsigned long) cnt++ == 1000000000ul/(delay*max_multiplier)) {
-        std::cout << "problably in an infinite retry loop" << std::endl;
-        abort(); 
+        //std::cout << "problably in an infinite retry loop" << std::endl;
+        //abort(); 
         //deadlock = true;
       }
       auto r = f();
