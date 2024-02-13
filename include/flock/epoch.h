@@ -161,7 +161,7 @@ struct Link {
 
   // x should point to the skip field of a link
   inline void undo_Retire(bool* x) { *x = true;}
-  inline void undo_allocate(bool* x) { *x = false;}
+  inline void undo_Allocate(bool* x) { *x = false;}
 
 #ifdef USE_MALLOC
   inline Link* allocate_link() {return (Link*) malloc(sizeof(Link));}

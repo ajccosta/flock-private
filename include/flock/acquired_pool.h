@@ -24,7 +24,7 @@ namespace flck {
 template <typename xT>
 struct acquired_pool {
   using T = xT;
-  mem_pool<T> pool;
+  memory_pool<T> pool;
   void reserve(size_t n) { pool.reserve(n);}
   void shuffle(size_t n) { pool.shuffle(n);}
   void stats() { pool.stats();}

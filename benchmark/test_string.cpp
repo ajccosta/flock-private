@@ -60,5 +60,5 @@ int main(int argc, char* argv[]) {
   std::cout << "total strings = " << a.size()
 	    << ", unique strings = " << unique.size() << std::endl;
 
-  run_mixed_operations<SetType>(a, unique, 0.0, P);
+  run_mixed_operations<SetType>(a, unique, 0.0, a[0], P);
 }

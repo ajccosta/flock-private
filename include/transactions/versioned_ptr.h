@@ -73,7 +73,7 @@ namespace verlib {
     ~versioned_ptr() {
       versioned* ptr = v.load();
       if (is_indirect(ptr))
-	link_pool.destruct((ver_link*) strip_indirect(ptr));
+	link_pool.Delete((ver_link*) strip_indirect(ptr));
     }
 
     void init(V* ptr) {v = set_zero_stamp(ptr);}

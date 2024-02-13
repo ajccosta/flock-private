@@ -68,7 +68,7 @@ auto atomic(F f) {
       in_lock = 0;
       start_stamp = global_stamp.get_read_stamp();
       old_version_read = false;
-      transaction_descriptor* descriptor = trans_descriptor_pool.new_obj();
+      transaction_descriptor* descriptor = trans_descriptor_pool.New();
       current_transaction = descriptor;
       auto x = f();
       current_transaction = nullptr;
@@ -87,7 +87,7 @@ auto atomic(F f) {
       }
       assert(current_transaction == nullptr);
       if (passed) {
-        trans_descriptor_pool.retire(descriptor);
+        trans_descriptor_pool.Retire(descriptor);
         return x;
       } else {
 #ifdef TPCC_STATS
@@ -97,12 +97,12 @@ auto atomic(F f) {
 
         // undo the logged retires
         for (int i=0; i < retired_log.size(); i++)
-          flck::internal::undo_retire(retired_log[i]);
+          epoch::internal::undo_Retire(retired_log[i]);
 
         // undo logged allocates
         auto& allocated_log = descriptor->allocated_log;
         for (int i=0; i < allocated_log.size(); i++)
-          flck::internal::undo_allocate(allocated_log[i]);
+          epoch::internal::undo_Allocate(allocated_log[i]);
 
         if (delay == 0) {
 #ifdef Validate
@@ -120,7 +120,7 @@ auto atomic(F f) {
           abort();
         }
 
-        trans_descriptor_pool.retire(descriptor);
+        trans_descriptor_pool.Retire(descriptor);
         using RT = decltype(x);
         return RT();
       }});

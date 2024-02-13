@@ -80,10 +80,10 @@ struct ordered_map {
     //std::unique_lock lck(p->lck, std::defer_lock);
     //if (!lck.try_lock()) return {};
     if (p->removed.load() || ptr->load() != l) return {};
-    node* new_l = leaf_pool.new_obj(k, v);
+    node* new_l = leaf_pool.New(k, v);
     *ptr = (Less(k, l) ?
-	    internal_pool.new_obj(l->key, new_l, l) :
-	    internal_pool.new_obj(k, l, new_l));
+	    internal_pool.New(l->key, new_l, l) :
+	    internal_pool.New(k, l, new_l));
     return true;
   }
 
@@ -111,8 +111,8 @@ struct ordered_map {
       if (lr == l) {
 	p->removed = true;
 	(*ptr) = ll; // shortcut
-	internal_pool.retire(p);
-	leaf_pool.retire(l);
+	internal_pool.Retire(p);
+	leaf_pool.Retire(l);
 	return true;
       }
     }
@@ -149,9 +149,9 @@ struct ordered_map {
       //return ot();
   }
 
-  ordered_map() : root(internal_pool.new_obj(leaf_pool.new_obj())) {}
-  ordered_map(size_t n) : root(internal_pool.new_obj(leaf_pool.new_obj())) {}
-  ~ordered_map() { retire(root);}
+  ordered_map() : root(internal_pool.New(leaf_pool.New())) {}
+  ordered_map(size_t n) : root(internal_pool.New(leaf_pool.New())) {}
+  ~ordered_map() { Retire(root);}
   
   void print() {
     std::function<void(node*)> prec;
@@ -170,14 +170,14 @@ struct ordered_map {
     std::cout << "]" << std::endl;
   }
 
-  static void retire(node* p) {
+  static void Retire(node* p) {
     if (p == nullptr) return;
-    if (p->is_leaf) leaf_pool.retire((leaf*) p);
+    if (p->is_leaf) leaf_pool.Retire((leaf*) p);
     else {
       internal* pp = (internal*) p;
-      parlay::par_do([&] () { retire((pp->left).load()); },
-		     [&] () { retire((pp->right).load()); });
-      internal_pool.retire(pp);
+      parlay::par_do([&] () { Retire((pp->left).load()); },
+		     [&] () { Retire((pp->right).load()); });
+      internal_pool.Retire(pp);
     }
   }
   

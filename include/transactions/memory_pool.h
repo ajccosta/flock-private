@@ -10,7 +10,7 @@ namespace verlib {
     void shuffle(size_t n) { pool.shuffle(n);}
     void stats() { pool.stats();}
     void clear() { pool.clear();}
-    void destruct(T* ptr) { pool.destruct(ptr); }
+    void Delete(T* ptr) { pool.Delete(ptr); }
 
     bool is_helping() {
 #ifdef NoHelp
@@ -23,8 +23,8 @@ namespace verlib {
     void retire_on_abort(transaction_descriptor* descriptor, T* ptr) {
 #ifdef TransUndo
       if (descriptor != nullptr && !is_helping()) {
-	bool* x = pool.retire(ptr);
-	flck::internal::undo_retire(x);
+	bool* x = pool.Retire(ptr);
+	epoch::internal::undo_Retire(x);
 	descriptor->allocated_log.add(x);
       }
 #endif
@@ -32,11 +32,11 @@ namespace verlib {
 
     void retire_on_success(transaction_descriptor* descriptor, T* ptr) {
 #ifdef TransUndo
-      bool* x = pool.retire(ptr);
+      bool* x = pool.Retire(ptr);
       if (descriptor != nullptr && !is_helping())
 	descriptor->retired_log.add(x);
 #else
-      pool.retire(ptr);
+      pool.Retire(ptr);
 #endif
     }
 
@@ -45,8 +45,8 @@ namespace verlib {
     }
 
     template <typename ... Args>
-    T* new_obj(Args... args) {
-      T* ptr = pool.new_obj(args...);
+    T* New(Args... args) {
+      T* ptr = pool.New(args...);
       retire_on_abort(current_transaction, ptr);
       return ptr;
     }
@@ -58,7 +58,7 @@ namespace verlib {
       return ptr;
     }
 
-    void retire(T* ptr) {
+    void Retire(T* ptr) {
       retire_on_success(current_transaction, ptr);
     }
   };

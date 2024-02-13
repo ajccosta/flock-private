@@ -174,7 +174,7 @@ namespace verlib {
   void shortcut(flck::atomic<versioned*>* loc, versioned* ptr) {
     ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
     if (ptr_->get_stamp_indirect_ni() <= done_stamp) 
-      if (loc->cas_ni(ptr, ptr_->value)) link_pool.pool.retire(ptr_);
+      if (loc->cas_ni(ptr, ptr_->value)) link_pool.pool.Retire(ptr_);
   }
 
   // Installs ptr to front of version list for a store on loc.
@@ -191,7 +191,7 @@ namespace verlib {
     // indirection on need
     bool use_indirect = (ptr == nullptr || ptr->is_recorded()); // logged
     if (use_indirect) {
-      ver_link* link = link_pool.new_obj(old_v, new_v); // logged
+      ver_link* link = link_pool.New(old_v, new_v); // logged
       link_pool.retire_on_abort(descriptor, link);
       new_v = add_indirect(link);
     }

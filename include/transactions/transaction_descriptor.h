@@ -77,7 +77,7 @@ namespace verlib {
     }
 
     //transaction_descriptor() : time_stamp(tbd), owner(flck::internal::current_id) {
-    transaction_descriptor() : time_stamp(tbd), owner(flck::internal::worker_id()), round(++transaction_round) {
+    transaction_descriptor() : time_stamp(tbd), owner(epoch::internal::worker_id()), round(++transaction_round) {
       std::atomic_thread_fence(std::memory_order_seq_cst);
     }
   };
