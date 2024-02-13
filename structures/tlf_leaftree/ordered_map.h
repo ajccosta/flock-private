@@ -1,10 +1,12 @@
 #include <transactions/tlf.h>
 #include <parlay/parallel.h>
 
-template <typename K,
-	  typename V,
-	  typename Compare = std::less<K>>
+template <typename K_,
+	  typename V_,
+	  typename Compare = std::less<K_>>
 struct ordered_map {
+  using K = K_;
+  using V = V_;
 
   struct internal;
   internal* root;

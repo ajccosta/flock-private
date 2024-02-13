@@ -26,7 +26,10 @@ struct RadixString {
     return (pos >= key.size()) ? 0 : key[pos];}
 };
 
-using V = unsigned long;
+using V = std::array<unsigned int, 1>;
+
+// if use this definition then enries are 100 bytes (8 + 23*4)
+//using V = std::array<unsigned int, 23>;
 
 #include "set.h"
 

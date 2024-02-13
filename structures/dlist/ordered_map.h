@@ -1,9 +1,11 @@
 #include <verlib/verlib.h>
 
-template <typename K,
-          typename V,
-          typename Compare = std::less<K>>
+template <typename K_,
+          typename V_,
+          typename Compare = std::less<K_>>
 struct ordered_map {
+  using K = K_;
+  using V = V_;
   static constexpr auto less = Compare{};
 
   struct alignas(32) node : verlib::versioned, flck::lock {
