@@ -13,11 +13,13 @@
 #include <parlay/primitives.h>
 #include <verlib/verlib.h>
 
-template <typename K,
-	  typename V,
-	  class Hash = std::hash<K>,
-	  class KeyEqual = std::equal_to<K>>
+template <typename K_,
+	  typename V_,
+	  class Hash = std::hash<K_>,
+	  class KeyEqual = std::equal_to<K_>>
 struct unordered_map {
+  using K = K_;
+  using V = V_;
 private:
   struct KV {K key; V value;};
 

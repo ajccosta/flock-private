@@ -37,11 +37,14 @@ void test_persistence_concurrent() {
   int num_threads = 2;
 
   parlay::parallel_for(0, num_threads, [&] (size_t tid) {
-    if(tid == num_threads-1) {  // update thread
+     using V = typename SetType::V;
+     V default_value;
+     if(tid == num_threads-1) {  // update thread
       std::cout << "starting to insert" << std::endl;
       for(int i = 0; i < N; i++) {
         // std::cout << "inserting " << i << " " << a[i] << std::endl;
-        tr.insert(a[i], i+1);
+	default_value[0] = i+1;
+        tr.insert(a[i], default_value);
       }
       std::cout << "starting to delete" << std::endl;
       for(int i = N-1; i >= 0; i--)
@@ -62,8 +65,8 @@ void test_persistence_concurrent() {
           for(int i = 1; i <= N; i++) {
             auto val = tr.find_(i);
             if(val.has_value()) {
-              seen[val.value()] = true;
-              max_seen = std::max(max_seen, (int) val.value());
+              seen[val.value()[0]] = true;
+              max_seen = std::max(max_seen, (int) val.value()[0]);
             }
           }
         });
@@ -89,7 +92,7 @@ void test_persistence_concurrent() {
 
 template <typename SetType>
 void test_sets(size_t default_size, commandLine P) {
-    
+
   // processes to run experiments with
   int p = P.getOptionIntValue("-p", parlay::num_workers());  
 
@@ -134,18 +137,21 @@ void test_sets(size_t default_size, commandLine P) {
 
   // print memory usage statistics
   bool stats = P.getOption("-stats");
+  using V = typename SetType::V;
+  V default_value;
+  default_value[0] = 123;
 
   if (init_test) {  // trivial test inserting 4 elements and deleting one
     std::cout << "running sanity checks" << std::endl;
     auto tr = SetType(4);
     tr.print();
-    tr.insert(3, 123);
+    tr.insert(3, default_value);
     tr.print();
-    tr.insert(7, 123);
+    tr.insert(7, default_value);
     tr.print();
-    tr.insert(1, 123);
+    tr.insert(1, default_value);
     // tr.print();
-    tr.insert(11, 123);
+    tr.insert(11, default_value);
     // tr.print();
     tr.remove(3);
     // tr.print();

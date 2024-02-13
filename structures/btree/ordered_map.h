@@ -5,10 +5,13 @@
 // Nodes are split or joined on the way down to ensure that each node
 // can fit one more child, or remove one more child.
 
-template <typename K,
-      typename V,
-      typename Compare = std::less<K>>
+template <typename K_,
+      typename V_,
+      typename Compare = std::less<K_>>
 struct ordered_map {
+  using K = K_;
+  using V = V_;
+
   static constexpr auto less = Compare{};
   struct KV {K key; V value;};
 
@@ -29,7 +32,7 @@ struct ordered_map {
 
   static constexpr int leaf_block_bytes = 64 * 8;
   static constexpr int kv_bytes = leaf_block_bytes - sizeof(header);
-  static constexpr int leaf_block_size = std::max(kv_bytes/sizeof(KV), 5ul);
+  static constexpr int leaf_block_size = std::max(kv_bytes/sizeof(KV), 12ul);
   static constexpr int leaf_min_size = leaf_block_size/5;
   static constexpr int leaf_join_cutoff = leaf_min_size * 4;
 

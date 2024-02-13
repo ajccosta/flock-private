@@ -153,7 +153,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
     if (verbose) std::cout << "round " << i << std::endl;
     size_t initial_size;
-    int default_value = 3;
+    using V = typename SetType::V;
+    V default_value;
+    default_value[0] = 3;
 
     // insert n distinct elements
     parlay::parallel_for(0, 2*n, [&] (size_t i) {
@@ -244,7 +246,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
             if (op_types[jj+k] == Find) {
               loc_queries += 1;
               auto val = tr.find_locked(all[j+k]);
-              if (val.has_value()) loc_found += val.value();
+              if (val.has_value()) loc_found += val.value()[0];
             } else if (op_types[jj+k] == Insert) {
               if (tr.insert_(all[j+k], default_value)) {loc_added++; loc_update_success++;}
             } else if (op_types[jj+k] == Remove) {
@@ -293,7 +295,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
           local_stats.query_count++;
           auto val = tr.find(all[j]);
           if (val.has_value()) {
-            local_stats.query_total_value += val.value();
+            local_stats.query_total_value += val.value()[0];
           }
         } else if (op_types[jj] == Insert) {
           local_stats.update_count++;
@@ -339,7 +341,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
               auto val = tr.find_(all[loc]);
               loc += 1;
               if (loc >= end) loc -= start; // wrap around if needed
-              if(val.has_value()) loc_found += val.value();
+              if(val.has_value()) loc_found += val.value()[0];
 #ifdef LazyStamp
               if (verlib::aborted) {
                 local_stats.retry_count++;
@@ -434,7 +436,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
         double update_success_ratio = update_successes / total_updates;
         long total_mfind = overall_stats.mfind_count;
         long total_queries = overall_stats.query_count + total_mfind * range_size;
-        double total_found = overall_stats.query_total_value / default_value;
+        double total_found = overall_stats.query_total_value / default_value[0];
         double success_ratio = total_found / total_queries;
         if (verbose) {
           std::cout << "total updates =     " << total_updates 
@@ -520,7 +522,9 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
     auto mops = [=] (double time) -> float {return m / (time * 1e6);};
     long len = parlay::remove_duplicates(all).size();
     parlay::sequence<bool> flags(m);
-    int default_value = 123;
+    using V = typename SetType::V;
+    V default_value;
+    default_value[0] = 123;
     
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
@@ -552,7 +556,7 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
           std::cout << "key not found, i = " << i << ", key = " << search_seq[i] << std::endl;
           abort();
         } else if (*x != default_value) {
-          std::cout << "bad value " << *x << " at key " << search_seq[i] << std::endl;
+          std::cout << "bad value " << (*x)[0] << " at key " << search_seq[i] << std::endl;
           abort();
         }
         });

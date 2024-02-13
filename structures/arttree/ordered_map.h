@@ -9,10 +9,12 @@ struct int_string {
   }
 };
 
-template <typename K,
-          typename V,
-          typename String = int_string<K>>
+template <typename K_,
+          typename V_,
+          typename String = int_string<K_>>
 struct ordered_map {
+  using K = K_;
+  using V = V_;
 
   enum node_type : char {Full, Indirect, Sparse, Leaf};
 
