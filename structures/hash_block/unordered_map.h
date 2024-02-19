@@ -10,6 +10,7 @@
 // than the original given size (i.e. number of buckets is fixes, but
 // number of entries per bucket can grow).
 
+#include <optional>
 #include <parlay/primitives.h>
 #include <verlib/verlib.h>
 

@@ -11,9 +11,28 @@ template <typename K_,
 struct ordered_map {
   using K = K_;
   using V = V_;
+  static verlib::memory_pool<V> value_pool;
 
+  struct VP_indirect {
+    V* vp;
+    V get_value() { return *vp; }
+    void retire() const { value_pool.Retire(vp); }
+    VP_indirect() {}
+    VP_indirect(const V& v) : vp(value_pool.New(v)) {}
+  };
+
+  struct VP_direct {
+    V v;
+    V get_value() { return v; }
+    void retire() const {}
+    VP_direct() {}
+    VP_direct(const V& v) : v(v) {}
+  };
+
+  using VP = std::conditional_t<(sizeof(V) > 16), VP_indirect, VP_direct>;
+  
   static constexpr auto less = Compare{};
-  struct KV {K key; V value;};
+  struct KV {K key; VP value;};
 
   struct leaf;
   struct node;
@@ -221,7 +240,7 @@ struct ordered_map {
   struct alignas(64) leaf : header {
     KV keyvals[leaf_block_size];
     
-    std::optional<V> find(const K& k) {
+    std::optional<VP> find(const K& k) {
       int i=0;
       // if (header::size == 0) return std::optional<V>();
       // int mid = header::size/2;
@@ -243,8 +262,8 @@ struct ordered_map {
     
     leaf(int size) :
       header{true,
-    size == leaf_min_size ? isUnder : (size == leaf_block_size ? isOver : OK),
-    size} {};
+	size == leaf_min_size ? isUnder : (size == leaf_block_size ? isOver : OK),
+	size} {};
   };
 
   static verlib::memory_pool<leaf> leaf_pool;
@@ -271,7 +290,7 @@ struct ordered_map {
         new_l->keyvals[i] = l->keyvals[i];
 
       // copy in the new key and value
-      new_l->keyvals[i] = KV{k,v};
+      new_l->keyvals[i] = KV{k, VP(v)};
       if(i < size) {
         if(upsert) {
           // copy the part after the new key, skipping the key that is equal
@@ -314,7 +333,7 @@ struct ordered_map {
       int lsize = size/2;
       leaf* new_l = leaf_pool.new_init([=] (leaf* new_l) {
       K tmpK[leaf_block_size];
-      V tmpV[leaf_block_size];
+      VP tmpV[leaf_block_size];
       for (int i = 0; i < lsize; i++) {
         auto [key,val] = get_kv(i);
         tmpK[i] = key;
@@ -328,7 +347,7 @@ struct ordered_map {
       int rsize = size - lsize;
       leaf* new_r = leaf_pool.new_init([=] (leaf* new_r) {
       K tmpK[leaf_block_size];
-      V tmpV[leaf_block_size];
+      VP tmpV[leaf_block_size];
       for (int i = 0; i < rsize; i++) {
         auto [key,val] = get_kv(i+lsize);      
         tmpK[i] = key;
@@ -592,7 +611,8 @@ struct ordered_map {
 
   std::optional<bool> try_insert(const K& k, const V& v, const bool upsert=false) {
     auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
-    if (!upsert && l->find(k).has_value()) { // already there
+    auto vp = l->find(k);
+    if (!upsert && vp.has_value()) { // already there
       if (p->lck.read_lock([&] {
              return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
         return false;
@@ -601,7 +621,7 @@ struct ordered_map {
     else if (p->lck.try_lock([=] {
       if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
-      bool upsert_leaf = upsert && l->find(k).has_value();
+      bool upsert_leaf = upsert && vp.has_value();
       p->children[cidx] = (node*) insert_leaf(l, k, v, upsert_leaf);
       leaf_pool.Retire(l);
       return true;})) return true;
@@ -621,16 +641,18 @@ struct ordered_map {
 
   std::optional<bool> try_remove(const K& k) {
     auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
-    if (!l->find(k).has_value()) // not there
+    auto vp = l->find(k);
+    if (!vp.has_value()) // not there
       if (p->lck.read_lock([&] {
             return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
         return false;
       else return {};
     else if (p->lck.try_lock([=] {
           if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
-        return false;
+	    return false;
           p->children[cidx] = (node*) remove_leaf(l, k);
           leaf_pool.Retire(l);
+	  vp.value().retire();
           return true;})) return true;
     else return {};
   }
@@ -643,7 +665,7 @@ struct ordered_map {
     int s = la->prev(start, 0);
     int e = la->prev(end, s);
     for (int i = s; i < e; i++) {
-      add(la->keyvals[i].key, la->keyvals[i].value);
+      add(la->keyvals[i].key, la->keyvals[i].value.get_value());
 #ifdef LazyStamp
       if (verlib::aborted) return false;
 #endif
@@ -671,8 +693,11 @@ struct ordered_map {
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [p, cidx, l] = find_no_fix(root, k);
-    if (p->lck.read_lock([&] {return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
-      return ot(l->find(k));
+    if (p->lck.read_lock([&] {return (p->children[cidx].load() == (node*) l) && !p->removed.load();})) {
+      auto vp = ((leaf*) l)->find(k);
+      if (vp.has_value()) return vp.value().get_value();
+      return {};
+    }
     else return ot();
   }
 
@@ -683,7 +708,9 @@ struct ordered_map {
   // a wait-free version that does not split on way down
   std::optional<V> find_(const K& k) {
     auto [p, cidx, l] = find_no_fix(root, k);
-    return ((leaf*) l)->find(k);
+    auto vp = ((leaf*) l)->find(k);
+    if (vp.has_value()) return vp.value().get_value();
+    return {};
   }
 
   std::optional<V> find(const K& k) {
@@ -813,3 +840,6 @@ verlib::memory_pool<typename ordered_map<K,V,C>::node> ordered_map<K,V,C>::node_
 
 template <typename K, typename V, typename C>
 verlib::memory_pool<typename ordered_map<K,V,C>::leaf> ordered_map<K,V,C>::leaf_pool;
+
+template <typename K, typename V, typename C>
+verlib::memory_pool<typename ordered_map<K,V,C>::V> ordered_map<K,V,C>::value_pool;

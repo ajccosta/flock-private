@@ -4,7 +4,7 @@ copy_bench_file("runtrans")
 copy_bench_file("rungraphs")
 
 set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
-set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "arttree")
+set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "hash_list" "arttree")
 
 set(COMMON_DEFS "HashLock") #  "Latency")
 
