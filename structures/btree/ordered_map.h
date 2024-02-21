@@ -29,8 +29,8 @@ struct ordered_map {
     VP_direct(const V& v) : v(v) {}
   };
 
-  using VP = std::conditional_t<(sizeof(V) > 16), VP_indirect, VP_direct>;
-  
+  using VP = std::conditional_t<(sizeof(V) + sizeof(K) > 32), VP_indirect, VP_direct>;
+
   static constexpr auto less = Compare{};
   struct KV {K key; VP value;};
 
@@ -255,6 +255,12 @@ struct ordered_map {
       else return keyvals[i].value;
     }
 
+    std::optional<V> find_value(const K& k) {
+      auto vp = find(k);
+      if (vp.has_value()) return vp.value().get_value();
+      return {};
+    }
+
     int prev(const K& k, int i=0) {
       while (i < header::size && less(keyvals[i].key, k)) i++;
       return i;
@@ -262,8 +268,8 @@ struct ordered_map {
     
     leaf(int size) :
       header{true,
-	size == leaf_min_size ? isUnder : (size == leaf_block_size ? isOver : OK),
-	size} {};
+    size == leaf_min_size ? isUnder : (size == leaf_block_size ? isOver : OK),
+    size} {};
   };
 
   static verlib::memory_pool<leaf> leaf_pool;
@@ -649,7 +655,7 @@ struct ordered_map {
       else return {};
     else if (p->lck.try_lock([=] {
           if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
-	    return false;
+        return false;
           p->children[cidx] = (node*) remove_leaf(l, k);
           leaf_pool.Retire(l);
 	  vp.value().retire();
@@ -693,11 +699,8 @@ struct ordered_map {
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [p, cidx, l] = find_no_fix(root, k);
-    if (p->lck.read_lock([&] {return (p->children[cidx].load() == (node*) l) && !p->removed.load();})) {
-      auto vp = ((leaf*) l)->find(k);
-      if (vp.has_value()) return vp.value().get_value();
-      return {};
-    }
+    if (p->lck.read_lock([&] {return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
+      return ot(l->find_value(k));
     else return ot();
   }
 
@@ -708,9 +711,7 @@ struct ordered_map {
   // a wait-free version that does not split on way down
   std::optional<V> find_(const K& k) {
     auto [p, cidx, l] = find_no_fix(root, k);
-    auto vp = ((leaf*) l)->find(k);
-    if (vp.has_value()) return vp.value().get_value();
-    return {};
+    return ((leaf*) l)->find_value(k);
   }
 
   std::optional<V> find(const K& k) {
