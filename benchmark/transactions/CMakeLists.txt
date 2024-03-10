@@ -1,9 +1,14 @@
 set(SOURCES ../test_sets.cpp)
+set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
+
+add_executable(test_tpcc test_tpcc.cpp)
+target_link_libraries(test_tpcc PRIVATE verlib)
+target_include_directories(test_tpcc PRIVATE ${STRUCT_DIR}/btree)
+target_compile_definitions(test_tpcc PRIVATE "NoHelp;Versioned;Validate;Transactional;TransUndo;HWWriteStamp")
 
 copy_bench_file("runtrans")
 copy_bench_file("rungraphs")
 
-set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
 set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "hash_list" "arttree")
 
 set(COMMON_DEFS "HashLock") #  "Latency")

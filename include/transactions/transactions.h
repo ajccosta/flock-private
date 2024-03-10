@@ -1,4 +1,5 @@
-#pragma once
+#ifndef TLF_TRANSACTIONS_H
+#define TLF_TRANSACTIONS_H
 
 #include "flock/flock.h"
 #include "flock/acquired_pool.h"
@@ -22,3 +23,4 @@
 // The definition of versioned_ptr
 #include "versioned_ptr.h"
 
+#endif // TLF_TRANSACTIONS_H
