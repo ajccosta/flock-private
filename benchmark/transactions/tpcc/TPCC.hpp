@@ -24,7 +24,7 @@
 
 namespace tpcc {
 
-class TPCC : public Test{
+class TPCC {
     enum OpType {
         NewOrder=0,
         Payment,
@@ -308,8 +308,6 @@ public:
                     const district::key k_d(warehouse_id, districtID);
                     auto v_d = tbl_district[warehouse_id-1]->get_(k_d, tid);
 
-                    // std::cout << typeid(tbl_district).name() << std::endl;
-                    // std::cout << typeid(v_d).name() << std::endl;
                     assert(v_d.has_value());
                     SanityCheckDistrict(&k_d, &(*v_d));
 
