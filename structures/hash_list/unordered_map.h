@@ -80,9 +80,9 @@
       if (nxt == nullptr)
 	return std::pair(1, link_pool.New(std::pair(k,v), nullptr));
       else if (KeyEqual{}(nxt->element.first, k)) 
-    	return std::pair(1, link_pool.New(std::pair(k,v), nxt->next));
+    	return std::pair(1, link_pool.New(std::pair(k,v), nxt->next.load()));
       else {
-    	auto [len, ptr] = update_list(nxt->next, k, v);
+    	auto [len, ptr] = update_list(nxt->next.load(), k, v);
     	if (len == 0) return std::pair(len, ptr);
     	return std::pair(len + 1, link_pool.New(nxt->element, ptr));
       }
@@ -172,7 +172,7 @@
 
     static std::optional<bool> try_update_at(bucket* s, const K& k, const V& v) {
       link* head = s->load();
-      auto [cnt, new_head] = remove_from_list(head, k);
+      auto [cnt, new_head] = update_list(head, k, v);
       if (weak_cas(s, head, new_head)) {
 	retire_list(head, cnt - 1);
 	return true;
