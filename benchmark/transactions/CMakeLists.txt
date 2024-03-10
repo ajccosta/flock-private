@@ -1,10 +1,7 @@
 set(SOURCES ../test_sets.cpp)
-set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
+set(TPCC_SOURCES test_tpcc.cpp)
 
-add_executable(test_tpcc test_tpcc.cpp)
-target_link_libraries(test_tpcc PRIVATE verlib)
-target_include_directories(test_tpcc PRIVATE ${STRUCT_DIR}/btree)
-target_compile_definitions(test_tpcc PRIVATE "NoHelp;Versioned;Validate;Transactional;TransUndo;HWWriteStamp")
+set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
 
 copy_bench_file("runtrans")
 copy_bench_file("rungraphs")
@@ -20,6 +17,17 @@ function(add_benchmark NAME STRUCT_NAME DEFS)
   target_link_libraries(${NAME} PRIVATE verlib)
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
 endfunction()
+
+function(add_tpcc_benchmark NAME STRUCT_NAME DEFS)
+  add_executable(${NAME} ${TPCC_SOURCES})
+  target_compile_definitions(${NAME} PRIVATE ${COMMON_DEFS})
+  target_compile_definitions(${NAME} PRIVATE ${DEFS})
+  target_link_libraries(${NAME} PRIVATE verlib)
+  target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
+endfunction()
+
+add_tpcc_benchmark(test_tpcc_lck ${STRUCT_DIR}/btree "NoHelp;Versioned;Validate;Transactional;TransUndo;HWWriteStamp")
+add_tpcc_benchmark(test_tpcc_lf ${STRUCT_DIR}/btree "Versioned;Validate;Transactional;TransUndo;HWWriteStamp")
 
 add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
 #add_benchmark(hash_grow ${STRUCT_DIR}/hash_grow "NoHelp")

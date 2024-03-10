@@ -5,10 +5,10 @@
 #include "parse_command_line.h"
 
 using K = unsigned long;
-using V = std::array<unsigned int, 1>;
+//using V = std::array<unsigned int, 1>;
 
 // if use this definition then enries are 100 bytes (8 + 23*4)
-//using V = std::array<unsigned int, 23>;
+using V = std::array<unsigned int, 23>;
 
 
 int main(int argc, char* argv[]) {
