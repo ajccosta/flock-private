@@ -5,6 +5,10 @@
 
 namespace verlib {
 
+#include <optional>
+#include <tuple>
+#include <utility>
+  
   template <typename V>
   struct versioned_ptr {
   private:

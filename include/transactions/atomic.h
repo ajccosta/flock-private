@@ -9,6 +9,10 @@
 
 namespace verlib {
 
+#include <utility>
+#include <algorithm>
+#include <iostream>
+
 #ifdef TPCC_STATS
 #include<Medley/src/RMap.hpp>
 #endif
@@ -57,9 +61,10 @@ void commit (transaction_descriptor* descriptor) {
   });  
 }
 
+
 // wrapper for a transaction
 template <typename F>
-auto atomic(F f) { 
+auto atomic_(const F& f) { 
   try_count = 0;
   int delay = 0;
   int max_delay = 0;
@@ -128,8 +133,17 @@ auto atomic(F f) {
   }
 }
 
+    // to allow for no results
 template <typename F>
-auto do_now(F f) {
+auto atomic(const F& f) {
+  if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+      atomic_([&] {f(); return std::optional(true);});
+  } else return atomic_(f);
+}
+
+
+template <typename F>
+auto do_now(const F& f) {
   //transaction_descriptor* tmp = current_transaction;
   //current_transaction = nullptr;
   auto x = f();

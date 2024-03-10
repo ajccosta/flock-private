@@ -325,12 +325,26 @@ DO_STRUCT(warehouse, WAREHOUSE_KEY_FIELDS, WAREHOUSE_VALUE_FIELDS)
   x(stock_data, MAP_TYPE) \
   x(warehouse, MAP_TYPE)
 
+#define TPCC_TABLE_LIST_SIZE(x) \
+  x(customer, MAP_TYPE, 100000)						\
+  x(customer_name_idx, MAP_TYPE, 100000)					\
+  x(district, MAP_TYPE, 10)						\
+  x(history, MAP_TYPE, 100000)							\
+  x(item, MAP_TYPE, 100000)							\
+  x(new_order, MAP_TYPE, 100000)						\
+  x(oorder, MAP_TYPE, 100000)							\
+  x(oorder_c_id_idx, MAP_TYPE, 100000)						\
+  x(order_line, MAP_TYPE, 1000000)					\
+  x(stock, MAP_TYPE, 100000)					\
+  x(stock_data, MAP_TYPE,100000)			\
+  x(warehouse, MAP_TYPE,10)
+
 #define TPCC_TABLE_DECLARE(name, type) \
   ::std::vector<RMap<name::key, name::value>*> tbl_ ## name;
 
-#define TPCC_TABLE_INIT(name, type) \
+#define TPCC_TABLE_INIT(name, type, size)	 \
   for (uint i=0; i<NumWarehouses; i++) { \
-    tbl_ ## name.push_back(new type<name::key, name::value>(0)); \
+    tbl_ ## name.push_back(new type<name::key, name::value>(size)); \
   } 
 
 //     //gtc->allocatedRideables.push_back(tbl_ ## name.back());	\

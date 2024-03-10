@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits>
+
 #include "flock/flock.h"
 #include "timestamps.h"
 

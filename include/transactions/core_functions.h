@@ -42,6 +42,8 @@
 #ifndef TLF_CORE_FUNCTIONS_H_
 #define TLF_CORE_FUNCTIONS_H_
 
+#include <utility>
+
 namespace verlib {
 
   bool is_helping() {
@@ -254,7 +256,6 @@ namespace verlib {
     }
     TS desc_ts = descriptor->time_stamp.load();
     if (desc_ts == tbd || desc_ts == failed) return old_v;
-#ifdef Validate
     if (validating && desc_ts == tbs &&
         (size_t) descriptor->owner < flck::internal::get_current_id()) { 
       // kill other if they have lower id. prevents validate cycle
@@ -267,9 +268,6 @@ namespace verlib {
       if (descriptor->time_stamp.load() == tbs) validate(descriptor);
     }
     if (descriptor->time_stamp.load() == failed) return old_v;
-#else
-    descriptor->atomic_set_current_stamp();
-#endif
     return new_v;
   }
 

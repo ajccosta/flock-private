@@ -22,15 +22,15 @@ namespace verlib {
 #include "versioned_recorded_once.h"
 #elif FullyIndirect
 #include "versioned_indirect.h"
-#elif Transactional
-#include "../transactions/transactions.h"
 #elif GenSnapshot
 #include "versioned_generalized.h"
 #else
 #include "versioned_hybrid.h"
 #endif
 
-# else // Not Versioned
+#elif Transactional
+#include "../transactions/transactions.h"
+# else // Not Versioned or Transactional
 
 namespace verlib {
 

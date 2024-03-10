@@ -1,6 +1,13 @@
 #ifndef TLF_TRANS_DESCRIPTOR_H_
 #define TLF_TRANS_DESCRIPTOR_H_
 
+#include <array>
+#include <vector>
+#include <tuple>
+#include <limits>
+#include <atomic>
+#include <utility>
+
 namespace verlib {
   using atomic_val = size_t;
   thread_local int transaction_round = 0;

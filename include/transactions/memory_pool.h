@@ -21,23 +21,17 @@ namespace verlib {
     }
 
     void retire_on_abort(transaction_descriptor* descriptor, T* ptr) {
-#ifdef TransUndo
       if (descriptor != nullptr && !is_helping()) {
 	bool* x = pool.Retire(ptr);
 	epoch::internal::undo_Retire(x);
 	descriptor->allocated_log.add(x);
       }
-#endif
     }
 
     void retire_on_success(transaction_descriptor* descriptor, T* ptr) {
-#ifdef TransUndo
       bool* x = pool.Retire(ptr);
       if (descriptor != nullptr && !is_helping())
 	descriptor->retired_log.add(x);
-#else
-      pool.Retire(ptr);
-#endif
     }
 
     bool check_not_corrupted(T* ptr) {

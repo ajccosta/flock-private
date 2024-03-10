@@ -1,7 +1,7 @@
 #ifndef TLF_LOCK_H_
 #define TLF_LOCK_H_
 
-#include<optional>
+#include<algorithm>
 
 namespace verlib {
 
@@ -46,20 +46,6 @@ public:
 
 
   }
-
-  //   template <typename T, typename E>
-  //   bool validate(T* v, E expected) {
-  //     if (current_transaction != nullptr) {
-  // #ifdef Validate
-  //       if (try_count < 20) // anywhere from 10-100 seems good
-  // 	return v->validate(expected);
-  //       else // if too many tries give up on validation and take locks
-  // 	return try_lock([=] {return (v->load() == expected);});
-  // #else
-  //       return try_lock([=] {return (v->load() == expected);});
-  // #endif
-  //     } else return true;
-  //   }
 
   template <typename Thunk>
   auto try_lock_no_delay(Thunk f) {return try_lock(f);}

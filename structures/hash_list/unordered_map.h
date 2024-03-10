@@ -76,17 +76,17 @@
       }
     }
 
-    // template <typename F>
-    // static std::pair<int, link*> update_list(link* nxt, const K& k, const F& f) {
-    //   if (nxt == nullptr) return std::pair(0, nullptr);
-    //   else if (KeyEqual{}(nxt->element.first, k)) 
-    // 	return std::pair(1, link_pool.New(std::pair(k,f(nxt->element.second)), nxt->next));
-    //   else {
-    // 	auto [len, ptr] = update_list(nxt->next, k, f);
-    // 	if (len == 0) return std::pair(len, ptr);
-    // 	return std::pair(len + 1, link_pool.New(nxt->element, ptr));
-    //   }
-    // }
+    static std::pair<int, link*> update_list(link* nxt, const K& k, const V& v) {
+      if (nxt == nullptr)
+	return std::pair(1, link_pool.New(std::pair(k,v), nullptr));
+      else if (KeyEqual{}(nxt->element.first, k)) 
+    	return std::pair(1, link_pool.New(std::pair(k,v), nxt->next));
+      else {
+    	auto [len, ptr] = update_list(nxt->next, k, v);
+    	if (len == 0) return std::pair(len, ptr);
+    	return std::pair(len + 1, link_pool.New(nxt->element, ptr));
+      }
+    }
     
     static void retire_list(link* nxt, int n) {
       while (n > 0) {
@@ -170,6 +170,30 @@
       return flck::try_loop([&] {return try_insert_at(s, k, v);});
     }
 
+    static std::optional<bool> try_update_at(bucket* s, const K& k, const V& v) {
+      link* head = s->load();
+      auto [cnt, new_head] = remove_from_list(head, k);
+      if (weak_cas(s, head, new_head)) {
+	retire_list(head, cnt - 1);
+	return true;
+      }
+      retire_list(new_head, cnt);
+      return {};
+    }
+
+    bool upsert(const K& k, const V& v) {
+      bucket* s = hash_table.get_bucket(k);
+      __builtin_prefetch (s);
+      return verlib::with_epoch([&] {
+	return flck::try_loop([&] {return try_update_at(s, k, v);});});
+    }
+
+    bool upsert_(const K& k, const V& v) {
+      bucket* s = hash_table.get_bucket(k);
+      return flck::try_loop([&] {return try_update_at(s, k, v);});
+    }
+
+    
     static std::optional<bool> try_remove_at(bucket* s, const K& k) {
       link* head = s->load();
       auto [cnt, new_head] = remove_from_list(head, k);
@@ -200,44 +224,6 @@
       bucket* s = hash_table.get_bucket(k);
       return flck::try_loop([&] {return try_remove_at(s, k);});
     }
-
-//     template <typename F>
-//     bool upsert(const K& k, const F& f) {
-//       bucket* s = hash_table.get_bucket(k);
-//       __builtin_prefetch (s);
-//       return epoch::with_epoch([&] {
-//         while (true) {
-// 	  link* head = s->load();
-// #ifndef USE_LOCKS
-// 	  auto [cnt, new_head] = update_list(head, k, f);
-// 	  if (cnt == 0) {
-// 	    new_head = link_pool.New(std::pair(k, f(std::optional<V>())), head);
-// 	    if (weak_cas(s, head, new_head)) return true;
-// 	    link_pool.Delete(new_head);
-// 	  } else {
-// 	    if (weak_cas(s, head, new_head)) {
-// 	      retire_list(head, cnt);
-// 	      return false;
-// 	    }
-// 	    retire_list(new_head, cnt);
-// 	  }
-// #else  // use try_lock
-// 	  if (!find_in_list(head, k).has_value()) {
-// 	    link* new_head = link_pool.New(std::pair(k, f(std::optional<V>())), head);
-// 	    if (weak_cas(s, head, new_head)) return true;
-// 	    link_pool.Delete(new_head);
-// 	  } else {
-// 	    if (get_locks().try_lock((long) s, [=] {
-//                   if (s->load() != head) return false;
-// 		  auto [cnt, new_head] = update_list(head, k, f);
-// 		  *s = new_head;
-// 		  retire_list(head, cnt);
-// 		  return true;}))
-// 	      return false;
-// 	  }
-// #endif
-// 	}});
-//     }
 
     long size() {
       return parlay::reduce(parlay::map(hash_table.table, [] (bucket& x) {return (long) list_length(x.load());}));

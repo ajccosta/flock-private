@@ -26,8 +26,12 @@ function(add_tpcc_benchmark NAME STRUCT_NAME DEFS)
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
 endfunction()
 
-add_tpcc_benchmark(test_tpcc_lck ${STRUCT_DIR}/btree "NoHelp;Versioned;Validate;Transactional;TransUndo;HWWriteStamp")
-add_tpcc_benchmark(test_tpcc_lf ${STRUCT_DIR}/btree "Versioned;Validate;Transactional;TransUndo;HWWriteStamp")
+set(TPCC_BENCH "btree" "hash_block" "hash_list")
+
+foreach(bench ${TPCC_BENCH})
+add_tpcc_benchmark(tpcc_${bench}_lck ${STRUCT_DIR}/${bench} "NoHelp;Transactional;HWWriteStamp")
+add_tpcc_benchmark(tpcc_${bench}_lf ${STRUCT_DIR}/${bench} "Transactional;HWWriteStamp")  
+endforeach()
 
 add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
 #add_benchmark(hash_grow ${STRUCT_DIR}/hash_grow "NoHelp")
@@ -38,11 +42,11 @@ foreach(bench ${FLOCK_BENCH})
   add_benchmark(${bench}_lf ${STRUCT_DIR}/${bench} "")
   add_benchmark(${bench}_lck_versioned ${STRUCT_DIR}/${bench} "NoHelp;Versioned;HWWriteStamp")
   add_benchmark(${bench}_lf_versioned ${STRUCT_DIR}/${bench} "Versioned;HWWriteStamp")
-  add_benchmark(${bench}_lck_validate ${STRUCT_DIR}/${bench} "NoHelp;Validate;Transactional;TransUndo;Versioned;HWWriteStamp")
-  add_benchmark(${bench}_lf_validate ${STRUCT_DIR}/${bench} "Validate;Transactional;TransUndo;Versioned;HWWriteStamp")
+  add_benchmark(${bench}_lck_validate ${STRUCT_DIR}/${bench} "NoHelp;Transactional;HWWriteStamp")
+  add_benchmark(${bench}_lf_validate ${STRUCT_DIR}/${bench} "Transactional;HWWriteStamp")
 endforeach()
 
-add_benchmark(tlf_leaftree_lck_validate ${STRUCT_DIR}/tlf_leaftree "NoHelp;Validate;Transactional;TransUndo;Versioned;HWWriteStamp")
+add_benchmark(tlf_leaftree_lck_validate ${STRUCT_DIR}/tlf_leaftree "NoHelp;Transactional;HWWriteStamp")
 
 # *************************
 #    Strings
@@ -59,7 +63,7 @@ endfunction()
 set(STRING_BENCH "btree" "hash_block" "arttree")
 
 foreach(bench ${STRING_BENCH})
-  add_string_benchmark(${bench}_string_validate ${STRUCT_DIR}/${bench} "NoHelp;Validate;Transactional;TransUndo;Versioned;HWWriteStamp")
+  add_string_benchmark(${bench}_string_validate ${STRUCT_DIR}/${bench} "NoHelp;Transactional;HWWriteStamp")
   add_string_benchmark(${bench}_string  ${STRUCT_DIR}/${bench} "NoHelp")
 endforeach()
 

@@ -1,14 +1,17 @@
 #ifndef TPCC_GLUE_HPP
 #define TPCC_GLUE_HPP
 
-#include "ordered_map.h"
+#include "set.h"
 
-template <typename K,
-	  typename V,
-	  typename Compare = std::less<K>>
+template <typename K, typename V>
 struct RMap {
 
-  using Map = ordered_map<K,V,Compare>;
+#ifdef HASH
+  using Map = unordered_map<K,V>;
+#else
+  using Map = ordered_map<K,V>;
+#endif
+
   Map m;
   RMap(long n) : m(Map(n)) {}
   long size() { return m.check();}

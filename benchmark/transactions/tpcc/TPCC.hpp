@@ -60,9 +60,9 @@ public:
         assert(op_type_percent[OpType::NOPS-1] == 100);
     }
 
-    void do_tx(int tid, std::function<void(void)> f){
-      verlib::atomic([&] {f(); return std::optional(true);});
-    }
+
+  template <typename F>
+  void do_tx(int tid, const F& f) { verlib::atomic(f); }
 
     virtual void init(GlobalTestConfig* gtc){
         if(gtc->verbose){
@@ -80,7 +80,7 @@ public:
         for (int i = 0; i < gtc->task_num; i++) 
             backoff_shifts[i].ui = 0;
 
-        TPCC_TABLE_LIST(TPCC_TABLE_INIT)
+        TPCC_TABLE_LIST_SIZE(TPCC_TABLE_INIT)
 
         doPrefill(gtc);
 
