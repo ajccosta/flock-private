@@ -27,7 +27,7 @@ struct write_annoucements {
   std::atomic<size_t>* announcements;
   const int stride = {16};
   write_annoucements() {
-    announcements = new std::atomic<size_t>[epoch::internal::num_workers()*stride];
+    announcements = new std::atomic<size_t>[epoch::internal::max_workers*stride];
   }
   ~write_annoucements() {
     delete[] announcements;

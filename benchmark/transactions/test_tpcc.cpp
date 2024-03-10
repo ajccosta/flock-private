@@ -42,5 +42,6 @@ int main(int argc, char* argv[]) {
   
     if (verbose) tpcc_struct.table_sizes();
     std::cout << "num ops: " << total_ops << ", ops/sec = " << total_ops/time << std::endl;
+    tpcc_struct.cleanup(gtc);
   }
 }

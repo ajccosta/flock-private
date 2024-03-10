@@ -36,23 +36,19 @@
 
 namespace epoch {
 namespace internal {
-  // thread_local int __count = 0;
+  constexpr int max_workers = 1024;
 
-  inline int worker_id() {
-    // if(__count++ % 1024 == 0)
-      // std::cerr << "my_thread_id: " << parlay::my_thread_id() << std::endl;
-    return parlay::my_thread_id();
-  }
+  inline int worker_id() { return parlay::my_thread_id(); }
 
   inline int num_workers() {
-    if (const auto env_p = std::getenv("PARLAY_NUM_THREADS")) {
-      return std::stoi(env_p);
-    } else {
-      return std::thread::hardware_concurrency()+2;
-    }
+    // if (const auto env_p = std::getenv("PARLAY_NUM_THREADS")) {
+    //   return std::stoi(env_p);
+    // } else {
+    //   return std::thread::hardware_concurrency()+2;
+    // }
     // std::cerr << "num_thread_ids: " << parlay::num_thread_ids() << std::endl;
     // if(parlay::num_thread_ids() == 0) abort();
-    // return parlay::num_thread_ids();
+    return parlay::num_thread_ids();
   }
 
 struct alignas(64) epoch_s {
@@ -69,8 +65,7 @@ struct alignas(64) epoch_s {
   std::vector<announce_slot> announcements;
   std::atomic<long> current_epoch;
   epoch_s() {
-    int workers = num_workers();
-    announcements = std::vector<announce_slot>(workers);
+    announcements = std::vector<announce_slot>(max_workers);
     current_epoch = 0;
   }
 
@@ -98,7 +93,8 @@ struct alignas(64) epoch_s {
   }
 
   std::pair<bool,int> announce() {
-      size_t id = worker_id();
+    size_t id = worker_id();
+    assert (id < max_workers);
     while (true) {
       long current_e = get_current();
 #ifdef NestedEpochs
@@ -124,6 +120,10 @@ struct alignas(64) epoch_s {
 
   void update_epoch() {
     size_t id = worker_id();
+    if (id >= max_workers) {
+      std::cerr << id << " is too many threads for the epoch-based collector" << std::endl;
+      abort();
+    }
     int workers = num_workers();
     long current_e = get_current();
     bool all_there = true;
@@ -286,9 +286,8 @@ public:
   using T = xT;
   
   memory_pool() {
-    workers = num_workers();
-    update_threshold = 10 * workers;
-    pools = std::vector<old_current>(workers);
+    update_threshold = 2048; // number of steps between trying to update epoch
+    pools = std::vector<old_current>(max_workers);
     for (int i = 0; i < workers; i++) {
       pools[i].count = parlay::hash64(i) % update_threshold;
       pools[i].time = system_clock::now();
