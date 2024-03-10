@@ -12,7 +12,7 @@ class transactions(parameters) :
     file_suffix = "trans"
     lists = ["list"]
     list_sizes = [100,1000]
-    trees = ["arttree", "btree", "hash_block"]
+    trees = ["arttree", "btree", "hash_block", "hash_list"]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0, 1, 16]
@@ -25,7 +25,7 @@ class other(parameters) :
     file_suffix = "trans"
     lists = ["list"]
     list_sizes = [100,1000]
-    trees = ["arttree", "btree", "hash_block"]
+    trees = ["arttree", "btree", "hash_block", "hash_list"]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0]
