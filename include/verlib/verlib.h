@@ -28,6 +28,14 @@ namespace verlib {
 #include "versioned_hybrid.h"
 #endif
 
+namespace verlib {
+  template <typename F>
+  auto with_transaction(const F& f) {
+    if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
+    else return f();
+  }
+}
+
 #elif Transactional
 #include "../transactions/transactions.h"
 # else // Not Versioned or Transactional
@@ -49,7 +57,12 @@ namespace verlib {
     return flck::with_epoch([&] { return f();});
   }
   template <typename F>
-  auto do_now(F f) { return f();}  
+  auto do_now(F f) { return f();}
+  template <typename F>
+  auto with_transaction(const F& f) {
+    if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
+    else return f();
+  }
 }
 
 #endif
