@@ -62,7 +62,7 @@ public:
 
 
   template <typename F>
-  void do_tx(int tid, const F& f) { verlib::atomic(f); }
+  void do_tx(int tid, const F& f) { verlib::with_transaction(f); }
 
     virtual void init(GlobalTestConfig* gtc){
         if(gtc->verbose){

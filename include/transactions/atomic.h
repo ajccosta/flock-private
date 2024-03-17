@@ -141,6 +141,13 @@ auto atomic(const F& f) {
   } else return atomic_(f);
 }
 
+  template <typename F>
+auto with_transaction(const F& f) {
+  if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+      atomic_([&] {f(); return std::optional(true);});
+  } else return atomic_(f);
+}
+
 
 template <typename F>
 auto do_now(const F& f) {
