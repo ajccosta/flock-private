@@ -240,7 +240,7 @@ struct ordered_map {
   struct alignas(64) leaf : header {
     KV keyvals[leaf_block_size];
     
-    std::optional<VP> find(const K& k) {
+    int find(const K& k) {
       int i=0;
       // if (header::size == 0) return std::optional<V>();
       // int mid = header::size/2;
@@ -251,13 +251,13 @@ struct ordered_map {
       //     while (i < header::size && less(keyvals[i].key, k)) i++;
       // }
       while (i < header::size && less(keyvals[i].key, k)) i++;
-      if (i == header::size || less(k, keyvals[i].key)) return {};
-      else return keyvals[i].value;
+      if (i == header::size || less(k, keyvals[i].key)) return -1;
+      else return i;
     }
 
     std::optional<V> find_value(const K& k) {
-      auto vp = find(k);
-      if (vp.has_value()) return vp.value().get_value();
+      int i = find(k);
+      if (i != -1) return keyvals[i].value.get_value();
       return {};
     }
 
@@ -617,8 +617,8 @@ struct ordered_map {
 
   std::optional<bool> try_insert(const K& k, const V& v, const bool upsert=false) {
     auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
-    auto vp = l->find(k);
-    if (!upsert && vp.has_value()) { // already there
+    int idx = l->find(k);
+    if (!upsert && idx != -1) { // already there
       if (p->lck.read_lock([&] {
              return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
         return false;
@@ -627,10 +627,9 @@ struct ordered_map {
     else if (p->lck.try_lock([=] {
       if (p->removed.load() || (leaf*) p->children[cidx].load() != l)
         return false;
-      bool upsert_leaf = upsert && vp.has_value();
-      p->children[cidx] = (node*) insert_leaf(l, k, v, upsert_leaf);
+      p->children[cidx] = (node*) insert_leaf(l, k, v, upsert && idx != -1);
       leaf_pool.Retire(l);
-      return true;})) return true;
+      return true;})) return !upsert || idx == -1;
     else return {};
   }
 
@@ -647,8 +646,8 @@ struct ordered_map {
 
   std::optional<bool> try_remove(const K& k) {
     auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
-    auto vp = l->find(k);
-    if (!vp.has_value()) // not there
+    int idx = l->find(k);
+    if (idx == -1) // not there
       if (p->lck.read_lock([&] {
             return (p->children[cidx].load() == (node*) l) && !p->removed.load();}))
         return false;
@@ -658,7 +657,7 @@ struct ordered_map {
         return false;
           p->children[cidx] = (node*) remove_leaf(l, k);
           leaf_pool.Retire(l);
-	  vp.value().retire();
+	  l->keyvals[idx].value.retire();
           return true;})) return true;
     else return {};
   }

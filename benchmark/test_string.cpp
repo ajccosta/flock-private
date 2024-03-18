@@ -51,7 +51,16 @@ int main(int argc, char* argv[]) {
     std::cout << "bad filename: " << filename << std::endl;
     return 1;
   }
-  
+
+  // Use upsert instead of insert and remove
+  bool use_upsert = P.getOption("-upsert");
+#ifndef UPSERT
+  if (use_upsert) {
+    std::cout << "upsert not supported for this data structure" << std::endl;
+    use_upsert = false;
+  }
+#endif
+
   auto b = parlay::random_shuffle(parlay::tokens(str, [] (char c) {return !isalnum(c);}));
 #ifdef CHARS
   auto a = std::move(b);
@@ -63,5 +72,5 @@ int main(int argc, char* argv[]) {
   std::cout << "total strings = " << a.size()
 	    << ", unique strings = " << unique.size() << std::endl;
 
-  run_mixed_operations<SetType>(a, unique, 0.0, a[0], P);
+  run_mixed_operations<SetType>(a, unique, 0.0, a[0], use_upsert, P);
 }

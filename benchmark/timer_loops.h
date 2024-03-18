@@ -60,10 +60,11 @@ void run_mixed_operations(parlay::sequence<K>& all,
                           const parlay::sequence<K>& unique,
                           float zipfian_param,
 			  K max_key,
+			  bool use_upsert,
                           commandLine P) {
   int m = all.size();
   int nn = unique.size();
-  int n = nn/2;
+  int n = use_upsert ? nn : nn/2;
 
   int p = P.getOptionIntValue("-p", parlay::num_workers());  
 
@@ -83,7 +84,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
   if (latency > 0)
     std::cout << "not compiled for the -latency argument, ignoring" << std::endl;
 #endif
-  //bool use_upsert = P.getOption("-upsert");
   
   // mix of threads
   int range_query_threads = P.getOptionIntValue("-rqthreads", 0);
@@ -154,19 +154,22 @@ void run_mixed_operations(parlay::sequence<K>& all,
     if (verbose) std::cout << "round " << i << std::endl;
     size_t initial_size;
     using V = typename SetType::V;
+							  
     V default_value;
     default_value[0] = 3;
 
     // insert n distinct elements
-    parlay::parallel_for(0, 2*n, [&] (size_t i) {
+    parlay::parallel_for(0, nn, [&] (size_t i) {
                                    //std::cout << unique[i] << std::endl;
       tr.insert(unique[i], default_value);
     }, 10, true);
 
-    parlay::parallel_for(0, n, [&] (size_t i) {
-                                 //std::cout << unique[i] << std::endl;
-      tr.remove(unique[i]);
-    }, 10, true);
+    if (!use_upsert) {
+      parlay::parallel_for(0, n, [&] (size_t i) {
+				   //std::cout << unique[i] << std::endl;
+        tr.remove(unique[i]);}, 10, true);
+    }
+    
     if (verbose)
       std::cout << "initial size = " << tr.check() << std::endl;
     
@@ -185,16 +188,15 @@ void run_mixed_operations(parlay::sequence<K>& all,
     parlay::parallel_for(0, range_query_threads, [&] (size_t i) {
         for(int j = i*mp; j < (i+1)*mp; j++) op_types[j] = Range;
       }, 1);
-
     
     parlay::sequence<statistics> processor_stats(p);
 
-    t.start();
-    auto start = std::chrono::system_clock::now();
     std::atomic<bool> finish = false;
     auto range_buffers = parlay::tabulate(p, [&] (size_t i) {
            return std::vector<K>(100ul + 2*std::max(range_size, trans_size));});
 
+    t.start();
+    auto start = std::chrono::system_clock::now();
     auto get_time = [] () {return std::chrono::system_clock::now();};
     auto time_diff = [] (auto start_time) {
       auto current = std::chrono::system_clock::now();
@@ -247,6 +249,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
               loc_queries += 1;
               auto val = tr.find_locked(all[j+k]);
               if (val.has_value()) loc_found += val.value()[0];
+#ifdef UPSERT
+	    } else if (use_upsert) {
+	      if (tr.upsert_(all[j+k], default_value)) {loc_added++; loc_update_success++;}
+#endif
             } else if (op_types[jj+k] == Insert) {
               if (tr.insert_(all[j+k], default_value)) {loc_added++; loc_update_success++;}
             } else if (op_types[jj+k] == Remove) {
@@ -297,9 +303,16 @@ void run_mixed_operations(parlay::sequence<K>& all,
           if (val.has_value()) {
             local_stats.query_total_value += val.value()[0];
           }
+#ifdef UPSERT
+	} else if (use_upsert) {
+	  local_stats.update_count++;
+	  if (tr.upsert(all[j], default_value)) {
+	    local_stats.added_count++;
+            local_stats.update_success_count++;
+          }
+#endif
         } else if (op_types[jj] == Insert) {
           local_stats.update_count++;
-          //if (tr.upsert(all[j], [=] (auto x) { return default_value;})) {
           if (tr.insert(all[j], default_value)) {
             local_stats.added_count++;
             local_stats.update_success_count++;
@@ -448,13 +461,22 @@ void run_mixed_operations(parlay::sequence<K>& all,
                     << "\nfinal size =        " << final_cnt 
                     << std::endl;
         }
-                    
-        if (success_ratio < .45 || success_ratio > .55)
-          std::cout << "bad query success ratio, should be .5 is "
-                    << success_ratio << std::endl;
-        if (update_success_ratio < .3 || update_success_ratio > .55)
-          std::cout << "bad update success ratio, should be .5 is "
-                    << update_success_ratio << std::endl;
+
+	if (use_upsert) {
+	  if (success_ratio != 1)
+	    std::cout << "bad query success ratio, should be 1 is "
+		      << success_ratio << std::endl;
+	  if (update_success_ratio != 0)
+	    std::cout << "bad upsert success ratio, should be 0 is "
+		      << update_success_ratio << std::endl;
+	} else {
+	  if (success_ratio < .45 || success_ratio > .55)
+	    std::cout << "bad query success ratio, should be .5 is "
+		      << success_ratio << std::endl;
+	  if (update_success_ratio < .3 || update_success_ratio > .55)
+	    std::cout << "bad update success ratio, should be .5 is "
+		      << update_success_ratio << std::endl;
+	}
         if (multifind && verbose) {
           long mfind_sum = overall_stats.mfind_count;
           long retry_sum = overall_stats.retry_count;
