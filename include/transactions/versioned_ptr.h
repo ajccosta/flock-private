@@ -26,14 +26,6 @@ namespace verlib {
       return ptr;
     }
 
-    std::optional<int> find_in_write_log() {
-      auto& log = current_transaction->write_ptr_log;
-      for (int i=0; i < log.size(); i++)
-	if (log[i].first == &v)
-	  return std::optional<int>(i);
-      return std::optional<int>();
-    }
-
     // Only used by load_transactional.
     // Returns the value of the version of "ptr" at time stamp "at_stamp".
     // If the most recent version is ahead of at_stamp, and in_lock is
@@ -56,7 +48,7 @@ namespace verlib {
     // Load when in a transaction (only used by load)
     V* load_transactional() {
       // first see if it is in the write log
-      std::optional<int> lid = find_in_write_log();
+      std::optional<int> lid = current_transaction->find_in_write_log(v);
       if (lid.has_value())
 	return (V*) current_transaction->write_ptr_log[*lid].second;
 
@@ -103,7 +95,7 @@ namespace verlib {
       } else return (V*) ptr;
     }
 
-    V* load() {  
+    V* load() {
       assert(!is_helping() || current_transaction == nullptr);
       if (local_stamp != -1)  return read_snapshot();
       if (current_transaction == nullptr) {
@@ -117,10 +109,7 @@ namespace verlib {
 
     void store(V* ptr) { 
       if (current_transaction != nullptr) {
-	// check if it is in the write log: update if so, otherwise add to write log
-	std::optional<int> lid = find_in_write_log();
-	if (lid.has_value()) current_transaction->write_ptr_log[*lid].second = ptr;
-	else current_transaction->write_ptr_log.add(std::pair(&v,ptr));
+	current_transaction->add_to_write_log(v, ptr);
       } else { // not in a transaction
 	install_store(&v, ptr, nullptr);
       }

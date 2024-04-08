@@ -64,7 +64,7 @@ void commit (transaction_descriptor* descriptor) {
 
 // wrapper for a transaction
 template <typename F>
-auto atomic_(const F& f) { 
+auto atomic_(const F& f) {
   try_count = 0;
   int delay = 0;
   int max_delay = 0;
