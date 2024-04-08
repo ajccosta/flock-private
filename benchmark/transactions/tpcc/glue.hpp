@@ -14,6 +14,10 @@ struct RMap {
 
   Map m;
   RMap(long n) : m(Map(n)) {}
+  ~RMap() {
+    //std::cout << "destructing map: " << std::endl;
+    //m.stats();
+  }
   long size() { return m.check();}
 
   std::optional<V> get(const K& k, long tid) { return m.find(k); }

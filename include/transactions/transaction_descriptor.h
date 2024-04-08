@@ -26,8 +26,8 @@ namespace verlib {
     int size() {return cnt;}
     int add(T v) {
       if (cnt < init_log_length) {vals[cnt++] = v; return cnt-1;}
-      std::cout << cnt << std::endl;
       if (cnt == init_log_length) {
+	//std::cout << cnt << std::endl;
 	extra_vals.reserve(2*init_log_length);
 	for (int i=0; i < init_log_length; i++)
 	  extra_vals.push_back(vals[i]);
@@ -56,8 +56,8 @@ namespace verlib {
     // originally "tbd", then "tbs", then either a real timestamp or "failed"
     flck::atomic_aba_free<TS> time_stamp;
 #ifdef LargeLog
-    static constexpr int init_log_size = 35;
-    static constexpr int init_validate_log_size = 70;
+    static constexpr int init_log_size = 40;  // 35
+    static constexpr int init_validate_log_size = 140; // 70
 #else
     static constexpr int init_log_size = 8;
     static constexpr int init_validate_log_size = 32;

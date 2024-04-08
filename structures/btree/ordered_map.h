@@ -29,7 +29,8 @@ struct ordered_map {
     VP_direct(const V& v) : v(v) {}
   };
 
-  using VP = std::conditional_t<(sizeof(V) + sizeof(K) > 32), VP_indirect, VP_direct>;
+  static constexpr bool use_indirect = (sizeof(V) + sizeof(K)) >= 64;
+  using VP = std::conditional_t<use_indirect, VP_indirect, VP_direct>;
 
   static constexpr auto less = Compare{};
   struct KV {K key; VP value;};
@@ -265,7 +266,7 @@ struct ordered_map {
       while (i < header::size && less(keyvals[i].key, k)) i++;
       return i;
     }
-    
+
     leaf(int size) :
       header{true,
     size == leaf_min_size ? isUnder : (size == leaf_block_size ? isOver : OK),
@@ -297,18 +298,18 @@ struct ordered_map {
 
       // copy in the new key and value
       new_l->keyvals[i] = KV{k, VP(v)};
-      if(i < size) {
-        if(upsert) {
-          // copy the part after the new key, skipping the key that is equal
-          // can only happen when upserting
-          i++;
+      if(upsert) {
+	// retire old value
+	l->keyvals[i].value.retire();
+	// copy the part after the new key, skipping the key that is equal
+	// can only happen when upserting
+	i++;
           for (; i < size ; i++ )
             new_l->keyvals[i] = l->keyvals[i];
-        } else {
-          // copy the part after the new key
-          for (; i < size ; i++ )
-            new_l->keyvals[i+1] = l->keyvals[i];
-        }
+      } else {
+	// copy the part after the new key
+	for (; i < size ; i++ )
+	  new_l->keyvals[i+1] = l->keyvals[i];
       }
     }, (upsert ? l->size : l->size + 1));
   }
@@ -731,12 +732,13 @@ struct ordered_map {
   static void retire_recursive(node* p) {
     if (p == nullptr) return;
     if (p->is_leaf) {
-      leaf_pool.Retire((leaf*) p);
+      leaf* pl = (leaf*) p;
+      for (int i=0; i < pl->size; i++)
+	pl->keyvals[i].value.retire();
+      leaf_pool.Retire(pl);
     } else {
-      for(int i = 0; i < p->size; i++)
-        retire_recursive(p->children[i].load());
-      // parlay::parallel_for(0, p->size, [&] (size_t i) {
-        // retire_recursive(p->children[i].load());});
+      parlay::parallel_for(0, p->size, [&] (size_t i) {
+	  retire_recursive(p->children[i].load());},1,true);
       node_pool.Retire(p);
     }
   }
@@ -816,21 +818,24 @@ struct ordered_map {
   static void clear() {
     node_pool.clear();
     leaf_pool.clear();
+    value_pool.clear();
   }
 
   static void reserve(size_t n) {
-    node_pool.reserve(n);
-    leaf_pool.reserve(n);
+    //node_pool.reserve(n);
+    //leaf_pool.reserve(n);
+    //if (use_indirect) value_pool.reserve(n);
   }
 
   static void shuffle(size_t n) {
-    node_pool.shuffle(n/8);
-    leaf_pool.shuffle(n/8);
+    //node_pool.shuffle(n/8);
+    //leaf_pool.shuffle(n/8);
   }
 
   static void stats() {
     node_pool.stats();
     leaf_pool.stats();
+    if (use_indirect) value_pool.stats();
   }
 
 };

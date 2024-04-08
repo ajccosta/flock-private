@@ -373,12 +373,12 @@ public:
   }
 
   void stats() {
-    get_epoch().print_announce();
+    // get_epoch().print_announce();
     // get_epoch().clear_announce();
-    std::cout << "epoch number: " << get_epoch().get_current() << std::endl;
-    for (int i=0; i < pools.size(); i++) {
-      std::cout << "pool[" << i << "] = " << size_of(pools[i].old) << ", " << size_of(pools[i].current) << std::endl;
-    }
+    //std::cout << "epoch number: " << get_epoch().get_current() << std::endl;
+    //for (int i=0; i < pools.size(); i++) {
+    //  std::cout << "pool[" << i << "] = " << size_of(pools[i].old) << ", " << size_of(pools[i].current) << std::endl;
+    //}
 #ifndef USE_MALLOC
     Allocator::print_stats();
 #endif
