@@ -312,35 +312,21 @@ DO_STRUCT(stock_data, STOCK_DATA_KEY_FIELDS, STOCK_DATA_VALUE_FIELDS)
 DO_STRUCT(warehouse, WAREHOUSE_KEY_FIELDS, WAREHOUSE_VALUE_FIELDS)
 
 #define TPCC_TABLE_LIST(x) \
-  x(customer, MAP_TYPE) \
-  x(customer_name_idx, MAP_TYPE) \
-  x(district, MAP_TYPE) \
-  x(history, MAP_TYPE) \
-  x(item, MAP_TYPE) \
-  x(new_order, MAP_TYPE) \
-  x(oorder, MAP_TYPE) \
-  x(oorder_c_id_idx, MAP_TYPE) \
-  x(order_line, MAP_TYPE) \
-  x(stock, MAP_TYPE) \
-  x(stock_data, MAP_TYPE) \
-  x(warehouse, MAP_TYPE)
+  x(customer, UnorderedMap, 100000) \
+  x(customer_name_idx, UnorderedMap, 100000) \
+  x(district, UnorderedMap, 10) \
+  x(history, OrderedMap, 100000) \
+  x(item, UnorderedMap, 100000)	\
+  x(new_order, OrderedMap, 100000) \
+  x(oorder, OrderedMap, 100000) \
+  x(oorder_c_id_idx, OrderedMap, 100000) \
+  x(order_line, OrderedMap, 1000000) \
+  x(stock, UnorderedMap, 100000) \
+  x(stock_data, UnorderedMap, 100000) \
+  x(warehouse, UnorderedMap, 10)
 
-#define TPCC_TABLE_LIST_SIZE(x) \
-  x(customer, MAP_TYPE, 100000)						\
-  x(customer_name_idx, MAP_TYPE, 100000)					\
-  x(district, MAP_TYPE, 10)						\
-  x(history, MAP_TYPE, 100000)							\
-  x(item, MAP_TYPE, 100000)							\
-  x(new_order, MAP_TYPE, 100000)						\
-  x(oorder, MAP_TYPE, 100000)							\
-  x(oorder_c_id_idx, MAP_TYPE, 100000)						\
-  x(order_line, MAP_TYPE, 1000000)					\
-  x(stock, MAP_TYPE, 100000)					\
-  x(stock_data, MAP_TYPE,100000)			\
-  x(warehouse, MAP_TYPE,10)
-
-#define TPCC_TABLE_DECLARE(name, type) \
-  ::std::vector<RMap<name::key, name::value>*> tbl_ ## name;
+#define TPCC_TABLE_DECLARE(name, type, ignore)                         \
+  ::std::vector<type<name::key, name::value>*> tbl_ ## name;
 
 #define TPCC_TABLE_INIT(name, type, size)	 \
   for (uint i=0; i<NumWarehouses; i++) { \
@@ -349,18 +335,18 @@ DO_STRUCT(warehouse, WAREHOUSE_KEY_FIELDS, WAREHOUSE_VALUE_FIELDS)
 
 //     //gtc->allocatedRideables.push_back(tbl_ ## name.back());	\
 
-#define TPCC_TABLE_CLEANUP(name, type) \
+#define TPCC_TABLE_CLEANUP(name, type, ignore)  \
   for (uint i=0; i<NumWarehouses; i++) { \
     delete tbl_ ## name[i]; \
   } \
   tbl_ ## name.clear();
 
-#define TPCC_TABLE_SIZES(name, type) \
+#define TPCC_TABLE_SIZES(name, type, ignore)    \
   for (uint i=0; i<NumWarehouses; i++) { \
      std::cout << "size of " << #name << " = " << tbl_ ## name[i]->size() << std::endl;  \
   } \
 
-#define TPCC_TABLE_PRINT_SIZE(name, type) \
+#define TPCC_TABLE_PRINT_SIZE(name, type, ignore)                        \
   ::std::cout << "size of " << ::std::left << ::std::setfill(' ') \
   << ::std::setw(18) << #name \
   << " key:" << ::std::setw(4) << sizeof(name::key) \

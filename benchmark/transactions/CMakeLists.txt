@@ -36,6 +36,8 @@ foreach(bench ${TPCC_BENCH})
 #  add_tpcc_benchmark(tpcc_${bench}_lf ${STRUCT_DIR}/${bench} "Transactional;HWWriteStamp")  
 endforeach()
 
+add_tpcc_benchmark(tpcc_mix_lck "${STRUCT_DIR}/arttree;${STRUCT_DIR}/hash_block" "NoHelp;Transactional;HWWriteStamp;Mix")
+
 add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
 #add_benchmark(hash_grow ${STRUCT_DIR}/hash_grow "NoHelp")
 #add_benchmark(hash_grow_test ${STRUCT_DIR}/hash_grow_test "NoHelp")

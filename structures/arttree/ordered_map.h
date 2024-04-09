@@ -11,10 +11,25 @@ struct int_string {
 
 template <typename K_,
           typename V_,
-          typename String = int_string<K_>>
+          typename String_ = int_string<K_>>
 struct ordered_map {
   using K = K_;
   using V = V_;
+  using String = String_;
+
+  // compare two keys based on bytes
+  static bool less(K a, K b, int byte_pos = 0) {
+    int la = String::length(a);
+    int lb = String::length(b);
+    int lmin = std::min(la,lb);
+    for (int i = byte_pos; i < lmin; i++) {
+      int byte_a = String::get_byte(a,i);
+      int byte_b = String::get_byte(b,i);
+      if (byte_a < byte_b) return true;
+      if (byte_b < byte_a) return false;
+    }
+    return (la < lb);
+  }
 
   enum node_type : char {Full, Indirect, Sparse, Leaf};
 
@@ -204,9 +219,10 @@ struct ordered_map {
     }
 
     // either insert or replace
-    static void update(KV* in, KV* out, int n, const K& key, const V& value, bool replace) {
+    static void update(KV* in, KV* out, int n, const K& key, const V& value,
+                bool replace, int byte_pos = 0) {
       int i = 0;
-      while (i < n && in[i].key < key) {
+      while (i < n && less(in[i].key, key, byte_pos)) { //in[i].key < key) {
         out[i] = in[i];
         i++;
       }
@@ -222,7 +238,7 @@ struct ordered_map {
     // add to leaf
     generic_leaf(int byte_pos, leaf_ptr l, K& key, V& value, bool replace = false) 
       : header(l->key, Leaf, l->size + (replace ? 0 : 1), byte_pos) {
-      update(l->key_vals, key_vals, l->size, key, value, replace);
+      update(l->key_vals, key_vals, l->size, key, value, replace, byte_pos);
     }
 
     // remove from leaf
@@ -712,10 +728,14 @@ struct ordered_map {
              case Leaf : {
                leaf* l = (leaf*) p;
                for (int i = 1; i < l->size; i++)
-                 if (!(l->key_vals[i-1].key < l->key_vals[i].key)) {
-                   std::cout << "out of order at leaf: " << i << ", " << (int) l->size << std::endl;
-                   // ", " << std::hex << l->key_vals[i-1].key << ", " << l->key_vals[i].key
-                   //  << std::dec << std::endl;
+                 if (!(less(l->key_vals[i-1].key, l->key_vals[i].key))) {
+                   std::cout << "arttree: keys out of order at a leaf, leaf size = " << (int) l->size << std::endl;
+                   for (int j=0; j < String::length(l->key_vals[i-1].key); j++)
+                     std::cout << String::get_byte(l->key_vals[i-1].key, j) << ",";
+                   std::cout << std::endl;
+                   for (int j=0;  j < String::length(l->key_vals[i].key); j++)
+                     std::cout << String::get_byte(l->key_vals[i].key, j) << ",";
+                   std::cout << std::endl;
                    abort();
                  }
                return l->size;

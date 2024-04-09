@@ -56,7 +56,7 @@ class tpcc_warehouse_loader : public tpcc_loader {
 public:
     tpcc_warehouse_loader(unsigned long seed,
                           GlobalTestConfig* _gtc,
-                          std::vector<RMap<warehouse::key, warehouse::value>*>& tables)
+                          std::vector<UnorderedMap<warehouse::key, warehouse::value>*>& tables)
     : tpcc_loader(seed, _gtc), 
     tbl_warehouse(tables)
     {}
@@ -109,14 +109,14 @@ protected:
         }
     }
 private:
-    std::vector<RMap<warehouse::key, warehouse::value>*>& tbl_warehouse;
+    std::vector<UnorderedMap<warehouse::key, warehouse::value>*>& tbl_warehouse;
 };
 
 class tpcc_item_loader : public tpcc_loader {
 public:
   tpcc_item_loader(unsigned long seed,
                    GlobalTestConfig* _gtc,
-                   std::vector<RMap<item::key, item::value>*>& tables)
+                   std::vector<UnorderedMap<item::key, item::value>*>& tables)
     : tpcc_loader(seed, _gtc),
       tbl_item(tables)
     {}
@@ -148,7 +148,7 @@ protected:
             SanityCheckItem(&k, &v);
             const size_t sz = sizeof(v);
             total_sz += sz;
-	    tbl_item[0]->insert(k, v, tid); 
+	    tbl_item[0]->insert(k, v, tid);
         }
         if (gtc->verbose) {
             std::cerr << "[INFO] finished loading item" << std::endl;
@@ -158,15 +158,15 @@ protected:
     }
 
 private:
-    std::vector<RMap<item::key, item::value>*>& tbl_item;
+    std::vector<UnorderedMap<item::key, item::value>*>& tbl_item;
 };
 
 class tpcc_stock_loader : public tpcc_loader {
 public:
     tpcc_stock_loader(unsigned long seed,
                       GlobalTestConfig* _gtc,
-                      std::vector<RMap<stock::key, stock::value>*>& stock_tables,
-                      std::vector<RMap<stock_data::key, stock_data::value>*>& stock_data_tables,
+                      std::vector<UnorderedMap<stock::key, stock::value>*>& stock_tables,
+                      std::vector<UnorderedMap<stock_data::key, stock_data::value>*>& stock_data_tables,
                       ssize_t warehouse_id)
         : tpcc_loader(seed, _gtc),
         tbl_stock(stock_tables),
@@ -249,8 +249,8 @@ protected:
     }
 
 private:
-    std::vector<RMap<stock::key, stock::value>*>& tbl_stock;
-    std::vector<RMap<stock_data::key, stock_data::value>*>& tbl_stock_data;
+    std::vector<UnorderedMap<stock::key, stock::value>*>& tbl_stock;
+    std::vector<UnorderedMap<stock_data::key, stock_data::value>*>& tbl_stock_data;
     ssize_t warehouse_id;
 };
 
@@ -258,7 +258,7 @@ class tpcc_district_loader : public tpcc_loader {
 public:
     tpcc_district_loader(unsigned long seed,
                          GlobalTestConfig* _gtc,
-                         std::vector<RMap<district::key, district::value>*>& tables)
+                         std::vector<UnorderedMap<district::key, district::value>*>& tables)
         : tpcc_loader(seed, _gtc),
         tbl_district(tables)
     {}
@@ -300,16 +300,16 @@ protected:
     }
 
 private:
-    std::vector<RMap<district::key, district::value>*>& tbl_district;
+    std::vector<UnorderedMap<district::key, district::value>*>& tbl_district;
 };
 
 class tpcc_customer_loader : public tpcc_loader {
 public:
     tpcc_customer_loader(unsigned long seed,
                          GlobalTestConfig* _gtc,
-                         std::vector<RMap<customer::key, customer::value>*>& customer_tables,
-                         std::vector<RMap<customer_name_idx::key, customer_name_idx::value>*>& customer_name_idx_tables,
-                         std::vector<RMap<history::key, history::value>*>& history_tables,
+                         std::vector<UnorderedMap<customer::key, customer::value>*>& customer_tables,
+                         std::vector<UnorderedMap<customer_name_idx::key, customer_name_idx::value>*>& customer_name_idx_tables,
+                         std::vector<OrderedMap<history::key, history::value>*>& history_tables,
                          ssize_t warehouse_id)
         : tpcc_loader(seed, _gtc),
         tbl_customer(customer_tables),
@@ -387,6 +387,7 @@ protected:
                         if(curr_v_idx.has_value()) {
                             v_idx_temp = curr_v_idx->c_id_idx;
                         } else {
+                          using rr = UnorderedMap<customer_name_idx::key, customer_name_idx::value>;
                             v_idx_temp = new CUSTOMER_ID_IDX_MAP_TYPE ();
                             const customer_name_idx::value v_idx(v_idx_temp);
 			    tbl_customer_name_idx[w-1]->insert(k_idx, v_idx, tid);
@@ -429,9 +430,9 @@ protected:
     }
 
 private:
-    std::vector<RMap<customer::key, customer::value>*>& tbl_customer;
-    std::vector<RMap<customer_name_idx::key, customer_name_idx::value>*>& tbl_customer_name_idx;
-    std::vector<RMap<history::key, history::value>*>& tbl_history;
+    std::vector<UnorderedMap<customer::key, customer::value>*>& tbl_customer;
+    std::vector<UnorderedMap<customer_name_idx::key, customer_name_idx::value>*>& tbl_customer_name_idx;
+    std::vector<OrderedMap<history::key, history::value>*>& tbl_history;
     ssize_t warehouse_id;
 };
 
@@ -439,10 +440,10 @@ class tpcc_order_loader : public tpcc_loader {
 public:
     tpcc_order_loader(unsigned long seed,
                       GlobalTestConfig* _gtc,
-                      std::vector<RMap<oorder::key, oorder::value>*>& oorder_tables,
-                      std::vector<RMap<oorder_c_id_idx::key, oorder_c_id_idx::value>*>& oorder_c_id_idx_tables,
-                      std::vector<RMap<new_order::key, new_order::value>*>& new_order_tables,
-                      std::vector<RMap<order_line::key, order_line::value>*>& order_line_tables,
+                      std::vector<OrderedMap<oorder::key, oorder::value>*>& oorder_tables,
+                      std::vector<OrderedMap<oorder_c_id_idx::key, oorder_c_id_idx::value>*>& oorder_c_id_idx_tables,
+                      std::vector<OrderedMap<new_order::key, new_order::value>*>& new_order_tables,
+                      std::vector<OrderedMap<order_line::key, order_line::value>*>& order_line_tables,
                       ssize_t warehouse_id)
         : tpcc_loader(seed, _gtc),
         tbl_oorder(oorder_tables),
@@ -560,10 +561,10 @@ protected:
     }
 
 private:
-    std::vector<RMap<oorder::key, oorder::value>*>& tbl_oorder;
-    std::vector<RMap<oorder_c_id_idx::key, oorder_c_id_idx::value>*>& tbl_oorder_c_id_idx;
-    std::vector<RMap<new_order::key, new_order::value>*>& tbl_new_order;
-    std::vector<RMap<order_line::key, order_line::value>*>& tbl_order_line;
+    std::vector<OrderedMap<oorder::key, oorder::value>*>& tbl_oorder;
+    std::vector<OrderedMap<oorder_c_id_idx::key, oorder_c_id_idx::value>*>& tbl_oorder_c_id_idx;
+    std::vector<OrderedMap<new_order::key, new_order::value>*>& tbl_new_order;
+    std::vector<OrderedMap<order_line::key, order_line::value>*>& tbl_order_line;
     ssize_t warehouse_id;
 };
 

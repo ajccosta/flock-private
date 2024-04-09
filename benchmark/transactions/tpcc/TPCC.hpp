@@ -80,7 +80,7 @@ public:
         for (int i = 0; i < gtc->task_num; i++) 
             backoff_shifts[i].ui = 0;
 
-        TPCC_TABLE_LIST_SIZE(TPCC_TABLE_INIT)
+        TPCC_TABLE_LIST(TPCC_TABLE_INIT)
 
         doPrefill(gtc);
 

@@ -10,14 +10,16 @@ struct StructString {
   static int get_byte(K key, int pos) {
     int* kptr = (int*) &key;
     int byte = 3 - (pos & 3);
-    return kptr[pos/4] >> byte;
+    return (kptr[pos/4] >> (byte<<3)) & 255;
   }
 };
 
-template <typename Map>
+template <typename Map_>
 struct RMap_ {
+  using Map = Map_;
   using V = typename Map::V;
   using K = typename Map::K;
+  //using String = typename Map::String;
   
   Map m;
   RMap_(long n) : m(Map(n)) {}
@@ -55,11 +57,31 @@ struct RMap_ {
 
 template <typename K, typename V>
 #if defined(HASH)
-using RMap = RMap_<unordered_map<K,V>>;
+using OrderedMap = RMap_<unordered_map<K,V>>;
+#elif defined(MIX)
+using OrderedMap = RMap_<ordered_map<K,V,StructString<K>>>;
 #elif defined(RADIX)
-using RMap = RMap_<ordered_map<K,V,StructString<K>>>;
+using OrderedMap = RMap_<ordered_map<K,V,StructString<K>>>;
 #else
-using RMap = RMap_<ordered_map<K,V>>;
+using OrderedMap = RMap_<ordered_map<K,V>>;
 #endif
+
+#ifdef Mix
+#include "unordered_map.h"
+#endif
+
+template <typename K, typename V>
+#if defined(HASH)
+using UnorderedMap = RMap_<unordered_map<K,V>>;
+#elif defined(Mix)
+//using UnorderedMap = RMap_<ordered_map<K,V,StructString<K>>>;
+using UnorderedMap = RMap_<unordered_map<K,V>>;
+#elif defined(RADIX)
+using UnorderedMap = RMap_<ordered_map<K,V,StructString<K>>>;
+#else
+using UnorderedMap = RMap_<ordered_map<K,V>>;
+#endif
+
+
 
 #endif // TPCC_GLUE_HPP
