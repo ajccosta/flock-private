@@ -358,6 +358,7 @@ public:
                         SanityCheckStock(&k_s, &(*v_s));
 
                         stock::value v_s_new(*v_s);
+                        //stock::value v_s_new; // toss
                         if (v_s_new.s_quantity - ol_quantity >= 10)
                             v_s_new.s_quantity -= ol_quantity;
                         else

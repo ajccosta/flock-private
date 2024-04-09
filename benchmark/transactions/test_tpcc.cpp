@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
       auto ltc = new LocalTestConfig();
       ltc->tid=i;
       ltc->seed=2*i;
-      ops[i] = tpcc_struct.execute(gtc,ltc);}, 1);
+      ops[i] = tpcc_struct.execute(gtc,ltc);}, 1, true);
 
     long total_ops = parlay::reduce(ops);
   

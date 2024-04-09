@@ -203,29 +203,26 @@ struct ordered_map {
       for (int i=0; i < (end-start); i++) key_vals[i] = start[i];
     }
 
-    static void insert(KV* in, KV* out, int n, const K& key, const V& value) {
+    // either insert or replace
+    static void update(KV* in, KV* out, int n, const K& key, const V& value, bool replace) {
       int i = 0;
       while (i < n && in[i].key < key) {
         out[i] = in[i];
         i++;
       }
-      out[i] = KV{key,value};
-      while (i < n) {
-              out[i+1] = in[i];
+      out[i] = KV{key, value};
+      if (replace) {
         i++;
+        while (i < n) { out[i] = in[i]; i++; }
+      } else {
+        while (i < n) { out[i+1] = in[i]; i++; }
       }
     }
-      
+
     // add to leaf
-    generic_leaf(int byte_pos, leaf_ptr l, K& key, V& value) 
-      : header(l->key, Leaf, l->size + 1, byte_pos) {
-      insert(l->key_vals, key_vals, l->size, key, value);
-      // for (int i = 1; i < header::size; i++)
-      //         if (!(key_vals[i-1].key < key_vals[i].key)) {
-      //           std::cout << "x out of order at leaf: " << i << ", " << header::size << ", " << std::hex << 
-      //             key_vals[i-1].key << ", " << key_vals[i].key << std::dec << std::endl;
-      //           abort();
-      //         }
+    generic_leaf(int byte_pos, leaf_ptr l, K& key, V& value, bool replace = false) 
+      : header(l->key, Leaf, l->size + (replace ? 0 : 1), byte_pos) {
+      update(l->key_vals, key_vals, l->size, key, value, replace);
     }
 
     // remove from leaf
@@ -390,14 +387,22 @@ struct ordered_map {
   bool insert(const K& k, const V& v) {
     return verlib::with_epoch([=] { return insert_(k, v);});}
   
-  std::optional<bool> try_insert(const K& k, const V& v, bool upsert=false) {
+  bool upsert_(const K& k, const V& v) {
+    return flck::try_loop([&] {return try_insert(k, v, true);});}
+  
+  bool upsert(const K& k, const V& v) {
+    return verlib::with_epoch([=] {return upsert_(k, v);}); }
+
+  std::optional<bool> try_insert(const K& k, const V& v, bool upsert = false) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
-    //std::cout << byte_pos << std::endl;
-    if (c != nullptr && c->is_leaf() &&
-        ((leaf*) c)->find(k, byte_pos).has_value()) // already in the tree
+    bool found = (c != nullptr &&
+                  c->is_leaf() &&
+                  ((leaf*) c)->find(k, byte_pos).has_value());
+    if (!upsert && found)
       if (p->lck.read_lock([&] {return (cptr->load() == c) && !p->removed.load();}))
         return false;
       else return {};
+    bool replace = upsert && found;
 
     if (cptr != nullptr) {// child pointer exists, always true for full node
       if (p->lck.try_lock([=] {
@@ -412,20 +417,23 @@ struct ordered_map {
             small_leaf* sl = (small_leaf*) c;
             big_leaf* bl = (big_leaf*) c;
             if (l->size < max_small_leaf_size) {
-              *cptr = (node*) small_leaf_pool.New(byte_pos, l, k, v);
+              *cptr = (node*) small_leaf_pool.New(byte_pos, l, k, v, replace);
               small_leaf_pool.Retire(sl);
             } else if (l->size == max_small_leaf_size) {
-              *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v);
+              if (replace)
+                *cptr = (node*) small_leaf_pool.New(byte_pos, l, k, v, true);
+              else
+                *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v, false);
               small_leaf_pool.Retire(sl);
-            } else if (l->size < max_big_leaf_size) {
-              *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v);
+            } else if (l->size < max_big_leaf_size || replace) {
+              *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v, replace);
               big_leaf_pool.Retire(bl);
             } else { // too large
               int n = max_big_leaf_size + 1;
 
               // insert new key-value pair into l and put result into tmp
               KV tmp[n];
-              leaf::insert(l->key_vals, tmp, n - 1, k, v);
+              leaf::update(l->key_vals, tmp, n - 1, k, v, false);
               // for (int i=0; i < max_big_leaf_size; i++)
               //          tmp[i] = l->key_vals[i];
               // tmp[max_big_leaf_size] = KV{k,v};
@@ -455,7 +463,7 @@ struct ordered_map {
             *cptr = (node*) sparse_pool.New(byte_pos, c, c->key,
                                                 new_l, k);
           }
-          return true;})) return true;
+          return true;})) return !replace;
     } else { // no child pointer, need to add
       bool x = add_child(gp, p, k, v);
       if (x) return true;
@@ -705,8 +713,9 @@ struct ordered_map {
                leaf* l = (leaf*) p;
                for (int i = 1; i < l->size; i++)
                  if (!(l->key_vals[i-1].key < l->key_vals[i].key)) {
-                   std::cout << "out of order at leaf: " << i << ", " << (int) l->size << ", " << std::hex << 
-                     l->key_vals[i-1].key << ", " << l->key_vals[i].key << std::dec << std::endl;
+                   std::cout << "out of order at leaf: " << i << ", " << (int) l->size << std::endl;
+                   // ", " << std::hex << l->key_vals[i-1].key << ", " << l->key_vals[i].key
+                   //  << std::dec << std::endl;
                    abort();
                  }
                return l->size;

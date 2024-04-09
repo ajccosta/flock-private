@@ -3,18 +3,25 @@
 
 #include "set.h"
 
-template <typename K, typename V>
-struct RMap {
+template <typename K>
+struct StructString {
+  static constexpr int num_ints = sizeof(K)/4;
+  static int length(K key) { return sizeof(K);}
+  static int get_byte(K key, int pos) {
+    int* kptr = (int*) &key;
+    int byte = 3 - (pos & 3);
+    return kptr[pos/4] >> byte;
+  }
+};
 
-#ifdef HASH
-  using Map = unordered_map<K,V>;
-#else
-  using Map = ordered_map<K,V>;
-#endif
-
+template <typename Map>
+struct RMap_ {
+  using V = typename Map::V;
+  using K = typename Map::K;
+  
   Map m;
-  RMap(long n) : m(Map(n)) {}
-  ~RMap() {
+  RMap_(long n) : m(Map(n)) {}
+  ~RMap_() {
     //std::cout << "destructing map: " << std::endl;
     //m.stats();
   }
@@ -45,5 +52,14 @@ struct RMap {
   }
 
 };
+
+template <typename K, typename V>
+#if defined(HASH)
+using RMap = RMap_<unordered_map<K,V>>;
+#elif defined(RADIX)
+using RMap = RMap_<ordered_map<K,V,StructString<K>>>;
+#else
+using RMap = RMap_<ordered_map<K,V>>;
+#endif
 
 #endif // TPCC_GLUE_HPP

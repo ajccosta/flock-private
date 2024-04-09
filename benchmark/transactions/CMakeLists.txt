@@ -9,6 +9,7 @@ copy_bench_file("rungraphs")
 set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "hash_list" "arttree")
 
 set(YCSB_COMMON_DEFS "HashLock") #  "Latency")
+set(YCSB_COMMON_DEFS "HashLock") #  "Latency")
 
 function(add_benchmark NAME STRUCT_NAME DEFS)
   add_executable(${NAME} ${SOURCES})
@@ -26,13 +27,13 @@ function(add_tpcc_benchmark NAME STRUCT_NAME DEFS)
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
 endfunction()
 
-set(TPCC_BENCH "btree" "hash_block") # "hash_list")
+set(TPCC_BENCH "btree" "hash_block" "arttree" "hash_list")
 
 foreach(bench ${TPCC_BENCH})
   add_tpcc_benchmark(tpcc_${bench}_lck ${STRUCT_DIR}/${bench} "NoHelp;Transactional;HWWriteStamp")
-  add_tpcc_benchmark(tpcc_${bench}_notrans ${STRUCT_DIR}/${bench} "NoHelp")
-  add_tpcc_benchmark(tpcc_${bench}_versioned ${STRUCT_DIR}/${bench} "NoHelp;Versioned;HWWriteStamp")
-  add_tpcc_benchmark(tpcc_${bench}_lf ${STRUCT_DIR}/${bench} "Transactional;HWWriteStamp")  
+#  add_tpcc_benchmark(tpcc_${bench}_notrans ${STRUCT_DIR}/${bench} "NoHelp")
+#  add_tpcc_benchmark(tpcc_${bench}_versioned ${STRUCT_DIR}/${bench} "NoHelp;Versioned;HWWriteStamp")
+#  add_tpcc_benchmark(tpcc_${bench}_lf ${STRUCT_DIR}/${bench} "Transactional;HWWriteStamp")  
 endforeach()
 
 add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
