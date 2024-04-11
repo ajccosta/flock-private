@@ -21,7 +21,7 @@
 // Incurs slight overhead due to extra test, but allows wrapping a with_epoch
 // around multiple operations which each do a with_epoch.
 // This saves time since setting epoch number only needs to be fenced once on the outside.
-//#define NestedEpochs 1
+#define NestedEpochs 1
 
 // Supports before_epoch_hooks and after_epoch_hooks, which are thunks
 // that get run just before incrementing the epoch number and just after.
@@ -103,12 +103,14 @@ struct alignas(64) epoch_s {
       if(announcements[id].last.load() == old)
         succeeded = announcements[id].last.compare_exchange_strong(old, current_e);
       // if(!succeeded) abort();
-      if (get_current() == current_e) return std::pair(succeeded, id);
+      //if (get_current() == current_e)
+      return std::pair(succeeded, id);
 #else
       long tmp = current_e;
       // apparently an exchange is faster than a store (write and fence)
       announcements[id].last.exchange(tmp, std::memory_order_seq_cst);
-      if (get_current() == current_e) return std::pair(true, id);
+      //if (get_current() == current_e)
+      return std::pair(true, id);
 #endif
     }
   }

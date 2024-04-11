@@ -251,9 +251,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	      if (tr.upsert_(all[j+k], default_value)) {loc_added++; loc_update_success++;}
 #endif
             } else if (op_types[jj+k] == Insert) {
-              if (tr.insert_(all[j+k], default_value)) {loc_added++; loc_update_success++;}
+              if (tr.insert(all[j+k], default_value)) {loc_added++; loc_update_success++;}
             } else if (op_types[jj+k] == Remove) {
-              if (tr.remove_(all[j+k])) {loc_added--; loc_update_success++;}
+              if (tr.remove(all[j+k])) {loc_added--; loc_update_success++;}
             }
           }
           return std::optional{std::tuple{loc_added, loc_queries, loc_found, loc_update_success}};});
