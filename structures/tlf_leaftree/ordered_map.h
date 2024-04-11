@@ -1,15 +1,26 @@
 #include <transactions/tlf.h>
 #include <parlay/parallel.h>
 
+// A concurrent tree with values stored at the leaves and no balancing
+// Uses optimistic locking.
+
+// Currently uses strict locks.
+// Could use: std::unique_lock lck(p->lck, std::defer_lock);
+//            if (!lck.try_lock()) return {};
+// instead.
+
 template <typename K_,
 	  typename V_,
-	  typename Compare = std::less<K_>>
+	  typename Less = std::less<K_>>
 struct ordered_map {
   using K = K_;
   using V = V_;
 
+private:
   struct internal;
   internal* root;
+
+  // Sentinal to mark smaller and larger than any key
   enum sentinal : char {MinSentinal, IsKey, MaxSentinal};
   
   // common header for internal nodes and leaves
@@ -38,21 +49,23 @@ struct ordered_map {
     leaf() : node{K{}, true, MinSentinal} {}; // for the sentinal leaf
   };
 
-  static bool Less(const K& k, node* a) {
-    if (a->s == IsKey) return Compare{}(k, a->key);
+  // Less and equal accounting for sentinals
+  static bool less(const K& k, node* a) {
+    if (a->s == IsKey) return Less{}(k, a->key);
     return (a->s == MaxSentinal);
   }
   
-  static bool Equal(const K& k, node* a) {
-    return !(a->s != IsKey || Compare{}(k, a->key) || Compare{}(a->key ,k));
+  static bool equal(const K& k, node* a) {
+    return !(a->s != IsKey || Less{}(k, a->key) || Less{}(a->key ,k));
   }
 
   static verlib::memory_pool<internal> internal_pool;
   static verlib::memory_pool<leaf> leaf_pool;
 
   static tlf::atomic<node*>* get_child(internal* a, const K& k) {
-    return Less(k, a) ? &(a->left) : &(a->right);}
+    return less(k, a) ? &(a->left) : &(a->right);}
 
+  // return a grandparent, parent and leaf
   static auto find_location(internal* root, const K& k) {
     internal* gp = nullptr;
     internal* p = root;
@@ -65,17 +78,26 @@ struct ordered_map {
     return std::make_tuple(gp, p, (leaf*) l);
   }
 
+  static long size_rec(node* p) {
+    if (p->is_leaf) return 1l;
+    internal* pp = (internal*) p;
+    size_t s1, s2;
+    parlay::par_do([&] () { s1 = size_rec((pp->left).load());},
+                   [&] () { s2 = size_rec((pp->right).load());});
+    return s1 + s2;
+  }
+
+public:
   bool insert_(const K& k, const V& v) {
     while (true) {
       auto [gp, p, l] = find_location(root, k);
       auto ptr = get_child(p, k);
-      if (Equal(k, l)) return false;
+      if (equal(k, l)) return false;
       std::unique_lock lck_p(p->lck);
-      //std::unique_lock lck(p->lck, std::defer_lock);
-      //if (!lck.try_lock()) return {};
-      if (p->removed.load() || ptr->load() != l) continue;
+      if (p->removed.load() || ptr->load() != l)
+        continue;
       node* new_l = leaf_pool.New(k, v);
-      *ptr = (Less(k, l) ?
+      *ptr = (less(k, l) ?
               internal_pool.New(l->key, new_l, l) :
               internal_pool.New(k, l, new_l));
       return true;
@@ -88,7 +110,7 @@ struct ordered_map {
   bool remove_(const K& k) {
     while (true) {
       auto [gp, p, l] = find_location(root, k);
-      if (!Equal(k, l)) return false;
+      if (!equal(k, l)) return false;
       auto g_ptr = get_child(gp, k);
       auto p_ptr = get_child(p, k);
       std::unique_lock lck_gp(gp->lck);
@@ -96,7 +118,7 @@ struct ordered_map {
       if (!gp->removed.load() &&
           g_ptr->load() == p &&
           p_ptr->load() == l) {
-        *g_ptr = Less(k, p) ? (p->right).load() : (p->left).load();
+        *g_ptr = less(k, p) ? (p->right).load() : (p->left).load();
         p->removed = true;
         internal_pool.Retire(p);
         leaf_pool.Retire(l);
@@ -110,7 +132,7 @@ struct ordered_map {
 
   std::optional<V> find_(const K& k) {
     auto [gp, p, l] = find_location(root, k);
-    if (Equal(k, l)) return l->value; 
+    if (equal(k, l)) return l->value; 
     else return {};
   }
 
@@ -123,7 +145,7 @@ struct ordered_map {
       auto ptr = get_child(p, k);
       std::shared_lock lck_p(p->lck);
       if ((ptr->load() == (node*) l) && !p->removed.load())
-        if (Equal(k, l)) return l->value;
+        if (equal(k, l)) return l->value;
         else return {};
     }
   }
@@ -160,8 +182,8 @@ struct ordered_map {
     }
   }
   
-  // return total height
-  double total_height() {
+  // return total height (summed across leaves)
+  long total_height() {
     std::function<size_t(node*, size_t)> hrec;
     hrec = [&] (node* p, size_t depth) {
 	     if (p->is_leaf) return depth;
@@ -174,6 +196,10 @@ struct ordered_map {
     return hrec(root->left.load(), 1);
   }
 
+
+  long size() { return size_rec(root->left.load()) - 1; }
+
+  // check properly ordered and sentinals are in the right place
   long check() {
     using rtup = std::tuple<K, K, long>;
     std::function<rtup(node*,bool)> crec;
@@ -198,7 +224,7 @@ struct ordered_map {
 	     long lsum, rsum;
 	     parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((pp->left).load(), leftmost);},
 			    [&] () { std::tie(rmin,rmax,rsum) = crec((pp->right).load(), false);});
-	     if ((lsum !=0 && !Less(lmax, pp)) || Less(rmin, pp))
+	     if ((lsum !=0 && !less(lmax, pp)) || less(rmin, pp))
 	       std::cout << "error, in leaftree, out of order key" << std::endl;
 	     if (lsum == 0) return rtup(pp->key, rmax, rsum);
 	     else return rtup(lmin, rmax, lsum + rsum);
