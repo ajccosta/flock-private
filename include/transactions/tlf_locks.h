@@ -16,7 +16,7 @@ struct shared_mutex {
   }
 
   void lock() {
-    if (verlib::current_transaction != nullptr) {std::cout << "why" << std::endl; try_lock();}
+    if (verlib::current_transaction != nullptr) {try_lock();}
     else lck.lock_no_unlock();
   }
 

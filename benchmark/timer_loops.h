@@ -70,7 +70,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
   int rounds = P.getOptionIntValue("-r", 1);
 
-  double trial_time = P.getOptionDoubleValue("-tt", 1.0);
+  double trial_time = P.getOptionDoubleValue("-t", 1.0);
 
   // Mix of operations
   int update_percent = P.getOptionIntValue("-u", 20); 
@@ -78,7 +78,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
   int range_percent = P.getOptionIntValue("-range",0);
   int multifind = P.getOption("-mfind");
   int trans_size = P.getOptionIntValue("-trans", 0);
-  int trans_percent = P.getOptionIntValue("-tp", 0);
   int latency = P.getOptionIntValue("-latency", 0); // in microseconds
 #ifndef Latency
   if (latency > 0)
@@ -117,7 +116,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
   // clear the memory pool between rounds
   bool clear = P.getOption("-clear");
 
-  enum op_type : char {Find, Insert, Remove, Range, MultiFind, Trans};
+  enum op_type : char {Find, Insert, Remove, Range, MultiFind};
  
   // initially set to all finds
   float update_per = update_percent;
@@ -133,8 +132,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
       else if (h < 20*update_per) return Remove;
       else if (multifind) return MultiFind;
       else if (h < 20*(update_percent + range_percent)) return Range;
-      else if (h < 20*(update_percent + range_percent + trans_percent))
-        return Trans;
       else return Find; });
 
   parlay::internal::timer t;

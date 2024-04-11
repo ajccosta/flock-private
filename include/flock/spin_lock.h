@@ -103,9 +103,8 @@ public:
     if (!current.is_locked()) { // unlocked
       lock_entry newl = current.take_lock();
       bool r = lck.compare_exchange_strong(current, newl);
-      //if (r) std::cout << "took lock: " << this << std::endl;
       return r;
-    } else if (current.is_self_locked()) {std::cout << "ouch" << std::endl; return true;}
+    } else if (current.is_self_locked()) {return true;}
     return false;
   }
 
@@ -118,13 +117,14 @@ public:
       if (try_lock_no_unlock()) return;
       for (volatile int i=0; i < delay; i++);
       delay = std::min(2*delay, max_delay);
-      if (cnt++ > 1000000)
-        std::cout << "in loop: " << this << std::endl;
+      if (cnt++ > 1000000) {
+        std::cout << "in apparent infinite loop while taking lock: " << this << std::endl;
+        cnt = 0;
+      }
     }
   }
 
   void unlock() {
-    //std::cout << "released lock:" << this << ", " << is_locked() << std::endl;
     // assert(is_locked());
     if(lck.load().is_self_locked())
       lck = lck.load().release_lock();
@@ -141,11 +141,9 @@ public:
     const int init_delay = 100;
     const int max_delay = 2000;
     int delay = init_delay;
-    // int retrys = 0;
     while(true) {
       auto result = try_lock_result(f);
       if(result.has_value()) return result.value();
-      // retrys++;
       for (volatile int i=0; i < delay; i++);
       delay = std::min(2*delay, max_delay);
     }

@@ -10,127 +10,107 @@ struct ordered_map {
 
   struct internal;
   internal* root;
+  enum sentinal : char {MinSentinal, IsKey, MaxSentinal};
   
   // common header for internal nodes and leaves
   struct node : verlib::versioned {
     K key;
     bool is_leaf;
-    bool is_sentinal;
-    node(K key, bool is_leaf)
-      : key(key), is_leaf(is_leaf), is_sentinal(false) {}
-    node(bool is_leaf) :
-      is_leaf(is_leaf), is_sentinal(true) {}
+    sentinal s;
+    node(K k, bool l, sentinal s) : key(k), is_leaf(l), s(s) {}
   };
-
+  
   // internal node
   struct internal : node {
-    //verlib::lock lck;
     tlf::atomic<bool> removed;
     tlf::shared_mutex lck;
     tlf::atomic<node*> left;
     tlf::atomic<node*> right;
     internal(K k, node* left, node* right)
-      : node{k,false}, left(left), right(right), removed(false) {};
+      : node{k, false, IsKey}, left(left), right(right), removed(false) {};
     internal(node* left) // for the root, only has a left pointer
-      : node{false}, left(left), right(nullptr), removed(false) {};
+      : node{K{}, false, MaxSentinal}, left(left), right(nullptr), removed(false) {};
   };
 
   struct leaf : node {
     V value;
-    leaf(K k, V v) : node{k,true}, value(v) {};
-    leaf() : node{true} {}; // for the sentinal leaf
+    leaf(K k, V v) : node{k, true, IsKey}, value(v) {};
+    leaf() : node{K{}, true, MinSentinal} {}; // for the sentinal leaf
   };
 
   static bool Less(const K& k, node* a) {
-    return !a->is_sentinal && Compare{}(k, a->key);
+    if (a->s == IsKey) return Compare{}(k, a->key);
+    return (a->s == MaxSentinal);
   }
+  
   static bool Equal(const K& k, node* a) {
-    return !(a->is_sentinal || Compare{}(k, a->key) || Compare{}(a->key ,k));
+    return !(a->s != IsKey || Compare{}(k, a->key) || Compare{}(a->key ,k));
   }
 
   static verlib::memory_pool<internal> internal_pool;
   static verlib::memory_pool<leaf> leaf_pool;
 
+  static tlf::atomic<node*>* get_child(internal* a, const K& k) {
+    return Less(k, a) ? &(a->left) : &(a->right);}
+
   static auto find_location(internal* root, const K& k) {
     internal* gp = nullptr;
-    bool gp_left = false;
     internal* p = root;
-    bool p_left = true;
     node* l = (p->left).load();
     while (!l->is_leaf) {
       gp = p;
-      gp_left = p_left;
       p = (internal*) l;
-      p_left = Less(k, p);
-      l = p_left ? (p->left).load() : (p->right).load();
+      l = get_child(p, k)->load();
     }
-    return std::make_tuple(gp, gp_left, p, p_left, (leaf*) l);
+    return std::make_tuple(gp, p, (leaf*) l);
   }
 
   bool insert_(const K& k, const V& v) {
-    return flck::try_loop([&] {return try_insert(k, v);});}
-  
-  bool insert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return insert_(k, v);}); }
-      
-  std::optional<bool> try_insert(const K& k, const V& v, bool upsert=false) {
-    //std::cout << k << std::endl;
-    auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-    auto ptr = p_left ? &(p->left) : &(p->right);
-    if (Equal(k, l)) return false;
-    std::unique_lock lck(p->lck);
-    //std::unique_lock lck(p->lck, std::defer_lock);
-    //if (!lck.try_lock()) return {};
-    if (p->removed.load() || ptr->load() != l) return {};
-    node* new_l = leaf_pool.New(k, v);
-    *ptr = (Less(k, l) ?
-	    internal_pool.New(l->key, new_l, l) :
-	    internal_pool.New(k, l, new_l));
-    return true;
+    while (true) {
+      auto [gp, p, l] = find_location(root, k);
+      auto ptr = get_child(p, k);
+      if (Equal(k, l)) return false;
+      std::unique_lock lck_p(p->lck);
+      //std::unique_lock lck(p->lck, std::defer_lock);
+      //if (!lck.try_lock()) return {};
+      if (p->removed.load() || ptr->load() != l) continue;
+      node* new_l = leaf_pool.New(k, v);
+      *ptr = (Less(k, l) ?
+              internal_pool.New(l->key, new_l, l) :
+              internal_pool.New(k, l, new_l));
+      return true;
+    }
   }
 
+  bool insert(const K& k, const V& v) {
+    return verlib::with_epoch([=] {return insert_(k, v);}); }
+
   bool remove_(const K& k) {
-    return flck::try_loop([&] {	return try_remove(k); });}
+    while (true) {
+      auto [gp, p, l] = find_location(root, k);
+      if (!Equal(k, l)) return false;
+      auto g_ptr = get_child(gp, k);
+      auto p_ptr = get_child(p, k);
+      std::unique_lock lck_gp(gp->lck);
+      std::unique_lock lck_p(p->lck);
+      if (!gp->removed.load() &&
+          g_ptr->load() == p &&
+          p_ptr->load() == l) {
+        *g_ptr = Less(k, p) ? (p->right).load() : (p->left).load();
+        p->removed = true;
+        internal_pool.Retire(p);
+        leaf_pool.Retire(l);
+        return true;
+      }
+    }
+  }
 
   bool remove(const K& k) {
     return verlib::with_epoch([=] { return remove_(k);});}
 
-  std::optional<bool> try_remove(const K& k) {
-    auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-    auto ptr = gp_left ? &(gp->left) : &(gp->right);
-    if (l->is_sentinal) return false; // need to deal with gp == nullptr
-    if (!Equal(k, l)) return false;
-    std::unique_lock lck1(gp->lck);
-    std::unique_lock lck2(p->lck);
-    // std::unique_lock lck1(gp->lck, std::defer_lock);
-    // if (!lck1.try_lock()) return {};
-    // std::unique_lock lck2(p->lck, std::defer_lock);
-    // if (!lck2.try_lock()) return {};
-    if (!gp->removed.load() && ptr->load() == p) {
-      node* ll = (p->left).load();
-      node* lr = (p->right).load();
-      if (p_left) std::swap(ll,lr);
-      if (lr == l) {
-	p->removed = true;
-	(*ptr) = ll; // shortcut
-	internal_pool.Retire(p);
-	leaf_pool.Retire(l);
-	return true;
-      }
-    }
-    return {};
-  }
-
   std::optional<V> find_(const K& k) {
-    auto ptr = &(root->left);
-    node* l = ptr->load();
-    while (!l->is_leaf) {
-      internal* p = (internal*) l;
-      auto ptr = Less(k, p) ? &(p->left) : &(p->right);
-      l = ptr->load();
-    }
-    auto ll = (leaf*) l;
-    if (Equal(k, ll)) return ll->value; 
+    auto [gp, p, l] = find_location(root, k);
+    if (Equal(k, l)) return l->value; 
     else return {};
   }
 
@@ -138,17 +118,14 @@ struct ordered_map {
     return verlib::with_epoch([&] { return find_(k);});}
 
   std::optional<V> find_locked(const K& k) {
-    return flck::try_loop([&] {return try_find(k);});}
-
-  std::optional<std::optional<V>> try_find(const K& k) {
-    using ot = std::optional<std::optional<V>>;
-    auto [gp, gp_left, p, p_left, l] = find_location(root, k);
-    //auto ptr = p_left ? &(p->left) : &(p->right);
-    //if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
-      return ot(Equal(k, l) ?
-		std::optional<V>(l->value) :
-		std::optional<V>());
-      //return ot();
+    while (true) {
+      auto [gp, p, l] = find_location(root, k);
+      auto ptr = get_child(p, k);
+      std::shared_lock lck_p(p->lck);
+      if ((ptr->load() == (node*) l) && !p->removed.load())
+        if (Equal(k, l)) return l->value;
+        else return {};
+    }
   }
 
   ordered_map() : root(internal_pool.New(leaf_pool.New())) {}
@@ -158,12 +135,12 @@ struct ordered_map {
   void print() {
     std::function<void(node*)> prec;
     prec = [&] (node* p) {
-	     if (p->is_sentinal) std::cout << "[";
+	     if (p->s == MinSentinal) std::cout << "[";
 	     else if (p->is_leaf) std::cout << p->key;
 	     else {
 	       internal* pp = (internal*) p;
 	       prec((pp->left).load());
-	       if (!(pp->left).load()->is_sentinal)
+	       if (!(pp->left).load()->s == MaxSentinal)
 		 std::cout << ", ";
 	       prec((pp->right).load());
 	     }
@@ -203,17 +180,17 @@ struct ordered_map {
     crec = [&] (node* p, bool leftmost) {
 	     if (p->is_leaf)
 	       if (leftmost) {
-		 if (p->is_sentinal) return rtup(p->key, p->key, 0);
+		 if (p->s == MinSentinal) return rtup(p->key, p->key, 0);
 		 else {
-		   std::cout << "error, leftmost leaf is not a sentinal" << std::endl;
+		   std::cout << "error, in leaftree leftmost leaf is not a sentinal" << std::endl;
 		   abort();
 		 }
-	       } else if (p->is_sentinal) {
-		 std::cout << "error, not leftmost leaf is a sentinal" << std::endl;
+	       } else if (p->s == MinSentinal) {
+		 std::cout << "error, in leaftree not leftmost leaf is a sentinal" << std::endl;
 		 abort();
 	       } else return rtup(p->key, p->key, 1);
-	     if (p->is_sentinal) {
-	       std::cout << "error, interior node is a sentinal" << std::endl;
+	     if (p->s != IsKey) {
+	       std::cout << "error, in leaftree interior node is a sentinal" << std::endl;
 	       abort();
 	     }
 	     internal* pp = (internal*) p;
@@ -222,13 +199,12 @@ struct ordered_map {
 	     parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((pp->left).load(), leftmost);},
 			    [&] () { std::tie(rmin,rmax,rsum) = crec((pp->right).load(), false);});
 	     if ((lsum !=0 && !Less(lmax, pp)) || Less(rmin, pp))
-	       std::cout << "out of order key: " << lmax << ", " << pp->key << ", " << rmin << std::endl;
+	       std::cout << "error, in leaftree, out of order key" << std::endl;
 	     if (lsum == 0) return rtup(pp->key, rmax, rsum);
 	     else return rtup(lmin, rmax, lsum + rsum);
 	   };
     auto l = (root->left).load();
     auto [minv, maxv, cnt] = crec(l, true);
-    //std::cout << "average height = " << ((double) total_height(p) / cnt) << std::endl;
     return cnt;
   }
   
