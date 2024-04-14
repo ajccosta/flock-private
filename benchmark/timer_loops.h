@@ -548,6 +548,7 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
         flags[i] = tr.insert(all[i], default_value);
+        //std::cout << flags[i] << ", " << all[i] << ", " << tr.check() << std::endl;
                                });
 
     std::cout << "insert," << m << "," << mops(t.stop()) << std::endl;
@@ -584,7 +585,7 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
     auto delete_seq = parlay::random_shuffle(all, parlay::random(2));
     t.start();
     parlay::parallel_for(0, m, [&] (size_t i) {
-        tr.remove(delete_seq[i]);
+                                 bool x = tr.remove(delete_seq[i]);
       });
 
     std::cout << "remove," << m << "," << mops(t.stop()) << std::endl;
@@ -592,6 +593,7 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
       len = tr.check();
       if (len != 0) {
         std::cout << "BAD LENGTH = " << len << std::endl;
+        tr.print();
       } else if(verbose) {
         std::cout << "CHECK PASSED" << std::endl;
       }

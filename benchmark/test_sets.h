@@ -159,11 +159,11 @@ void test_sets(size_t default_size, commandLine P) {
     tr.insert(7, default_value);
     tr.print();
     tr.insert(1, default_value);
-    // tr.print();
+    tr.print();
     tr.insert(11, default_value);
-    // tr.print();
+    tr.print();
     tr.remove(3);
-    // tr.print();
+    tr.print();
     assert_key_exists(tr.find(7).has_value());
     assert_key_exists(tr.find(1).has_value());
     assert_key_exists(tr.find(11).has_value());

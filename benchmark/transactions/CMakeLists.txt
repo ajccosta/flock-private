@@ -6,7 +6,7 @@ set(STRUCT_DIR ${PROJECT_SOURCE_DIR}/structures)
 copy_bench_file("runtrans")
 copy_bench_file("rungraphs")
 
-set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "hash_list" "arttree")
+set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "hash_list" "arttree" "skiplist")
 
 set(YCSB_COMMON_DEFS "HashLock") #  "Latency")
 set(YCSB_COMMON_DEFS "HashLock") #  "Latency")
