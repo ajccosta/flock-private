@@ -20,7 +20,6 @@
 // If defined allows with_epoch to be nested (only outermost will set the epoch).
 // Incurs slight overhead due to extra test, but allows wrapping a with_epoch
 // around multiple operations which each do a with_epoch.
-// This saves time since setting epoch number only needs to be fenced once on the outside.
 #define NestedEpochs 1
 
 // Supports before_epoch_hooks and after_epoch_hooks, which are thunks
@@ -28,7 +27,6 @@
 // The user set them with:
 //    flck::internal::epoch.before_epoch_hooks.push_back(<mythunk>);
 //    flck::internal::epoch.after_epoch_hooks.push_back(<myotherthunk>);
-
 
 // ***************************
 // epoch structure
@@ -95,24 +93,20 @@ struct alignas(64) epoch_s {
   std::pair<bool,int> announce() {
     size_t id = worker_id();
     assert (id < max_workers);
-    while (true) {
-      long current_e = get_current();
 #ifdef NestedEpochs
-      long old = -1l;
-      bool succeeded = false;
-      if(announcements[id].last.load() == old)
-        succeeded = announcements[id].last.compare_exchange_strong(old, current_e);
-      // if(!succeeded) abort();
-      //if (get_current() == current_e)
-      return std::pair(succeeded, id);
-#else
-      long tmp = current_e;
-      // apparently an exchange is faster than a store (write and fence)
-      announcements[id].last.exchange(tmp, std::memory_order_seq_cst);
-      //if (get_current() == current_e)
+    // by the time it is announced current_e could be out of date, but that should be OK
+    if (announcements[id].last.load() == -1) {
+      announcements[id].last = get_current();
       return std::pair(true, id);
-#endif
+    } else {
+      return std::pair(false, id);
     }
+#else
+    long tmp = get_current();
+    // apparently an exchange is faster than a store (write and fence)
+    announcements[id].last.exchange(tmp, std::memory_order_seq_cst);
+    return std::pair(true, id);
+#endif
   }
 
   void unannounce(size_t id) {
@@ -431,6 +425,6 @@ auto with_epoch(Thunk f) {
     static void clear() {internal::get_pool<T>().clear();}
   };
 
-} // end namespace flck
+} // end namespace epoch
 
 #endif //PARLAY_EPOCH_H_
