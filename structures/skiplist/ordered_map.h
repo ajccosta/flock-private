@@ -1,5 +1,4 @@
 #include <verlib/verlib.h>
-#include <bitset>
 
 template <typename K_,
           typename V_,
@@ -13,6 +12,7 @@ struct ordered_map {
   static constexpr int log_sample_factor = 1;
   static constexpr int num_bits = max_levels * log_sample_factor;
 
+  // the level of a key is based on its hash
   int get_level(const K& key) {
     size_t mask = (1 << (num_bits - 1)) - 1;
     int keep_mask = (1 << log_sample_factor) - 1;
@@ -42,39 +42,43 @@ struct ordered_map {
     }
   };
 
-
-  using tallNode = Node<max_levels>;
-  using shortNode = Node<4>;
   using node = Node<0>;
+
+  // Memory management
+  // two types of node to save space
+  static constexpr int small_cutoff = 4;
+  using tallNode = Node<max_levels>;
+  using shortNode = Node<small_cutoff>;
   static verlib::memory_pool<tallNode> tall_node_pool;
   static verlib::memory_pool<shortNode> short_node_pool;
   node* new_node(const K& k, const V& v, int level) {
-    if (level > 4) return (node*) tall_node_pool.New(k, v, level);
+    if (level > small_cutoff) return (node*) tall_node_pool.New(k, v, level);
     else return (node*) short_node_pool.New(k, v, level);
   }
   void retire_node(node* v) {
-    if (v->level > 4) tall_node_pool.Retire((tallNode*) v);
+    if (v->level > small_cutoff) tall_node_pool.Retire((tallNode*) v);
     else short_node_pool.Retire((shortNode*) v);
   }
 
   node* root;
 
+  // find the node before and after the key (or at if in there) on the given level
   auto find_at_level(const K& k, int find_level) {
-    node* cur = root;
+    node* prev = root;
     node* nxt = nullptr;
     int level = max_levels - 1;
     while (level >= find_level) {
-      nxt = cur->next[level].load();
+      nxt = prev->next[level].load();
       if (nxt == nullptr || !less(nxt->key, k)) level--;
-      else cur = nxt;
+      else prev = nxt;
     }
-    return std::make_pair(cur, nxt);
+    return std::make_pair(prev, nxt);
   }
 
-  // Inserts a node at given level.
+  // Inserts a node at given level (and recursively below)
   // Works recursively by finding where to splice in and locking the previous node.
-  // Splicing happens on way up recursion so it is done bottem up
-  bool insert_at(node* cur, node* nxt, node* new_n, int level) {
+  // Splicing happens on way up the recursion.
+  bool insert_at_level(node* cur, node* nxt, node* new_n, int level) {
     return cur->try_lock([=] {
       if (cur->removed.load() || cur->next[level].load() != nxt) return false;
       if (level > 0) {
@@ -84,7 +88,7 @@ struct ordered_map {
           dcur = dnext;
           dnext = dcur->next[level - 1].load();
         }
-        if (!insert_at(dcur, dnext, new_n, level - 1))
+        if (!insert_at_level(dcur, dnext, new_n, level - 1))
           return false;
       }
       new_n->next[level] = cur->next[level].load();
@@ -95,18 +99,22 @@ struct ordered_map {
     return flck::try_loop([&] () -> std::optional<bool> {
       int level = get_level(k);
       auto [cur, nxt] = find_at_level(k, level);
-      if (!(nxt == nullptr) && !less(k, nxt->key)) return false;
+      if (!(nxt == nullptr) && !less(k, nxt->key)) 
+        if (cur->read_lock([&] {return (cur->next[level].load() == nxt) && !cur->removed.load();}))
+          return false;
+        else return {};
       node* new_n = new_node(k, v, level);
-      if (insert_at(cur, nxt, new_n, level)) return true;
+      if (insert_at_level(cur, nxt, new_n, level)) return true;
       return std::optional<bool>();});
   }
   
   bool insert(const K& k, const V& v) {
     return verlib::with_epoch([=] {return insert_(k, v);}); }
 
-  // Recursively locks prev node of to_delete on each level going down from level.
-  // When reaching the bottom it goes through and splices out to_delete from each level
-  bool remove_at(node* start, int start_level, node* prev, node* to_delete, int level) {
+  // Recursively locks prev node of to_delete on each level going down
+  // from level.  When reaching the bottom it goes through top-down
+  // and splices out to_delete from each level.
+  bool remove_at_level(node* start, int start_level, node* prev, node* to_delete, int level) {
     return prev->try_lock([=] {
       if (prev->removed.load() || prev->next[level].load() != to_delete) 
         return false;
@@ -115,7 +123,7 @@ struct ordered_map {
         node* nxt;
         while ((nxt = dprev->next[level - 1].load()) != to_delete)
           dprev = nxt;
-        return remove_at(start, start_level, dprev, to_delete, level - 1);
+        return remove_at_level(start, start_level, dprev, to_delete, level - 1);
       }
       // when we reach the bottom, all prev nodes are locked
       // now, starting at the start level, going down, we splice out to_delete
@@ -138,9 +146,13 @@ struct ordered_map {
     return flck::try_loop([&] () -> std::optional<bool> {
        int level = get_level(k);
        auto [cur, nxt] = find_at_level(k, level);
-       if ((nxt == nullptr) || less(k, nxt->key)) return false;
-       if (remove_at(cur, level, cur, nxt, level)) {
-         retire_node(nxt);
+       // if not found, then validate and return false
+       if ((nxt == nullptr) || less(k, nxt->key)) 
+         if (cur->read_lock([&] {return (cur->next[level].load() == nxt) && !cur->removed.load();})) 
+           return false;
+         else return {};
+       if (remove_at_level(cur, level, cur, nxt, level)) {
+         retire_node(nxt); // succeeded
          return true;
        }
        else return std::optional<bool>();});
@@ -150,19 +162,17 @@ struct ordered_map {
     return verlib::with_epoch([=] { return remove_(k);});}
 
   std::optional<V> find_locked(const K& k) {
-    return find_(k);
-    //return flck::try_loop([&] {return try_find(k);});
+    using ot = std::optional<std::optional<V>>;
+    return flck::try_loop([&] () -> ot {
+      auto [cur, nxt] = find_at_level(k, 0);
+      if (cur->read_lock([&] {
+            return (cur->next[0].load() == nxt) && !cur->removed.load();})) {
+        if (nxt != nullptr && !less(k, nxt->key))
+          return std::optional(nxt->value);
+        else return std::optional(std::optional<V>());
+      }
+      else return ot();});
   }
-
-  // std::optional<std::optional<V>> try_find(const K& k) {
-  //   using ot = std::optional<std::optional<V>>;
-  //   auto [cur, nxt] = find_location(root, k);
-  //   if (cur->lck.read_lock([&] {return (cur->next.load() == nxt) && !cur->removed.load();}))
-  //     return ot(!nxt->is_end && !less(k, nxt->key) ?
-  //       	std::optional<V>(nxt->value) :
-  //       	std::optional<V>());
-  //   else return ot();
-  // }
 
   std::optional<V> find_(const K& k) {
     auto [cur, nxt] = find_at_level(k, 0);
