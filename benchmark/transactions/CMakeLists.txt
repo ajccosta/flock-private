@@ -33,7 +33,7 @@ foreach(bench ${TPCC_BENCH})
   add_tpcc_benchmark(tpcc_${bench}_lck ${STRUCT_DIR}/${bench} "NoHelp;Transactional;HWWriteStamp")
 #  add_tpcc_benchmark(tpcc_${bench}_notrans ${STRUCT_DIR}/${bench} "NoHelp")
 #  add_tpcc_benchmark(tpcc_${bench}_versioned ${STRUCT_DIR}/${bench} "NoHelp;Versioned;HWWriteStamp")
-#  add_tpcc_benchmark(tpcc_${bench}_lf ${STRUCT_DIR}/${bench} "Transactional;HWWriteStamp")  
+  add_tpcc_benchmark(tpcc_${bench}_lf ${STRUCT_DIR}/${bench} "Transactional;HWWriteStamp")  
 endforeach()
 
 add_tpcc_benchmark(tpcc_mix_lck "${STRUCT_DIR}/arttree;${STRUCT_DIR}/hash_block" "NoHelp;Transactional;HWWriteStamp;Mix")

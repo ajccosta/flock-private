@@ -38,7 +38,7 @@ struct ordered_map {
     verlib::versioned_ptr<Val> value;
     int level;
     verlib::atomic_bool removed;
-    verlib::versioned_ptr<Node<0>> next[NumLevels];
+    verlib::versioned_ptr<Node<0>> next[NumLevels+1];
     Node(const K& k, const V& v, int level)
       : key(k), value(val_pool.New(v)), level(level), removed(false) {}
     // for the root
@@ -46,17 +46,13 @@ struct ordered_map {
       for (int i=0; i < max_levels; i++)
         next[i] = nullptr;
     }
-    ~Node() {
-      Val* x = value.load();
-      //if (x != nullptr) val_pool.Retire(x);
-    }
   };
 
   using node = Node<0>;
 
   // Memory management
   // two types of node to save space
-  static constexpr int small_cutoff = 24;
+  static constexpr int small_cutoff = 4;
   using tallNode = Node<max_levels>;
   using shortNode = Node<small_cutoff>;
   static verlib::memory_pool<tallNode> tall_node_pool;
@@ -67,6 +63,8 @@ struct ordered_map {
     else return (node*) short_node_pool.New(k, v, level);
   }
   void retire_node(node* v) {
+    Val* x = v->value.load();
+    if (x != nullptr) val_pool.Retire(x);
     if (v->level > small_cutoff) tall_node_pool.Retire((tallNode*) v);
     else short_node_pool.Retire((shortNode*) v);
   }
