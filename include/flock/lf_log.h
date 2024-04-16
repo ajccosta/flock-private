@@ -24,25 +24,23 @@ inline mem_pool<log_array>& get_log_array_pool() {
 }
 
 struct log_array {
-  std::array<log_entry,Log_Len> log_entries;
   std::atomic<log_array*> next;
+  std::array<log_entry,Log_Len> log_entries;
 
-  void init() { // TODO: can this just be a constructor?
+  log_array() : next(nullptr) {
     for (int i=0; i < Log_Len; i++) {
       if (log_entries[i].load() != nullptr) 
         log_entries[i].store(nullptr, std::memory_order::memory_order_relaxed);
     }
-    if(next.load() != nullptr) 
-      next.store(nullptr, std::memory_order::memory_order_relaxed);
   }
-
-  log_entry & operator [](int i) { return log_entries[i]; }
 
   ~log_array() {
     if(next != nullptr) {
       get_log_array_pool().Delete(next);
     }
   }
+
+  log_entry & operator [](int i) { return log_entries[i]; }
 };
 
 // A log_array is associated with a thunk and keeps track of
@@ -80,7 +78,6 @@ struct Log {
       if (next_log_array != nullptr) vals = next_log_array;
       else {  // next_log_array == nullptr, try to commit a new log array
         log_array* new_log_array = get_log_array_pool().New();
-        new_log_array->init();
         if(vals->next.compare_exchange_strong(next_log_array, new_log_array))
           vals = new_log_array;
         else { // if in meantime someone else allocated it, then return memory

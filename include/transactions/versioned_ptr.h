@@ -53,7 +53,7 @@ namespace verlib {
 	return (V*) current_transaction->write_ptr_log[*lid].second;
 
       // if not then get the value and add to validate log if in a lock
-      versioned* ptr = get_value(v.load());
+      versioned* ptr = get_value(v.load_ni());
       if (in_lock > 0) 
 	current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
 

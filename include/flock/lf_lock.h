@@ -52,7 +52,6 @@ struct descriptor {
   template <typename Thunk>
   descriptor(Thunk& g, long counter) : 
     f([=] {g();}), done(false), freed(false), counter(counter) {
-    lg_array.init();
     epoch_num = epoch::internal::get_epoch().get_my_epoch();
     thread_id = get_current_id();
   }
