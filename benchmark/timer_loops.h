@@ -414,7 +414,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
       if(range_query_threads == 0) {
         std::cout << std::setprecision(4)
                   << P.commandName() << ","
-                  << update_percent << "%update,"
+                  << update_percent << (use_upsert ? "%upsert," : "%update,")
                   << range_percent << "%range,"
                   << (multifind ? "mfind," : "find,") 
                   << "rs=" << range_size << ","

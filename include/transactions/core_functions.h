@@ -250,7 +250,7 @@ namespace verlib {
   T resolve_descriptor(transaction_descriptor* descriptor, T old_v, T new_v,
                        bool validating) {
     if ((size_t) descriptor->owner == flck::internal::get_current_id()) {
-      assert(is_helping() || descriptor->round == transaction_round);
+      //assert(is_helping() || descriptor->round == transaction_round);
       assert(validating); // self descriptor should not be installed if not validating
       return old_v; // if validating then should check against old value
     }

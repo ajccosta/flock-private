@@ -8,7 +8,7 @@ struct ordered_map {
   using V = V_;
   static constexpr auto less = Compare{};
 
-  static constexpr int max_levels = 24;
+  static constexpr int max_levels = 20;
   static constexpr int log_sample_factor = 1;
   static constexpr int num_bits = max_levels * log_sample_factor;
 
@@ -26,19 +26,29 @@ struct ordered_map {
     return level;
   }
 
+  struct Val : verlib::versioned {
+    V v;
+    Val(V v) : v(v) {}
+  };
+  static verlib::memory_pool<Val> val_pool;
+  
   template <int NumLevels>
   struct alignas(32) Node : verlib::versioned, verlib::lock {
     K key;
-    V value;
+    verlib::versioned_ptr<Val> value;
     int level;
     verlib::atomic_bool removed;
     verlib::versioned_ptr<Node<0>> next[NumLevels];
     Node(const K& k, const V& v, int level)
-      : key(k), value(v), level(level), removed(false) {}
+      : key(k), value(val_pool.New(v)), level(level), removed(false) {}
     // for the root
-    Node() : level(max_levels-1), removed(false) {
+    Node() : value(nullptr), level(max_levels-1), removed(false) {
       for (int i=0; i < max_levels; i++)
         next[i] = nullptr;
+    }
+    ~Node() {
+      Val* x = value.load();
+      //if (x != nullptr) val_pool.Retire(x);
     }
   };
 
@@ -46,11 +56,12 @@ struct ordered_map {
 
   // Memory management
   // two types of node to save space
-  static constexpr int small_cutoff = 4;
+  static constexpr int small_cutoff = 24;
   using tallNode = Node<max_levels>;
   using shortNode = Node<small_cutoff>;
   static verlib::memory_pool<tallNode> tall_node_pool;
   static verlib::memory_pool<shortNode> short_node_pool;
+  
   node* new_node(const K& k, const V& v, int level) {
     if (level > small_cutoff) return (node*) tall_node_pool.New(k, v, level);
     else return (node*) short_node_pool.New(k, v, level);
@@ -59,7 +70,7 @@ struct ordered_map {
     if (v->level > small_cutoff) tall_node_pool.Retire((tallNode*) v);
     else short_node_pool.Retire((shortNode*) v);
   }
-
+  
   node* root;
 
   // find the node before and after the key (or at if in there) on the given level
@@ -99,7 +110,7 @@ struct ordered_map {
     return flck::try_loop([&] () -> std::optional<bool> {
       int level = get_level(k);
       auto [cur, nxt] = find_at_level(k, level);
-      if (!(nxt == nullptr) && !less(k, nxt->key)) 
+      if (!(nxt == nullptr) && !less(k, nxt->key)) // already there
         if (cur->read_lock([&] {return (cur->next[level].load() == nxt) && !cur->removed.load();}))
           return false;
         else return {};
@@ -110,6 +121,30 @@ struct ordered_map {
   
   bool insert(const K& k, const V& v) {
     return verlib::with_epoch([=] {return insert_(k, v);}); }
+
+  bool upsert_(const K& k, const V& v) {
+    return flck::try_loop([&] () -> std::optional<bool> {
+      int level = get_level(k);
+      auto [cur, nxt] = find_at_level(k, level);
+      if (!(nxt == nullptr) && !less(k, nxt->key)) { // found
+        if (nxt->try_lock([=] {
+             if (nxt->removed.load())
+               return false;
+             Val* oldv = nxt->value.load();
+             nxt->value = val_pool.New(v); // update the value
+             val_pool.Retire(oldv);
+             return true;})) return false;
+        else return {};
+      }
+      // not found
+      node* new_n = new_node(k, v, level);
+      if (insert_at_level(cur, nxt, new_n, level))
+        return true;
+      return std::optional<bool>();});
+  }
+
+  bool upsert(const K& k, const V& v) {
+    return verlib::with_epoch([=] {return upsert_(k, v);}); }
 
   // Recursively locks prev node of to_delete on each level going down
   // from level.  When reaching the bottom it goes through top-down
@@ -158,6 +193,7 @@ struct ordered_map {
        else return std::optional<bool>();});
   }
 
+
   bool remove(const K& k) {
     return verlib::with_epoch([=] { return remove_(k);});}
 
@@ -168,7 +204,7 @@ struct ordered_map {
       if (cur->read_lock([&] {
             return (cur->next[0].load() == nxt) && !cur->removed.load();})) {
         if (nxt != nullptr && !less(k, nxt->key))
-          return std::optional(nxt->value);
+          return std::optional(nxt->value.load()->v);
         else return std::optional(std::optional<V>());
       }
       else return ot();});
@@ -176,7 +212,7 @@ struct ordered_map {
 
   std::optional<V> find_(const K& k) {
     auto [cur, nxt] = find_at_level(k, 0);
-    if  (nxt != nullptr && !less(k, nxt->key)) return nxt->value;
+    if  (nxt != nullptr && !less(k, nxt->key)) return nxt->value.load()->v;
     else return {};
   }
 
@@ -198,11 +234,18 @@ struct ordered_map {
 
   ~ordered_map() {
     node* p = root;
+    std::vector<node*> tops;
     while (p != nullptr) {
-      node* tmp = p;
-      p = p->next[0].load();
-      retire_node(tmp);
+      tops.push_back(p);
+      p = p->next[10].load();
     }
+    parlay::parallel_for(0, tops.size(), [&] (long i) {
+      node* p = tops[i];
+      while (p != nullptr && p->level < 10) {
+        node* tmp = p;
+        p = p->next[0].load();
+        retire_node(tmp);
+      }}, 1);
   }
   
   long check() {
@@ -214,7 +257,7 @@ struct ordered_map {
     while (ptr != nullptr) {
       i++;
       if (!less(k, ptr->key)) {
-        std::cout << "keys out of order: " << k << ", " << ptr->key << " at location " << i << std::endl;
+        std::cout << "in skiplist: keys out of order" << i << std::endl;
         abort();
       }
       k = ptr->key;
@@ -235,3 +278,6 @@ verlib::memory_pool<typename ordered_map<K,V,C>::shortNode> ordered_map<K,V,C>::
 
 template <typename K, typename V, typename C>
 verlib::memory_pool<typename ordered_map<K,V,C>::tallNode> ordered_map<K,V,C>::tall_node_pool;
+
+template <typename K, typename V, typename C>
+verlib::memory_pool<typename ordered_map<K,V,C>::Val> ordered_map<K,V,C>::val_pool;

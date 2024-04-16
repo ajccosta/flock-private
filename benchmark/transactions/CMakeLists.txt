@@ -27,7 +27,7 @@ function(add_tpcc_benchmark NAME STRUCT_NAME DEFS)
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
 endfunction()
 
-set(TPCC_BENCH "btree" "hash_block" "arttree" "hash_list")
+set(TPCC_BENCH "btree" "hash_block" "arttree" "hash_list" "skiplist")
 
 foreach(bench ${TPCC_BENCH})
   add_tpcc_benchmark(tpcc_${bench}_lck ${STRUCT_DIR}/${bench} "NoHelp;Transactional;HWWriteStamp")
