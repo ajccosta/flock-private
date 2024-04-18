@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     long total_ops = parlay::reduce(ops);
   
     if (verbose) tpcc_struct.table_sizes();
-    std::cout << "num ops: " << total_ops << ", ops/sec = " << total_ops/time << std::endl;
+    std::cout << P.commandName() << ": ops/sec = " << total_ops/time << std::endl;
     tpcc_struct.cleanup(gtc);
   }
 }

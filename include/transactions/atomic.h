@@ -21,7 +21,7 @@ void validate(transaction_descriptor* descriptor) {
   bool passed = true;
   TS ts = global_stamp.get_write_stamp();
   for (int i=0; i < log.size(); i++) {
-    if (descriptor->time_stamp.load_ni() != tbs) return;
+    if (descriptor->time_stamp.load() != tbs) return;
     auto [location, expected] = log[i];
     if (!validate_pointer(location, expected)) {
       passed = false; break;}
@@ -31,7 +31,7 @@ void validate(transaction_descriptor* descriptor) {
 
 void commit (transaction_descriptor* descriptor) {
   if (is_helping()) trans_descriptor_pool.acquire(descriptor);
-  //flck::skip_if_done([&] {
+  flck::skip_if_done([&] {
   assert(descriptor != nullptr);
   auto& write_log = descriptor->write_ptr_log;
   // Install writes at head of version lists
@@ -46,7 +46,7 @@ void commit (transaction_descriptor* descriptor) {
   descriptor->time_stamp = tbs; // logged load 
 
   // Validate the reads (not idempotent)
-  flck::non_idempotent([=] {validate(descriptor);});
+  flck::non_idempotent([=] {validate(descriptor);}); 
   TS ts = descriptor->time_stamp.load();
 
   // finalize logged writes (whether passed or failed)
@@ -54,7 +54,7 @@ void commit (transaction_descriptor* descriptor) {
     auto [location, old_value] = write_log[i];
     finalize_store(location, pointers[i], ts);
   }
-  //});  
+  });  
 }
 
 
@@ -106,8 +106,7 @@ auto atomic_(const F& f) {
           delay = 5 * (1  + 4 * descriptor->lock_log.size());
           max_delay = 16 * delay;
         } else delay = std::min((int) std::ceil(1.2 * delay), max_delay);
-	// seems that delay does not help?
-        //for (volatile int i=0; i < delay; i++);
+        for (volatile int i=0; i < delay; i++);
 
         if (try_count++ > 1000000000l/max_delay) {
           std::cout << "looks like an infinite retry loop" << std::endl;

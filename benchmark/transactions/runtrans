@@ -8,11 +8,24 @@ from runtests import *
 
 compile_clear("trans")
 
+class tpcc(parameters) :
+    rounds = 3
+    file_suffix = "trans"
+    trees = ["tpcc_arttree", "tpcc_btree", "tpcc_hash_block", "tpcc_hash_list", "tpcc_skiplist", "tpcc_mix" ]
+    tree_sizes = [0]
+    zipfians = [0]
+    trans_sizes = [0]
+    mix_percents = [[0,0,0,0]]
+    suffixes_all = ["_lck", "_lf"]
+
+run_all(tpcc)
+    
 class transactions(parameters) :
+    rounds = 1
     file_suffix = "trans"
     lists = ["list"]
     list_sizes = [100,1000]
-    trees = ["arttree", "btree", "hash_block", "hash_list"]
+    trees = ["arttree", "btree", "hash_block", "hash_list", "leaftree", "skiplist" ]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0, 1, 16]
@@ -22,10 +35,11 @@ class transactions(parameters) :
 run_all(transactions)
 
 class other(parameters) :
+    rounds = 1
     file_suffix = "trans"
     lists = ["list"]
     list_sizes = [100,1000]
-    trees = ["arttree", "btree", "hash_block", "hash_list"]
+    trees = ["arttree", "btree", "hash_block", "hash_list", "leaftree", "skiplist" ]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0]

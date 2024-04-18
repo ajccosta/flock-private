@@ -9,7 +9,6 @@ copy_bench_file("rungraphs")
 set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "hash_list" "arttree" "skiplist")
 
 set(YCSB_COMMON_DEFS "HashLock") #  "Latency")
-set(YCSB_COMMON_DEFS "HashLock") #  "Latency")
 
 function(add_benchmark NAME STRUCT_NAME DEFS)
   add_executable(${NAME} ${SOURCES})
@@ -37,6 +36,7 @@ foreach(bench ${TPCC_BENCH})
 endforeach()
 
 add_tpcc_benchmark(tpcc_mix_lck "${STRUCT_DIR}/arttree;${STRUCT_DIR}/hash_block" "NoHelp;Transactional;HWWriteStamp;Mix")
+add_tpcc_benchmark(tpcc_mix_lf "${STRUCT_DIR}/arttree;${STRUCT_DIR}/hash_block" "Transactional;HWWriteStamp;Mix")
 
 add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
 #add_benchmark(hash_grow ${STRUCT_DIR}/hash_grow "NoHelp")

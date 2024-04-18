@@ -103,6 +103,7 @@ namespace verlib {
       assert(is_tagged(td));
       assert(untag_descriptor(td)->owner == flck::internal::get_current_id());
       assert(!check_stamp || untag_descriptor(td)->time_stamp.load() == ts);
+      //stamp_or_descriptor = ts;
       stamp_or_descriptor.store_ni(ts);
     }
 
@@ -137,7 +138,7 @@ namespace verlib {
     versioned(versioned* next) : stamp_or_descriptor(tbd), next_version(next) {}
 
     versioned* get_next_version() {return next_version.load();}
-
+    //void set_next_version(versioned* nv) { next_version = nv;}
     void init_next_version(versioned* nv) {
       //assert(next_version.load() == init_ptr);  
       next_version = nv;}
@@ -285,7 +286,7 @@ namespace verlib {
   }
 
   bool validate_pointer(flck::atomic<versioned*>* location, versioned* expected) {
-    versioned* ptr = get_value(location->load_ni(), true);
+    versioned* ptr = get_value(location->load(), true);
     // second condition is to deal with shortcutting
     return (ptr == expected || (is_indirect(expected) &&
                                 ptr == ((ver_link*) strip_indirect(expected))->value));
