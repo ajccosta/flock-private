@@ -16,6 +16,7 @@ public:
   atomic() : v(0) {}
   void init(V vv) {v = vv;}
   V load() {return v.load();}
+  V load_ni() {return v.load();}
   V read() {return v.load();}
   V read_snapshot() {return v.load();}
   V read_cur() {return v.load();}
