@@ -36,13 +36,14 @@ struct acquired_pool {
   template <typename ... Args>
   T* New(Args... args) { return pool.New(args...);} 
 
-  void Retire(T* ptr) {
+  bool* Retire(T* ptr) {
     bool x = (ptr->acquired).load();
     if (!x) Delete(ptr);
     else {
       ptr->acquired = false;
-      pool.Retire(ptr);
+      return pool.Retire(ptr);
     }
+    return nullptr;
   }
 };
   } // namespace internal

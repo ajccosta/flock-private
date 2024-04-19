@@ -36,7 +36,7 @@ public:
 #else
     if (current_transaction != nullptr) {
       //if (lck.is_locked() && !lck.is_self_locked()) return false;
-      current_transaction->lock_log.add(&lck);
+      current_transaction->lock_log.add(lck.get_lock());
       in_lock++;
       bool result = f();
       in_lock--;
@@ -51,6 +51,7 @@ public:
   auto try_lock_no_delay(Thunk f) {return try_lock(f);}
 };
 
+#ifdef NoHelp
 template <typename F>
 bool run_with_locks_rec(int i, transaction_descriptor* descriptor, F f, bool do_help) {
   if (i == descriptor->lock_log.size()) return f();
@@ -60,13 +61,17 @@ bool run_with_locks_rec(int i, transaction_descriptor* descriptor, F f, bool do_
     //return run_with_locks_rec(i+1, descriptor, f, do_help);});
   } else
     return descriptor->lock_log[i]->try_lock([=] {
-	return run_with_locks_rec(i+1, descriptor, f, do_help);}
-#ifndef NoHelp
-      , do_help
-#endif
-    );
+      return run_with_locks_rec(i+1, descriptor, f, do_help);});
 }
-
+#else
+template <typename F>
+bool run_with_locks_rec(int i, transaction_descriptor* descriptor, F f, bool do_help) {
+  int num_locks = descriptor->lock_log.size();
+  if (num_locks == 0) return f();
+  return flck::internal::lock::multi_try_lock(descriptor->lock_log.data(), num_locks, f);
+}
+#endif
+  
 template <typename F>
 bool run_with_logged_locks(transaction_descriptor* descriptor, F f, bool do_help = true) {
   // sorting actually slows things down slightly (5%) under high contention

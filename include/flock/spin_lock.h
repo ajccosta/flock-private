@@ -32,7 +32,8 @@ thread_local bool norelease = false;
 // This lock keeps track of how many times it was taken and who has it
 struct lock {
 public:
-
+  lock* get_lock() {return this;}
+  
   // The low 32 bits are a counter of how many times lock has been
   // taken. This is mostly meant for debugging and currently not used
   // other than to indicate whether locked or not.  An odd number

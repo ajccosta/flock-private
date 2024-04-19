@@ -44,10 +44,21 @@ struct descriptor {
   // Being false just allows more efficient (i.e. immediate) reclamation.
   std::atomic<bool> acquired;   
   int thread_id; // used to detect reentrant locks, inherited by helpers
-  lock_entry_ current; // currently not used
+  //lock_entry_ current; // currently not used
   std::atomic<size_t> counter; // used for aba-prevention when taking a lock
   long epoch_num; // the epoch when initially created, inherited by helpers
   log_array lg_array; // the log itself
+  lock** locks;
+  std::vector<size_t> counters;
+  
+  descriptor(lock** locks, int num_locks) :
+    thread_id(get_current_id()),
+    epoch_num(epoch::internal::get_epoch().get_my_epoch()),
+    locks(locks),
+    counters(std::vector<size_t>(num_locks)) {}
+
+  template <typename Thunk>
+  void set_function(Thunk &g) { f = [=] {g();}; }
   
   template <typename Thunk>
   descriptor(Thunk& g, long counter) : 
@@ -90,7 +101,7 @@ inline memory_pool<descriptor,acquired_pool<descriptor>>& get_descriptor_pool() 
 struct lock {
 public:
     using lock_entry = lock_entry_;
-private:
+
   // each lock entry will be a pointer to a descriptor when locked
   // and a counter when unlocked. The counter is to prevent ABA problems.
   std::atomic<lock_entry> lck;
@@ -103,13 +114,20 @@ private:
     if (current != oldl) return false;
     return lck.compare_exchange_strong(oldl, (lock_entry) d);
   }
-  
-  void clear(descriptor* d) {
-    lock_entry current = lck.load();
+
+  // used to take lock for version with helping
+  bool cas(lock_entry oldl, lock_entry d) {
+    lock_entry current = read();
+    if (current != oldl) return false;
+    return lck.compare_exchange_strong(oldl, d);
+  }
+
+  static void clear(lock* lckp, descriptor* d) {
+    lock_entry current = lckp->load();
     if (current == (lock_entry) d)
       // true indicates this is ABA free since current cannot
       // be reused until all helpers are done with it.
-      lck.compare_exchange_strong(current, d->counter+1);
+      (lckp->lck).compare_exchange_strong(current, d->counter+1);
   }
 
   void unlock() {
@@ -117,17 +135,17 @@ private:
     lck.compare_exchange_strong(current, ((descriptor*) current)->counter+1);
   }
 
-  bool is_locked_(lock_entry le) { return (le & (1ull<<63)) == 0;}
-  descriptor* remove_tag(lock_entry le) { return (descriptor*) le;}
+  static bool is_locked_(lock_entry le) { return (le & (1ull<<63)) == 0;}
+  static descriptor* remove_tag(lock_entry le) { return (descriptor*) le;}
   bool lock_is_self(lock_entry le) {
     return ((int)get_current_id()) == remove_tag(le)->thread_id;
   }
 
   // runs thunk in appropriate epoch and after it is acquired
-  bool help_descriptor(lock_entry le, bool recursive_help=false) {
+  static bool help_descriptor(lock* lck_p, lock_entry le, bool recursive_help=false) {
     if (!recursive_help && helping) return false;
     descriptor* desc = remove_tag(le);
-    bool still_locked = (read() == le);
+    bool still_locked = (lck_p->read() == le); // not idempotent
     if (!still_locked) return false;
     long my_epoch = epoch::internal::get_epoch().get_my_epoch();
     long other_epoch = desc->epoch_num;
@@ -136,12 +154,12 @@ private:
     int my_id = get_current_id(); 
     set_current_id(desc->thread_id);   // inherit thread id of helpee
     get_descriptor_pool().acquire(desc);  // mark descriptor as acquired
-    still_locked = (read() == le);
+    still_locked = (lck_p->read() == le); // not idempotent
     if (still_locked) {
       bool hold_h = helping; 
       helping = true; // mark as in helping mode
       (*desc)();      // run thunk to be helped
-      clear(desc);    // unset the lock
+      clear(lck_p, desc);    // unset the lock
       helping = hold_h; // reset helping mode
     }
     set_current_id(my_id); // reset thread id
@@ -151,13 +169,14 @@ private:
 
 public:
   lock() : lck((1ull<<63)) {} // initialize in unlocked state
+  lock* get_lock() {return this;}
   
   // waits until current owner of lock releases it (unless self owned)
   void wait_lock() {
     lock_entry current = load();
     if (!is_locked_(current) || lock_is_self(current)) return;
     // last arg needs to be true, otherwise might not help and clear
-    help_descriptor(current, true);
+    help_descriptor(this, current, true);
   }
 
   bool is_locked() { return is_locked_(load());}
@@ -210,7 +229,7 @@ public:
 
         // mark as done and clear the lock
         my_descriptor->done = true;
-        clear(my_descriptor);
+        clear(this, my_descriptor);
 
         // retire the descriptor saving the result in the enclosing
         // descriptor, if any
@@ -218,7 +237,7 @@ public:
                                                std::optional<RT>(result));
         return result;
       } else if (locked) {
-        help_descriptor(current);
+        help_descriptor(this, current);
       }
       current = read();
       locked = is_locked_(current);
@@ -229,6 +248,7 @@ public:
   // The try_lock_result returns an optional value, which is empty if it fails
   template <typename Thunk>
   auto try_lock_result(Thunk f, bool do_help=true) {
+    do_help = false;
     using RT = decltype(f());
     std::optional<RT> result = {};
     lock_entry current = load();
@@ -254,15 +274,15 @@ public:
       if (my_descriptor->done || remove_tag(current) == my_descriptor) {
 
         // run f with log from my_descriptor
-        result = with_log(Log(&my_descriptor->lg_array,0),
+        result = with_log(Log(), //&my_descriptor->lg_array,0),
                           [&] {return f();});
 
         // mark as done and clear the lock
         my_descriptor->done = true;
-        clear(my_descriptor);
+        clear(this, my_descriptor);
       }
     } else {
-      if (do_help) help_descriptor(current);
+      if (do_help) help_descriptor(this, current);
     }
 
     // retire the thunk
@@ -282,6 +302,55 @@ public:
   template <typename Thunk>
   auto read_lock(Thunk f) {return f();}
 
+  // only safe if not called within a lock
+  // assumes locks are sorted
+  template <typename Thunk>
+  static bool multi_try_lock(lock** locks, int num_locks, Thunk f, bool do_help=true) {
+    descriptor* d = get_descriptor_pool().New(locks, num_locks);
+
+    for (int i=0; i < num_locks; i++) {
+      lock_entry li = locks[i]->read();
+      if (is_locked_(li)) {
+	get_descriptor_pool().Retire(d);
+	//if (do_help) help_descriptor(locks[i], li);
+	return false;
+      }
+      d->counters[i] = li;
+    }
+
+    auto g = [&] () -> bool {
+      // try to acquire locks
+      for (int i = 0; i < num_locks; i++) {
+	if (i > 0 && locks[i] == locks[i-1]) 
+	  continue; // self locks
+	locks[i]->cas(d->counters[i], (lock_entry) d);
+	lock_entry li = locks[i]->load(); // idempotent
+	if (li != (lock_entry) d) {
+	  // failed acquiring a lock, release those already acquired
+	  for (int j = 0; j < i; j++) 
+	    locks[j]->cas((lock_entry) d, d->counters[j] + 1);
+	  //if (do_help) help_descriptor(locks[i], li);
+	  return false;
+	}
+      }
+
+      // successfully acquired locks, run thunk
+      bool result = f();
+
+      // release locks
+      for (int i = 0; i < num_locks; i++) 
+	locks[i]->cas((lock_entry) d, d->counters[i] + 1);
+      return result;
+    };
+
+    // run g while logging
+    d->set_function(g);
+    bool result = with_log(Log(&d->lg_array,0),
+			   [&] {return g();});
+    get_descriptor_pool().Retire(d);
+    return result;
+  }
+  
 };
 
 } // namespace internal

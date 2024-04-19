@@ -239,29 +239,38 @@ struct ordered_map {
     }
     parlay::parallel_for(0, tops.size(), [&] (long i) {
       node* p = tops[i];
-      while (p != nullptr && p->level < 10) {
+      do {
         node* tmp = p;
         p = p->next[0].load();
         retire_node(tmp);
-      }}, 1);
+      } while (p != nullptr && p->level < 10);});
   }
-  
+
   long check() {
-    node* ptr = (root->next[0]).load();
-    if (ptr == nullptr) return 0;
-    K k = ptr->key;
-    ptr = (ptr->next[0]).load();
-    long i = 1;
-    while (ptr != nullptr) {
-      i++;
-      if (!less(k, ptr->key)) {
-        std::cout << "in skiplist: keys out of order" << i << std::endl;
-        abort();
-      }
-      k = ptr->key;
-      ptr = (ptr->next[0]).load();
+    node* p = root;
+    std::vector<node*> tops;
+    while (p != nullptr) {
+      tops.push_back(p);
+      p = p->next[10].load();
     }
-    return i;
+    return parlay::reduce(parlay::tabulate(tops.size(), [&] (long i) {
+      node* p = tops[i];
+      node* nxt = p->next[0].load();
+      long cnt = 0;
+      while (nxt != nullptr && nxt->level < 10) {
+	if (!(i == 0 && cnt == 0) && !less(p->key, nxt->key)) {
+	  std::cout << "in skiplist: keys out of order";
+	  abort();
+	}
+	p = nxt;
+	nxt = p->next[0].load();
+	cnt++;
+      }
+      if (!(i == 0 && cnt == 0) && nxt != nullptr && !less(p->key, nxt->key)) {
+	std::cout << "in skiplist: keys out of order" << std::endl;
+	abort();
+      }
+      return cnt+1;})) - 1;
   }
 
   static void clear() { tall_node_pool.clear(); short_node_pool.clear();}

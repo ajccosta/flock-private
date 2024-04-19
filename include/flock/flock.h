@@ -54,6 +54,7 @@
 #include "lock_types.h"
 #else  // use lock free locks
 #include "lf_lock.h"
+//#include "lf_lock_t.h"
 #include "lf_types.h"
 #endif
 
@@ -73,9 +74,9 @@ private:
   static const int bucket_bits = 16;
   static const size_t mask = ((1ul) << bucket_bits) - 1;
   static std::vector<internal::lock> locks;
+public:
   internal::lock* get_lock() {
     return &locks[parlay::hash64_2((size_t) this) & mask];}
-public:
   template <typename F>
   bool try_lock(F f, bool do_help=true) {
     return get_lock()->try_lock(f, do_help);}

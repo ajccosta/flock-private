@@ -9,7 +9,7 @@ namespace internal {
 static thread_local bool helping = false;
 
 // default log length.  Will grow if needed.
-constexpr int Log_Len = 8;
+  constexpr int Log_Len = 32;
 using log_entry = std::atomic<void*>;
 struct log_array;
 

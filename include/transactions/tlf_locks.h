@@ -9,7 +9,7 @@ struct shared_mutex {
   flck::lock lck;
   bool try_lock() {
     if (verlib::current_transaction != nullptr) {
-      verlib::current_transaction->lock_log.add(&lck);
+      verlib::current_transaction->lock_log.add(lck.get_lock());
       verlib::in_lock++;
       return true;
     } else return lck.try_lock_no_unlock();

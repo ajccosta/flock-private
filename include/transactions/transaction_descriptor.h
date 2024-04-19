@@ -75,7 +75,7 @@ namespace verlib {
 		    init_validate_log_size> validate_ptr_log;
     transaction_log<bool*,init_log_size> retired_log;
     transaction_log<bool*,init_log_size> allocated_log;
-    transaction_log<flck::lock*,init_log_size> lock_log;
+    transaction_log<flck::internal::lock*,init_log_size> lock_log;
 
     struct hash_filter {
       static constexpr int num_bits = 1024;
