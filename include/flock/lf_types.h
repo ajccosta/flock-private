@@ -25,6 +25,13 @@ public:
   atomic() : v(TV::init(0)) {}
   void init(V vv) {v = TV::init(vv);}
   V load() {return TV::value(get_val(internal::lg));}
+  std::pair<IT, V> load_linked() {
+    IT x = get_val(internal::lg);
+    return std::pair(x, TV::value(x));
+  }
+  void store_conditional(IT tag, V vv) {
+    TV::cas(v, tag, vv);
+  }
   V load_ni() {return TV::value(v.load());}
   V read() {return TV::value(v.load());}
   V read_snapshot() {return TV::value(v.load());}
@@ -163,9 +170,6 @@ struct memory_pool {
     if (!internal::helping)
       return internal::with_empty_log([&] {return pool.Retire(p);});
     else return nullptr;
-    //auto x = internal::lg.commit_value_safe(p);
-    //if (x.second) // only Retire if first try
-    //  internal::with_empty_log([&] {pool.Retire(p);}); 
   }
 
   bool* retire_ni(T* p) {
@@ -263,8 +267,8 @@ private:
   std::pair<T*,bool> new_obj_fl(Args... args) {
     // TODO: helpers might do lots of allocates and frees,
     // can potentially optimize by checking if a log value has already been committed.
-    T* newv = internal::with_log(internal::Log(),
-				 [&] {return pool.New(args...);});
+    if (internal::lg.is_empty()) return std::pair(pool.New(args...),true);
+    T* newv = internal::with_empty_log([&] {return pool.New(args...);});
     auto r = internal::lg.commit_value(newv);
     // if already allocated return back to pool
     if (!r.second) {

@@ -68,6 +68,7 @@ namespace verlib {
     constexpr static int bit_num = 62;
     static TS tag_descriptor(transaction_descriptor* ptr) {
       return (TS) ptr | (1ul << bit_num);}
+    
     static transaction_descriptor* untag_descriptor(TS sd) {
       auto ptr = (transaction_descriptor*) (sd & ~(1ul << bit_num));
       assert(valid_pointer((void*) ptr));
@@ -93,7 +94,7 @@ namespace verlib {
 
     void set_descriptor(transaction_descriptor* descriptor) {
       assert(stamp_or_descriptor.load() == tbd);
-      stamp_or_descriptor = tag_descriptor(descriptor);
+      stamp_or_descriptor.cas_ni(tbd, tag_descriptor(descriptor));
     }
 
     void remove_descriptor(TS ts, bool check_stamp = true) {
@@ -188,7 +189,7 @@ namespace verlib {
                 versioned* ptr,
                 transaction_descriptor* descriptor) {
     assert(current_transaction == nullptr);
-    versioned* old_v = loc->load();
+    auto [old_tag, old_v] = loc->load_linked();
     versioned* new_v = ptr;
     // indirection on need
     bool use_indirect = (ptr == nullptr || ptr->is_recorded()); // logged
@@ -203,7 +204,8 @@ namespace verlib {
     if (descriptor != nullptr)
       strip_indirect(new_v)->set_descriptor(descriptor);  // logged
 #ifdef NoShortcut
-    *loc = new_v;
+    loc->store_conditional(old_tag, new_v);
+    // *loc = new_v;
     if (is_indirect(old_v))
       link_pool.retire_on_success(descriptor, (ver_link*) strip_indirect(old_v)); 
 #else
@@ -216,7 +218,7 @@ namespace verlib {
         old_v = old_l->value;
         loc->cam(old_v, new_v); // logged, but unusal
       } else link_pool.retire_on_success(descriptor, old_l);
-    } else *loc = new_v; // logged 
+    } else loc->store_conditional(old_tag, new_v); // logged 
 #endif
     // set timestamp and try shortcut if not in transaction
     if (descriptor == nullptr) {

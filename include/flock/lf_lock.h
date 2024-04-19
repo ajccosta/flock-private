@@ -50,12 +50,15 @@ struct descriptor {
   log_array lg_array; // the log itself
   lock** locks;
   std::vector<size_t> counters;
-  
-  descriptor(lock** locks, int num_locks) :
+
+  descriptor() :
     thread_id(get_current_id()),
-    epoch_num(epoch::internal::get_epoch().get_my_epoch()),
-    locks(locks),
-    counters(std::vector<size_t>(num_locks)) {}
+    epoch_num(epoch::internal::get_epoch().get_my_epoch()) {}
+
+  void init(lock** locks_, int num_locks) {
+    locks = locks_;
+    counters = std::vector<size_t>(num_locks);
+  }
 
   template <typename Thunk>
   void set_function(Thunk &g) { f = [=] {g();}; }
@@ -305,19 +308,23 @@ public:
   // only safe if not called within a lock
   // assumes locks are sorted
   template <typename Thunk>
-  static bool multi_try_lock(lock** locks, int num_locks, Thunk f, bool do_help=true) {
-    descriptor* d = get_descriptor_pool().New(locks, num_locks);
-
+  static bool multi_try_lock_(descriptor* d, lock** locks,
+			      int num_locks, const Thunk& f, bool do_help) {
+    // First see if any locks are already taken
+    // If any are taken, help and quit
+    // Otherwise the count for each lock is stored in counters
     for (int i=0; i < num_locks; i++) {
       lock_entry li = locks[i]->read();
       if (is_locked_(li)) {
-	get_descriptor_pool().Retire(d);
 	//if (do_help) help_descriptor(locks[i], li);
 	return false;
       }
       d->counters[i] = li;
     }
 
+    // This is run both by the main caller and by any helpers that
+    // come across a lock taken by this lock-set.
+    // It needs to be idempotent
     auto g = [&] () -> bool {
       // try to acquire locks
       for (int i = 0; i < num_locks; i++) {
@@ -347,10 +354,19 @@ public:
     d->set_function(g);
     bool result = with_log(Log(&d->lg_array,0),
 			   [&] {return g();});
-    get_descriptor_pool().Retire(d);
     return result;
   }
-  
+
+  // only safe if not called within a lock
+  // assumes locks are sorted
+  template <typename Thunk>
+  static bool multi_try_lock(lock** locks, int num_locks, const Thunk& f, bool do_help=true) {
+    descriptor* d = get_descriptor_pool().New();
+    d->init(locks, num_locks);
+    bool r = multi_try_lock_(d, locks, num_locks, f, do_help);
+    get_descriptor_pool().Retire(d);
+    return r;
+  }
 };
 
 } // namespace internal

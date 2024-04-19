@@ -31,6 +31,13 @@ public:
       v.compare_exchange_strong(old_v,new_v);}
   V operator=(V b) {store(b); return b; }
 
+  std::pair<bool, V> load_linked() {
+    return std::pair(true, v.load());
+  }
+  void store_conditional(bool tag, V vv) {
+    v = vv;
+  }
+
   // compatibility with multiversioning
   void validate() {}
 };

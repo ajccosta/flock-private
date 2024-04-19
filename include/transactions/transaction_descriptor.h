@@ -62,7 +62,8 @@ namespace verlib {
     static constexpr int init_log_size = 8;
     static constexpr int init_validate_log_size = 32;
 #endif
-    
+
+    //flck::internal::descriptor lock_descriptor;
     std::atomic<bool> acquired;
 
     // the thread id the descriptor belongs to

@@ -8,7 +8,8 @@ copy_bench_file("rungraphs")
 
 set(FLOCK_BENCH "leaftree" "dlist" "btree" "list" "hash_block" "hash_list" "arttree" "skiplist")
 
-set(YCSB_COMMON_DEFS "HashLock") #  "Latency")
+set(YCSB_COMMON_DEFS "HashLock")
+set(TPCC_COMMON_DEFS "NoShortcut;LargeLog") 
 
 function(add_benchmark NAME STRUCT_NAME DEFS)
   add_executable(${NAME} ${SOURCES})
@@ -20,7 +21,7 @@ endfunction()
 
 function(add_tpcc_benchmark NAME STRUCT_NAME DEFS)
   add_executable(${NAME} ${TPCC_SOURCES})
-  target_compile_definitions(${NAME} PRIVATE "LargeLog")
+  target_compile_definitions(${NAME} PRIVATE ${TPCC_COMMON_DEFS})
   target_compile_definitions(${NAME} PRIVATE ${DEFS})
   target_link_libraries(${NAME} PRIVATE verlib)
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})

@@ -122,6 +122,7 @@ private:
     }
   }
 public:
+  using Val = IT;
   static inline IT init(V v) {return cnt_bit | (IT) v;}
   static inline V value(IT v) {return (V) (v & data_mask);}
   static inline IT get_tag(IT v) {return v & cnt_mask;}

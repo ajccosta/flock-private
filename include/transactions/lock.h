@@ -12,7 +12,6 @@ private:
   flck::lock lck;
 public:
   bool is_locked() { return lck.is_locked();}
-  //bool is_self_locked() { return lck.is_self_locked();}
   template <typename Thunk>
   auto read_lock(Thunk f) {
     using RT = decltype(f());
@@ -26,14 +25,6 @@ public:
 
   template <typename Thunk>
   auto try_lock(Thunk f) {
-#ifdef Immediate
-    if (current_transaction != nullptr) {
-      bool taken = false;
-      auto r = lck.try_lock_result(f, &taken); // do not release lock
-      if (taken) current_transaction->lock_log.add(&lck);
-      return r.has_value() && r.value();
-    } else return lck.try_lock(f);
-#else
     if (current_transaction != nullptr) {
       //if (lck.is_locked() && !lck.is_self_locked()) return false;
       current_transaction->lock_log.add(lck.get_lock());
@@ -42,9 +33,6 @@ public:
       in_lock--;
       return result;
     } else return lck.try_lock(f);
-#endif
-
-
   }
 
   template <typename Thunk>
@@ -68,24 +56,13 @@ template <typename F>
 bool run_with_locks_rec(int i, transaction_descriptor* descriptor, F f, bool do_help) {
   int num_locks = descriptor->lock_log.size();
   if (num_locks == 0) return f();
-  return flck::internal::lock::multi_try_lock(descriptor->lock_log.data(), num_locks, f);
+  // descriptor->lock_descriptor.init(descriptor->lock_log.data(), num_locks);
+  // return flck::internal::lock::multi_try_lock_(&descriptor->lock_descriptor,
+  // 					       descriptor->lock_log.data(), num_locks, f, do_help);
+  return flck::internal::lock::multi_try_lock(descriptor->lock_log.data(), num_locks, f, do_help);
 }
 #endif
   
-template <typename F>
-bool run_with_logged_locks(transaction_descriptor* descriptor, F f, bool do_help = true) {
-  // sorting actually slows things down slightly (5%) under high contention
-  std::sort(descriptor->lock_log.data(),
-  	    descriptor->lock_log.data() + descriptor->lock_log.size());
-  // if (false)
-  //   for (int i=0; i < descriptor->lock_log.size(); i++) {
-  //     if (descriptor->lock_log[i]->is_locked() &&
-  // 	  !descriptor->lock_log[i]->is_self_locked())
-  // 	return false;
-  //   }
-  return run_with_locks_rec(0, descriptor, f, do_help);
-}
-
 }
 
 #endif // TLF_LOCK_H_
