@@ -20,6 +20,20 @@
 // inserts, then finds, then removes the given keys
 //
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <iomanip>
+#include <iostream>
+#include <optional>
+#include <type_traits>
+#include <tuple>
+#include <vector>
+
+#include <parlay/parallel.h>
+#include <parlay/primitives.h>
+#include <parlay/random.h>
+
 struct statistics {
   long total;
   long added_count; // inserted - deleted
@@ -232,6 +246,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
         double duration = time_diff(start_time);
         if (duration > 1000000000 * trial_time || finish) {
           if (!finish) finish.store(true);
+#ifdef TransStats
+	  local_stats.transactions = tlf_internal::num_transactions - local_stats.transactions;
+	  local_stats.aborts = tlf_internal::num_aborts - local_stats.aborts;
+#endif
           processor_stats[proc_id] = local_stats;
           return true;
         }
@@ -247,8 +265,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
       long jj = start;
       statistics local_stats;
 #ifdef TransStats
-      int start_transactions = tlf_internal::num_transactions;
-      int start_aborts = tlf_internal::num_aborts;
+      local_stats.transactions = tlf_internal::num_transactions;
+      local_stats.aborts = tlf_internal::num_aborts;
 #endif
       auto start_time = get_time();
       auto start_op_time = start_time;
@@ -298,10 +316,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
         jj += trans_size;
         cnt += trans_size;
         local_stats.total += trans_size;
-#ifdef TransStats
-        local_stats.transactions = tlf_internal::num_transactions - start_transactions;
-        local_stats.aborts = tlf_internal::num_aborts - start_aborts;
-#endif
       } 
     };
 
@@ -313,9 +327,13 @@ void run_mixed_operations(parlay::sequence<K>& all,
       long j = start;
       long jj = start;
       statistics local_stats;
+#ifdef TransStats
+      local_stats.transactions = tlf_internal::num_transactions;
+      local_stats.aborts = tlf_internal::num_aborts;
+#endif
+      std::vector<K>& range_keys = range_buffers[proc_id];
       auto start_time = get_time();
       auto start_op_time = start_time;
-      std::vector<K>& range_keys = range_buffers[proc_id];
 
       while (true) {
         //std::cout << all[j] << ", " << op_types[jj] << std::endl;
@@ -437,11 +455,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
       if (latency > 0) {
         std::cout << "percent within latency = " << (100.0*overall_stats.within_latency)/num_ops << std::endl;
       }
-#ifdef TransStats
-      std::cout << "trans=" << overall_stats.transactions << ",aborts=" << overall_stats.aborts << std::endl;
-#endif
 
-      if(range_query_threads == 0) {
+      double percent_aborts = overall_stats.aborts * 100.0 / overall_stats.transactions;
+      
+      if (range_query_threads == 0) {
         std::cout << std::setprecision(4)
                   << P.commandName() << ","
                   << update_percent << (use_upsert ? "%upsert," : "%update,")
@@ -452,6 +469,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
                   << "n=" << n << ","
                   << "p=" << p << ","
                   << "z=" << zipfian_param << ","
+#ifdef TransStats
+		  << "%aborts=" << percent_aborts << ","
+#endif
                   << num_ops / (duration * 1e6) << std::endl;
       } else {
         std::cout << std::setprecision(4)

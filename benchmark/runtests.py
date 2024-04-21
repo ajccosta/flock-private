@@ -130,7 +130,7 @@ def run_all(params) :
                     
 def compile_clear(file_suffix) :
     os.system("make -j")
-    runstring("git rev-parse --short HEAD", "")
     filename = "../../../timings/" + hostname[0:5] + "_" + file_suffix + "_" + today
     if os.path.exists(filename) :
         os.remove(filename)
+    runstring("git rev-parse --short HEAD", filename)
