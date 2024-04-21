@@ -32,7 +32,7 @@ namespace verlib {
   template <typename F>
   auto with_transaction(const F& f) {
     if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
-    else return f();
+    else {return *(f());}
   }
 }
 
@@ -59,11 +59,9 @@ namespace verlib {
     return flck::with_epoch([&] { return f();});
   }
   template <typename F>
-  auto do_now(F f) { return f();}
-  template <typename F>
   auto with_transaction(const F& f) {
     if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
-    else return f();
+    else return *(f());
   }
 }
 

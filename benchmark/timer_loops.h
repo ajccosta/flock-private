@@ -32,10 +32,12 @@ struct statistics {
   long query_count;
   long query_total_value;
   long within_latency;
+  long transactions;
+  long aborts;
   statistics() :
     total(0), added_count(0), range_count(0), range_sum(0), mfind_count(0), retry_count(0), 
     update_count(0), update_success_count(0),
-    query_count(0), query_total_value(0), within_latency(0) {}
+    query_count(0), query_total_value(0), within_latency(0), transactions(0), aborts(0) {}
 };
 
 // for adding across processors
@@ -52,6 +54,8 @@ statistics adds(statistics s1, statistics s2) {
   r.query_count = s1.query_count + s2.query_count;
   r.query_total_value = s1.query_total_value + s2.query_total_value;
   r.within_latency = s1.within_latency + s2.within_latency;
+  r.transactions = s1.transactions + s2.transactions;
+  r.aborts = s1.aborts + s2.aborts;
   return r;
 }    
 
@@ -236,13 +240,16 @@ void run_mixed_operations(parlay::sequence<K>& all,
       return false;
     };
 
-#ifdef Transactional
     // Run a loop with just transactions
     auto run_transactions = [&] (long start, long end, long proc_id) {
       long cnt = 0;
       long j = start;
       long jj = start;
       statistics local_stats;
+#ifdef TransStats
+      int start_transactions = tlf_internal::num_transactions;
+      int start_aborts = tlf_internal::num_aborts;
+#endif
       auto start_time = get_time();
       auto start_op_time = start_time;
 
@@ -291,9 +298,12 @@ void run_mixed_operations(parlay::sequence<K>& all,
         jj += trans_size;
         cnt += trans_size;
         local_stats.total += trans_size;
+#ifdef TransStats
+        local_stats.transactions = tlf_internal::num_transactions - start_transactions;
+        local_stats.aborts = tlf_internal::num_aborts - start_aborts;
+#endif
       } 
     };
-#endif
 
     // **********************
     // Run a loop with operation mix
@@ -406,14 +416,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
               long start = proc_id * mp;
         long end = (proc_id + 1) * mp;
 
-#ifdef Transactional
         if (trans_size > 0) 
           run_transactions(start,end,proc_id);
         else
           run_operations(start,end,proc_id);
-#else
-        run_operations(start,end,proc_id);
-#endif
     }, 1);
 
     double duration = t.stop();
@@ -431,6 +437,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
       if (latency > 0) {
         std::cout << "percent within latency = " << (100.0*overall_stats.within_latency)/num_ops << std::endl;
       }
+#ifdef TransStats
+      std::cout << "trans=" << overall_stats.transactions << ",aborts=" << overall_stats.aborts << std::endl;
+#endif
 
       if(range_query_threads == 0) {
         std::cout << std::setprecision(4)

@@ -7,6 +7,8 @@
 #ifndef TLF_ATOMIC_H_
 #define TLF_ATOMIC_H_
 
+#define TransStats
+
 namespace tlf_internal {
 
 #include <utility>
@@ -14,6 +16,8 @@ namespace tlf_internal {
 #include <iostream>
 
 thread_local TS start_stamp = 0;
+thread_local long num_transactions = 0;
+thread_local long num_aborts = 0;
 
 // validate the versioned pointers that were read
 void validate(transaction_descriptor* descriptor) {
@@ -64,6 +68,7 @@ auto atomic_(const F& f) {
   try_count = 0;
   int delay = 0;
   int max_delay = 0;
+  num_transactions++;
   while (true) {
     auto r = flck::with_epoch([&] {
       in_lock = 0;
@@ -91,6 +96,7 @@ auto atomic_(const F& f) {
         trans_descriptor_pool.Retire(descriptor);
         return x;
       } else {
+        num_aborts++;
         auto& retired_log = descriptor->retired_log;
 
         // undo the logged retires
@@ -133,7 +139,7 @@ auto atomic_(const F& f) {
 auto with_transaction(const F& f) {
   if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
       atomic_([&] {f(); return std::optional(true);});
-  } else return atomic_(f);
+  } else return atomic_(f); 
 }
 
 

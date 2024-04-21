@@ -43,7 +43,7 @@ add_tpcc_benchmark(tpcc_mix_lf "${STRUCT_DIR}/arttree;${STRUCT_DIR}/hash_block" 
 add_tpcc_benchmark(tpcc_mix_lck_stm "${STRUCT_DIR}/arttree;${STRUCT_DIR}/hash_block" "NoHelp;STM;HWWriteStamp;Mix")
 add_tpcc_benchmark(tpcc_mix_lf_stm "${STRUCT_DIR}/arttree;${STRUCT_DIR}/hash_block" "STM;HWWriteStamp;Mix")
 
-add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
+#add_benchmark(hash_block_cas ${STRUCT_DIR}/hash_block "NoHelp;UseCAS")
 #add_benchmark(hash_grow ${STRUCT_DIR}/hash_grow "NoHelp")
 #add_benchmark(hash_grow_test ${STRUCT_DIR}/hash_grow_test "NoHelp")
 
