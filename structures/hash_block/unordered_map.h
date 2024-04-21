@@ -324,8 +324,12 @@ public:
   }
 
   std::optional<V> find_locked(const K& k) {
+#ifndef UseCAS
     bucket* s = hash_table.get_bucket(k);
     return find_at(s->read_lock([=] {return s->load();}), k);
+#else
+    return find_(k);
+#endif
   }
       
   bool insert(const K& k, const V& v) {
