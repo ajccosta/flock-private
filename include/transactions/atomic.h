@@ -7,7 +7,7 @@
 #ifndef TLF_ATOMIC_H_
 #define TLF_ATOMIC_H_
 
-namespace verlib {
+namespace tlf_internal {
 
 #include <utility>
 #include <algorithm>
@@ -67,8 +67,8 @@ auto atomic_(const F& f) {
   while (true) {
     auto r = flck::with_epoch([&] {
       in_lock = 0;
+      abort_if_update = false;
       start_stamp = global_stamp.get_read_stamp();
-      old_version_read = false;
       transaction_descriptor* descriptor = trans_descriptor_pool.New();
       current_transaction = descriptor;
       auto x = f();
@@ -76,7 +76,7 @@ auto atomic_(const F& f) {
       bool passed = x.has_value(); 
       if (passed && descriptor->write_ptr_log.size() > 0) {
         // if transactions has stores and an old version was read, then abort
-        if (old_version_read) passed = false;
+        if (abort_if_update) passed = false;
         else { // otherwise acquire locks in sorted order, and commit
           bool use_help = (try_count % 100) == 99;
           std::sort(descriptor->lock_log.data(),
@@ -122,12 +122,12 @@ auto atomic_(const F& f) {
 }
 
     // to allow for no results
-template <typename F>
-auto atomic(const F& f) {
-  if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
-      atomic_([&] {f(); return std::optional(true);});
-  } else return atomic_(f);
-}
+// template <typename F>
+// auto atomic(const F& f) {
+//   if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+//       atomic_([&] {f(); return std::optional(true);});
+//   } else return atomic_(f);
+// }
 
   template <typename F>
 auto with_transaction(const F& f) {
@@ -137,15 +137,15 @@ auto with_transaction(const F& f) {
 }
 
 
-template <typename F>
-auto do_now(const F& f) {
-  //transaction_descriptor* tmp = current_transaction;
-  //current_transaction = nullptr;
-  auto x = f();
-  //current_transaction = tmp;
-  return x;
-}
+// template <typename F>
+// auto do_now(const F& f) {
+//   //transaction_descriptor* tmp = current_transaction;
+//   //current_transaction = nullptr;
+//   auto x = f();
+//   //current_transaction = tmp;
+//   return x;
+// }
 
-}
+} // namespace tlf_internal
 
 #endif // TLF_ATOMIC_H_

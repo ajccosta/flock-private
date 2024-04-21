@@ -8,7 +8,9 @@
 #include <atomic>
 #include <utility>
 
-namespace verlib {
+namespace tlf_internal {
+  using namespace verlib;
+  
   using atomic_val = size_t;
   //thread_local int transaction_round = 0;
   
@@ -151,6 +153,7 @@ namespace verlib {
   flck::internal::acquired_pool<transaction_descriptor> trans_descriptor_pool;
   //flck::memory_pool<transaction_descriptor> trans_descriptor_pool;
 #endif
-}
+
+} // namespace tlf_internal
 
 #endif // TLF_TRANS_DESCRIPTOR_H_

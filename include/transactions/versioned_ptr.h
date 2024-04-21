@@ -3,7 +3,7 @@
 #ifndef TLF_VERSIONED_POINTER_H_
 #define TLF_VERSIONED_POINTER_H_
 
-namespace verlib {
+namespace tlf_internal {
 
 #include <optional>
 #include <tuple>
@@ -29,12 +29,12 @@ namespace verlib {
     // Only used by load_transactional.
     // Returns the value of the version of "ptr" at time stamp "at_stamp".
     // If the most recent version is ahead of at_stamp, and in_lock is
-    // set, then sets "old_version_read" to true.
+    // set, then sets "abort_if_update" to true.
     V* get_version(versioned* ptr, TS at_stamp) {
       if (is_indirect(ptr)) shortcut(&v, ptr);
       versioned* ptr_ = strip_indirect(ptr);
       if (ptr != nullptr && ptr_->get_stamp() > at_stamp) {
-	if (in_lock > 0) old_version_read = true;
+	if (in_lock > 0) abort_if_update = true;
 	// chase down version chain
 	do {
 	  ptr = ptr_->get_next_version();
@@ -135,6 +135,6 @@ namespace verlib {
     bool operator=(bool b) {store(b); return b; }
   };
 
-} // namespace verlib
+} // namespace tlf_internal
 
 #endif // TLF_VERSIONED_POINTER_H_

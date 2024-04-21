@@ -617,7 +617,7 @@ struct ordered_map {
     return verlib::with_epoch([=] {return upsert_(k, v);}); }
 
   std::optional<bool> try_insert(const K& k, const V& v, const bool upsert=false) {
-    auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
+    auto [p, cidx, l] = find_and_fix(root, k);
     int idx = l->find(k);
     if (!upsert && idx != -1) { // already there
       if (p->lck.read_lock([&] {
@@ -646,7 +646,7 @@ struct ordered_map {
     return verlib::with_epoch([=] { return remove_(k);});}
 
   std::optional<bool> try_remove(const K& k) {
-    auto [p, cidx, l] = verlib::do_now([&] {return find_and_fix(root, k);});
+    auto [p, cidx, l] = find_and_fix(root, k);
     int idx = l->find(k);
     if (idx == -1) // not there
       if (p->lck.read_lock([&] {

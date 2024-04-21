@@ -1,7 +1,8 @@
 #ifndef TLF_MEMORY_POOL_H_
 #define TLF_MEMORY_POOL_H_
 
-namespace verlib {
+namespace tlf_internal {
+  
   template <typename xT>
   struct memory_pool {
     using T = xT;
@@ -56,6 +57,7 @@ namespace verlib {
       retire_on_success(current_transaction, ptr);
     }
   };
-}
+
+} // tlf_internal
 
 #endif // TLF_MEMORY_POOL_H_

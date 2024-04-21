@@ -1,0 +1,605 @@
+./tpcc_arttree_lck_stm: ops/sec = 5.05139e+06
+./tpcc_arttree_lck_stm: ops/sec = 5.38368e+06
+./tpcc_arttree_lck_stm: ops/sec = 5.03962e+06
+...
+./tpcc_arttree_lf_stm: ops/sec = 4.47898e+06
+./tpcc_arttree_lf_stm: ops/sec = 4.45594e+06
+./tpcc_arttree_lf_stm: ops/sec = 4.08781e+06
+...
+./tpcc_arttree_lck: ops/sec = 5.54342e+06
+./tpcc_arttree_lck: ops/sec = 6.03597e+06
+./tpcc_arttree_lck: ops/sec = 5.95814e+06
+...
+./tpcc_arttree_lf: ops/sec = 5.21677e+06
+./tpcc_arttree_lf: ops/sec = 5.75437e+06
+./tpcc_arttree_lf: ops/sec = 5.66477e+06
+...
+./tpcc_btree_lck_stm: ops/sec = 3.69562e+06
+./tpcc_btree_lck_stm: ops/sec = 3.62547e+06
+./tpcc_btree_lck_stm: ops/sec = 3.50464e+06
+...
+./tpcc_btree_lf_stm: ops/sec = 3.41965e+06
+./tpcc_btree_lf_stm: ops/sec = 3.3111e+06
+./tpcc_btree_lf_stm: ops/sec = 2.86362e+06
+...
+./tpcc_btree_lck: ops/sec = 4.02739e+06
+./tpcc_btree_lck: ops/sec = 4.55885e+06
+./tpcc_btree_lck: ops/sec = 4.53376e+06
+...
+./tpcc_btree_lf: ops/sec = 3.83181e+06
+./tpcc_btree_lf: ops/sec = 4.10778e+06
+./tpcc_btree_lf: ops/sec = 3.74016e+06
+...
+./tpcc_hash_block_lck_stm: ops/sec = 8.72704e+06
+./tpcc_hash_block_lck_stm: ops/sec = 9.97222e+06
+./tpcc_hash_block_lck_stm: ops/sec = 1.02262e+07
+...
+./tpcc_hash_block_lf_stm: ops/sec = 7.29856e+06
+./tpcc_hash_block_lf_stm: ops/sec = 8.50944e+06
+./tpcc_hash_block_lf_stm: ops/sec = 8.63488e+06
+...
+./tpcc_hash_block_lck: ops/sec = 8.25037e+06
+./tpcc_hash_block_lck: ops/sec = 1.01668e+07
+./tpcc_hash_block_lck: ops/sec = 1.06296e+07
+...
+./tpcc_hash_block_lf: ops/sec = 8.24627e+06
+./tpcc_hash_block_lf: ops/sec = 9.15917e+06
+./tpcc_hash_block_lf: ops/sec = 9.25389e+06
+...
+./tpcc_hash_list_lck_stm: ops/sec = 6.71539e+06
+./tpcc_hash_list_lck_stm: ops/sec = 7.5305e+06
+./tpcc_hash_list_lck_stm: ops/sec = 7.57811e+06
+...
+./tpcc_hash_list_lf_stm: ops/sec = 6.18906e+06
+./tpcc_hash_list_lf_stm: ops/sec = 6.92531e+06
+./tpcc_hash_list_lf_stm: ops/sec = 6.97139e+06
+...
+./tpcc_hash_list_lck: ops/sec = 7.09222e+06
+./tpcc_hash_list_lck: ops/sec = 8.16282e+06
+./tpcc_hash_list_lck: ops/sec = 8.14694e+06
+...
+./tpcc_hash_list_lf: ops/sec = 6.69747e+06
+./tpcc_hash_list_lf: ops/sec = 7.64416e+06
+./tpcc_hash_list_lf: ops/sec = 7.66976e+06
+...
+./tpcc_skiplist_lck_stm: ops/sec = 1.35987e+06
+./tpcc_skiplist_lck_stm: ops/sec = 1.30048e+06
+./tpcc_skiplist_lck_stm: ops/sec = 1.22624e+06
+...
+./tpcc_skiplist_lf_stm: ops/sec = 1.1991e+06
+./tpcc_skiplist_lf_stm: ops/sec = 1.13818e+06
+./tpcc_skiplist_lf_stm: ops/sec = 1.07162e+06
+...
+./tpcc_skiplist_lck: ops/sec = 2.15654e+06
+./tpcc_skiplist_lck: ops/sec = 2.26048e+06
+./tpcc_skiplist_lck: ops/sec = 2.25638e+06
+...
+./tpcc_skiplist_lf: ops/sec = 1.96147e+06
+./tpcc_skiplist_lf: ops/sec = 2.0137e+06
+./tpcc_skiplist_lf: ops/sec = 1.9287e+06
+...
+
+Failed: PARLAY_NUM_THREADS=128 numactl -i all ./tpcc_mix_lck_stm -tt 1 -r 3 -n 0 -u 0 -rqthreads 0 -rs 0 -p 127 -z 0 -trans 0 
+...
+
+Failed: PARLAY_NUM_THREADS=128 numactl -i all ./tpcc_mix_lf_stm -tt 1 -r 3 -n 0 -u 0 -rqthreads 0 -rs 0 -p 127 -z 0 -trans 0 
+...
+./tpcc_mix_lck: ops/sec = 6.43277e+06
+./tpcc_mix_lck: ops/sec = 7.64877e+06
+./tpcc_mix_lck: ops/sec = 8.08909e+06
+...
+./tpcc_mix_lf: ops/sec = 6.09178e+06
+./tpcc_mix_lf: ops/sec = 7.15162e+06
+./tpcc_mix_lf: ops/sec = 7.07226e+06
+...
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,811.1
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,625.2
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,794.8
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,625.6
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,792.4
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,622.3
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,222.4
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,186.9
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,216.9
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,186.7
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,217.5
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,185.7
+...
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,321.3
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,448.4
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,320
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,453
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,317.8
+./arttree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,454.9
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,177
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,174.4
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,174.2
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,177.5
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,177.1
+./arttree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,177
+...
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,644.8
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,551.7
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,646.4
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,550.2
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,654.4
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,560
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,168.4
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,157.4
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,168.7
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,158.3
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,170.1
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,155.8
+...
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,305
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,420.2
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,307
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,416.4
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,292.1
+./arttree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,411.5
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,149
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,148.1
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,145.4
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,146.7
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,147.9
+./arttree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,149.9
+...
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,925
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,827.8
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,425.3
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,375.7
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,756
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,270.7
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,266.2
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,181.7
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,206.4
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,172
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,112.2
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,13.62
+...
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,363.4
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,555.3
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,255.2
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,308.4
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,328.8
+./arttree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,299.4
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,250.1
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,243.2
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,172.9
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,169.8
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,221.6
+./arttree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,22.91
+...
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,824.6
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,765.5
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,356.7
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,325.3
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,608.6
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,219.7
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,225.6
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,157.9
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,160.1
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,142.2
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,83.21
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,10.93
+...
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,353.3
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,532.5
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,231.6
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,274.1
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,304.1
+./arttree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,260.9
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,221.3
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,223.2
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,141.7
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,142.2
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,198.6
+./arttree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,18.83
+...
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,459.2
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,425.1
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,457.8
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,424.2
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,455.7
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,427.6
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,164.1
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,148.9
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,163.7
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,148.4
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,164.7
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,147.7
+...
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,204.3
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,259.8
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,204.4
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,263.6
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,204
+./btree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,261.5
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,119.6
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,126.4
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,121.3
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,125.9
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,120.3
+./btree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,126.5
+...
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,379
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,360.2
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,378.6
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,360.4
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,373.8
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,362.2
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,128.2
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,122.8
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,128.4
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,122.3
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,128
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,124.1
+...
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,187.6
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,231.7
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,186.8
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,232.6
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,187.7
+./btree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,233.2
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,100.9
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,104.3
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,102.2
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,105.2
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,101.7
+./btree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,104.8
+...
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,540.3
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,543.9
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,291.9
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,276.9
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,405.6
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,203
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,230.9
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,183.1
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,157.3
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,140.6
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,104.5
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,11.58
+...
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,234.7
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,308.6
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,172.6
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,200.7
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,207.9
+./btree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,191.7
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,164.1
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,170.7
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,121.6
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,124.7
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,144.2
+./btree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,18.05
+...
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,469.2
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,482.5
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,261.3
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,253.6
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,357.6
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,179.7
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,190.3
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,166
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,128.2
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,121.3
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,82.44
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,9.741
+...
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,227
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,288.8
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,162.6
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,186.9
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,200.5
+./btree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,176.4
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,148.1
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,153.5
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,105.9
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,108.4
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,132.5
+./btree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,15.53
+...
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,1101
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,726.3
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,1108
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,710
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,1099
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,720.3
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,250.8
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,206.4
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,252.8
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,206.6
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,252.7
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,203.9
+...
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,510.4
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,636.6
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,510.2
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,637.3
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,512.3
+./hash_block_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,630.1
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,213.3
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,211.8
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,214.9
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,211.8
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,214.4
+./hash_block_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,212.1
+...
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,953.8
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,703.5
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,945.8
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,697.3
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,949.3
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,704.9
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,198.4
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,179.4
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,201.2
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,174.9
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,197.6
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,180.9
+...
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,474.4
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,609.9
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,498.5
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,611.7
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,479.7
+./hash_block_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,607.4
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,181.7
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,183
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,183.7
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,183.1
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,182.4
+./hash_block_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,182
+...
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,1411
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,977.8
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,523.8
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,456.2
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,1232
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,294.2
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,412.8
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,260.9
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,225.5
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,189.6
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,348.9
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,16.42
+...
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,580.5
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,825.6
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,287.6
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,409.5
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,555.5
+./hash_block_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,406.5
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,336.9
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,288.6
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,183.1
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,192.3
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,306.3
+./hash_block_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,26.87
+...
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,1261
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,1009
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,451.5
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,415.4
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,1029
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,254.2
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,336.3
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,257.3
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,177.3
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,165.9
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,289.2
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,13.06
+...
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,562.5
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,799.1
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,284.9
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,368.7
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,483
+./hash_block_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,365.6
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,285.9
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,273.3
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,162
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,168
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,271.9
+./hash_block_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,22.41
+...
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,1074
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,717.9
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,1072
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,725.6
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,1052
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,721.2
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,247.3
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,204.4
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,249.7
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,204.4
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,248.1
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,202.8
+...
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,455.7
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,618
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,457.6
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,621.3
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,452.3
+./hash_list_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,616.9
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,205.1
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,210.6
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,205.7
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,209.1
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,208.4
+./hash_list_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,210.9
+...
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,897.7
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,690.5
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,893.1
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,693.2
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,896.9
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,688.8
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,190.2
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,174.3
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,192.4
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,174.2
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,193.3
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,174.4
+...
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,424.6
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,586.2
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,423.2
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,588.6
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,427.2
+./hash_list_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,586.3
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,168.2
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,173.7
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,171.4
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,174.9
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,172
+./hash_list_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,174.4
+...
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,1356
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,979.3
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,547.6
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,481.5
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,1231
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,293.9
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,386.8
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,259
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,223.9
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,189.6
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,321.6
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,15.73
+...
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,514
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,800.4
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,279.6
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,424.4
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,537.4
+./hash_list_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,405.7
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,308.7
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,285.2
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,187.1
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,193.6
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,289
+./hash_list_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,26.9
+...
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,1191
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,957.2
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,494
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,437.9
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,1030
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,247.1
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,334.3
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,248.1
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,181.8
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,167.9
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,287.5
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,13.08
+...
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,488
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,764.6
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,279.5
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,391.2
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,496.2
+./hash_list_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,371.8
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,271.2
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,262.9
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,157.2
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,162.6
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,256.6
+./hash_list_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,21.43
+...
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,240.1
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,247.3
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,238.2
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,244.7
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,237.4
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,248.1
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,100.4
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,94.85
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,102.7
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,96.77
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,101.9
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,96.07
+...
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,57.28
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,83.33
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,57.45
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,83.16
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,56.83
+./leaftree_lck_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,80.3
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,43.43
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,53.9
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,43.61
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,53.39
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,43.52
+./leaftree_lck_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,54.05
+...
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,182.2
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,169.9
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,178.3
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,169.3
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,159.8
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,164.7
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,77.24
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,74.11
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,78.19
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,75.45
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,76.39
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,74.15
+...
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,54.1
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,72.6
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,54.14
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,73.38
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,54.93
+./leaftree_lf_stm,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,73.72
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,39.96
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,47.29
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,39.52
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,46.54
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,40.25
+./leaftree_lf_stm,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,46.69
+...
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,241.1
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,263.2
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,148.9
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,148.4
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,168.9
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,105.7
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,148.7
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,136.7
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,100
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,90.66
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,91.95
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,7.799
+...
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,64.48
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,90.44
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,55.41
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,74.78
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,57.52
+./leaftree_lck_tlf,5%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,67.07
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,55.06
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,72.49
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,49.22
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,57.69
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0,50.11
+./leaftree_lck_tlf,50%update,0%range,find,rs=0,trans=16,n=10000000,p=127,z=0.99,11.56
+...
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,191.5
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,203.5
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,144.5
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,137.8
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,147.2
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,92.8
+./leaftree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0,118.7
+./leaftree_lf_tlf,50%update,0%range,find,rs=0,trans=0,n=100000,p=127,z=0.99,107.7
+./leaftree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0,83.95
+./leaftree_lf_tlf,50%update,0%range,find,rs=0,trans=1,n=100000,p=127,z=0.99,81.24
+./leaftree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0,84.92
+./leaftree_lf_tlf,50%update,0%range,find,rs=0,trans=16,n=100000,p=127,z=0.99,6.305
+...
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0,59.96
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=0,n=10000000,p=127,z=0.99,82.37
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0,54.8
+./leaftree_lf_tlf,5%update,0%range,find,rs=0,trans=1,n=10000000,p=127,z=0.99,71.27

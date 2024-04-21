@@ -38,7 +38,9 @@ namespace verlib {
 
 #elif Transactional
 #include "../transactions/transactions.h"
-# else // Not Versioned or Transactional
+#elif STM
+#include "../transactions/stm.h"
+#else // Not Versioned or Transactional
 
 namespace verlib {
 

@@ -44,7 +44,8 @@
 
 #include <utility>
 
-namespace verlib {
+namespace tlf_internal {
+  using namespace verlib;
 
   bool is_helping() {
 #ifdef NoHelp
@@ -172,7 +173,7 @@ namespace verlib {
     ver_link(versioned* next, versioned* value) : versioned{next}, value(value) {}
   };
 
-  verlib::memory_pool<ver_link> link_pool;
+  memory_pool<ver_link> link_pool;
 
   void shortcut(flck::atomic<versioned*>* loc, versioned* ptr) {
     ver_link* ptr_ = (ver_link*) strip_indirect(ptr);
@@ -244,7 +245,9 @@ namespace verlib {
   void validate(transaction_descriptor* descriptor);
 
   thread_local int in_lock;
- 
+  thread_local bool abort_if_update;
+  thread_local int try_count;
+
   // If a descriptor is installed then need to resolve whether to
   // return the new value (if succeded) or old value (if not yet in
   // validation stage or if failed).
@@ -294,9 +297,7 @@ namespace verlib {
                                 ptr == ((ver_link*) strip_indirect(expected))->value));
   }
 
-  thread_local int try_count;
-  thread_local bool old_version_read = false;
 
-}
+} // namespace tlf_internal
 
 #endif // TLF_CORE_FUNCTIONS_H_

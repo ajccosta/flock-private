@@ -3,7 +3,7 @@
 
 #include<algorithm>
 
-namespace verlib {
+namespace tlf_internal {
 
 //thread_local bool in_lock;
 
@@ -63,6 +63,6 @@ bool run_with_locks_rec(int i, transaction_descriptor* descriptor, F f, bool do_
 }
 #endif
   
-}
+} // namespace tlf_internal
 
 #endif // TLF_LOCK_H_

@@ -55,6 +55,23 @@ statistics adds(statistics s1, statistics s2) {
   return r;
 }    
 
+#ifdef STM
+template <typename F>
+auto do_atomic(const F& f) {
+  if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
+    verlib::with_transaction(f);
+  } else {
+    return verlib::with_transaction([&] {return std::optional(f());});
+  }
+}
+#else
+template <typename F>
+auto do_atomic(const F& f) {
+  if constexpr (std::is_void_v<std::invoke_result_t<F>>) { f(); }
+  else { return f();}
+}
+#endif			   
+
 template<typename SetType, typename K>
 void run_mixed_operations(parlay::sequence<K>& all,
                           const parlay::sequence<K>& unique,
@@ -158,13 +175,16 @@ void run_mixed_operations(parlay::sequence<K>& all,
     // insert n distinct elements
     parlay::parallel_for(0, nn, [&] (size_t i) {
                                    //std::cout << unique[i] << std::endl;
-      tr.insert(unique[i], default_value);
+      do_atomic([&] {
+	tr.insert(unique[i], default_value);});
     }, 10, true);
 
     if (!use_upsert) {
       parlay::parallel_for(0, n, [&] (size_t i) {
 				   //std::cout << unique[i] << std::endl;
-        tr.remove(unique[i]);}, 10, true);
+	do_atomic([&] {
+	  tr.remove(unique[i]);});
+      }, 10, true);
     }
     
     if (verbose)
@@ -303,21 +323,22 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #ifdef UPSERT
 	} else if (use_upsert) {
 	  local_stats.update_count++;
-	  if (tr.upsert(all[j], default_value)) {
+	  if (do_atomic([&] {return tr.upsert(all[j], default_value);})) {
 	    local_stats.added_count++;
             local_stats.update_success_count++;
           }
 #endif
         } else if (op_types[jj] == Insert) {
           local_stats.update_count++;
-          if (tr.insert(all[j], default_value)) {
+          //if (verlib::with_transaction([&] {return std::optional(tr.insert(all[j], default_value));})) {
+	  if (do_atomic([&] {return tr.insert(all[j], default_value);})) {
             local_stats.added_count++;
             local_stats.update_success_count++;
           }
         }
         else if (op_types[jj] == Remove) {
           local_stats.update_count++;
-          if (tr.remove(all[j])) {
+          if (do_atomic([&] {return tr.remove(all[j]);})) {
             local_stats.added_count--;
             local_stats.update_success_count++;
           }
@@ -512,7 +533,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
       // }
     }
     parlay::parallel_for(0, nn, [&] (size_t i) {
-      tr.remove(unique[i]); });
+      do_atomic([&] {
+	tr.remove(unique[i]);});
+    });
     }
     if (clear) SetType::clear();
     if (stats) SetType::stats();

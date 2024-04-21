@@ -16,7 +16,7 @@ class tpcc(parameters) :
     zipfians = [0]
     trans_sizes = [0]
     mix_percents = [[0,0,0,0]]
-    suffixes_all = ["_lck", "_lf"]
+    suffixes_all = ["_lck_stm", "_lf_stm", "_lck", "_lf"]
 
 run_all(tpcc)
     
@@ -30,7 +30,7 @@ class transactions(parameters) :
     zipfians = [0, .99]
     trans_sizes = [0, 1, 16]
     mix_percents = [[5,0,0,0], [50,0,0,0]]
-    suffixes_all = ["_lck_validate", "_lf_validate"]
+    suffixes_all = ["_lck_stm", "_lf_stm", "_lck_tlf", "_lf_tlf"]
                     
 run_all(transactions)
 
