@@ -179,14 +179,14 @@ struct ordered_map {
       // if integer than just search leaf using <.
       if constexpr (std::is_integral_v<K>) {
         for (int i = 0; i < header::size; i++) {
-            if (!(key_vals[i].key < k))
+          if (!(key_vals[i].key < k))
             if (k < key_vals[i].key) return {};
             else return key_vals[i].value;
         }
       } else {
         if (byte_pos < header::byte_num) return {};
         for (int i = 0; i < header::size; i++) {
-            int x = cmp(key_vals[i].key, k, byte_pos);
+          int x = cmp(key_vals[i].key, k, byte_pos);
           if (x != -1)
             if (x == 1) return {};
             else return key_vals[i].value;
@@ -220,7 +220,7 @@ struct ordered_map {
 
     // either insert or replace
     static void update(KV* in, KV* out, int n, const K& key, const V& value,
-                bool replace, int byte_pos = 0) {
+                       bool replace, int byte_pos = 0) {
       int i = 0;
       while (i < n && less(in[i].key, key, byte_pos)) { //in[i].key < key) {
         out[i] = in[i];
@@ -292,76 +292,77 @@ struct ordered_map {
   // Returns false if it fails.
   static bool add_child(node* gp, node* p, const K& k, const V& v) {
     return gp->lck.try_lock([=] {
-        auto child_ptr = get_child(gp, p->key);
-        bool rm = gp->removed.load();
-        bool pt = child_ptr->load() != p;
-        if (gp->removed.load() || child_ptr->load() != p)
+      auto child_ptr = get_child(gp, p->key);
+      bool rm = gp->removed.load();
+      bool pt = child_ptr->load() != p;
+      if (!verlib::validate([&] {return !gp->removed.load() && child_ptr->load() == p;}))
+        return false;
+      return p->lck.try_lock([=] {
+        if (!verlib::validate([&] {return get_child(p,k) == nullptr;}))
           return false;
-        return p->lck.try_lock([=] {
-            if (get_child(p,k) != nullptr) return false;
-            node* c = (node*) small_leaf_pool.New(k, v);
-            if (p->nt == Indirect) {
-              indirect_node* i_n = (indirect_node*) p;
-              i_n->removed = true; 
-              if (is_full(p)) {
-                // copy indirect to full
-                *child_ptr = (node*) full_pool.new_init([=] (full_node* f_n) {
-                   f_n->key = i_n->key;
-                  f_n->byte_num = i_n->byte_num;
-                  for (int i=0; i < 256; i++) {
-                    int j = i_n->idx[i];
-                    if (j != -1) f_n->children[i].init(i_n->ptr[j].load());
-                  }
-                  // seemingly broken g++ (10.3) compiler makes the following fail
-                  //   f_n->init_child(k, c);
-                  // inlining by hand fixes it.
-                  auto b = String::get_byte(k, f_n->byte_num);
-                  f_n->children[b].init(c);});
-              } else {
-                // copy indirect to indirect
-                *child_ptr = (node*) indirect_pool.new_init([=] (indirect_node* i_c) {
-                    i_c->key = i_n->key;
-                  i_c->byte_num = i_n->byte_num;
-                  i_c->size = i_n->size + 1;
-                  for (int i=0; i < 256; i++)
-                    i_c->idx[i] = i_n->idx[i];
-                  for (int i=0; i < i_n->size; i++) 
-                    i_c->ptr[i].init(i_n->ptr[i].load());
-                  i_c->init_child(k, c);});
-                }
-                indirect_pool.Retire(i_n);
-              } else { // (p->nt == Sparse)
-                sparse_node* s_n = (sparse_node*) p;
-                s_n->removed = true;
-                if (is_full(p)) {
-                  // copy sparse to indirect
-                  *child_ptr = (node*) indirect_pool.new_init([=] (indirect_node* i_n) {
-                      i_n->key = s_n->key;
-                    i_n->byte_num = s_n->byte_num;
-                    i_n->size = max_sparse_size + 1;
-                    for (int i=0; i < 256; i++) i_n->idx[i] = -1;
-                    for (int i=0; i < max_sparse_size; i++) {
-                      i_n->idx[s_n->keys[i]] = i; 
-                      i_n->ptr[i].init(s_n->ptr[i].load());
-                    }
-                    i_n->init_child(k, c);
-                  });  
-                } else {
-                  // copy sparse to sparse
-                  *child_ptr = (node*) sparse_pool.new_init([=] (sparse_node* s_c) {
-                      s_c->key = s_n->key;
-                    s_c->byte_num = s_n->byte_num;
-                    s_c->size = s_n->size + 1;
-                    for (int i=0; i < s_n->size; i++) {
-                      s_c->keys[i] = s_n->keys[i];
-                      s_c->ptr[i].init(s_n->ptr[i].load());
-                    }
-                    s_c->init_child(k, c);});
-                }
-                sparse_pool.Retire(s_n);
-            }
-            return true;}); // end try_lock(p->lck
-        return true;}); // end try_lock(gp->lck
+        node* c = (node*) small_leaf_pool.New(k, v);
+        if (p->nt == Indirect) {
+          indirect_node* i_n = (indirect_node*) p;
+          i_n->removed = true; 
+          if (is_full(p)) {
+            // copy indirect to full
+            *child_ptr = (node*) full_pool.new_init([=] (full_node* f_n) {
+              f_n->key = i_n->key;
+              f_n->byte_num = i_n->byte_num;
+              for (int i=0; i < 256; i++) {
+                int j = i_n->idx[i];
+                if (j != -1) f_n->children[i].init(i_n->ptr[j].load());
+              }
+              // seemingly broken g++ (10.3) compiler makes the following fail
+              //   f_n->init_child(k, c);
+              // inlining by hand fixes it.
+              auto b = String::get_byte(k, f_n->byte_num);
+              f_n->children[b].init(c);});
+          } else {
+            // copy indirect to indirect
+            *child_ptr = (node*) indirect_pool.new_init([=] (indirect_node* i_c) {
+              i_c->key = i_n->key;
+              i_c->byte_num = i_n->byte_num;
+              i_c->size = i_n->size + 1;
+              for (int i=0; i < 256; i++)
+                i_c->idx[i] = i_n->idx[i];
+              for (int i=0; i < i_n->size; i++) 
+                i_c->ptr[i].init(i_n->ptr[i].load());
+              i_c->init_child(k, c);});
+          }
+          indirect_pool.Retire(i_n);
+        } else { // (p->nt == Sparse)
+          sparse_node* s_n = (sparse_node*) p;
+          s_n->removed = true;
+          if (is_full(p)) {
+            // copy sparse to indirect
+            *child_ptr = (node*) indirect_pool.new_init([=] (indirect_node* i_n) {
+              i_n->key = s_n->key;
+              i_n->byte_num = s_n->byte_num;
+              i_n->size = max_sparse_size + 1;
+              for (int i=0; i < 256; i++) i_n->idx[i] = -1;
+              for (int i=0; i < max_sparse_size; i++) {
+                i_n->idx[s_n->keys[i]] = i; 
+                i_n->ptr[i].init(s_n->ptr[i].load());
+              }
+              i_n->init_child(k, c);
+            });  
+          } else {
+            // copy sparse to sparse
+            *child_ptr = (node*) sparse_pool.new_init([=] (sparse_node* s_c) {
+              s_c->key = s_n->key;
+              s_c->byte_num = s_n->byte_num;
+              s_c->size = s_n->size + 1;
+              for (int i=0; i < s_n->size; i++) {
+                s_c->keys[i] = s_n->keys[i];
+                s_c->ptr[i].init(s_n->ptr[i].load());
+              }
+              s_c->init_child(k, c);});
+          }
+          sparse_pool.Retire(s_n);
+        }
+        return true;}); // end try_lock(p->lck
+      return true;}); // end try_lock(gp->lck
   }
 
   //*** will return one of 4 things: no child, empty child, leaf, subtree (cut edge)
@@ -415,71 +416,72 @@ struct ordered_map {
                   c->is_leaf() &&
                   ((leaf*) c)->find(k, byte_pos).has_value());
     if (!upsert && found)
-      if (p->lck.read_lock([&] {return (cptr->load() == c) && !p->removed.load();}))
+      if (p->lck.read_lock([&] {return verlib::validate([&] {
+        return (cptr->load() == c) && !p->removed.load();});}))
         return false;
       else return {};
     bool replace = upsert && found;
 
     if (cptr != nullptr) {// child pointer exists, always true for full node
       if (p->lck.try_lock([=] {
-           // exit and retry if state has changed
-          if (p->removed.load() || cptr->load() != c) return false;
+        // exit and retry if state has changed
+        if (!verlib::validate([&] {return !p->removed.load() && cptr->load() == c;}))
+          return false;
+        // fill a null pointer with the new leaf
+        if (c == nullptr)
+          (*cptr) = (node*) small_leaf_pool.New(k, v);
+        else if (c->is_leaf()) {
+          leaf* l = (leaf*) c;
+          small_leaf* sl = (small_leaf*) c;
+          big_leaf* bl = (big_leaf*) c;
+          if (l->size < max_small_leaf_size) {
+            *cptr = (node*) small_leaf_pool.New(byte_pos, l, k, v, replace);
+            small_leaf_pool.Retire(sl);
+          } else if (l->size == max_small_leaf_size) {
+            if (replace)
+              *cptr = (node*) small_leaf_pool.New(byte_pos, l, k, v, true);
+            else
+              *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v, false);
+            small_leaf_pool.Retire(sl);
+          } else if (l->size < max_big_leaf_size || replace) {
+            *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v, replace);
+            big_leaf_pool.Retire(bl);
+          } else { // too large
+            int n = max_big_leaf_size + 1;
 
-          // fill a null pointer with the new leaf
-          if (c == nullptr)
-            (*cptr) = (node*) small_leaf_pool.New(k, v);
-          else if (c->is_leaf()) {
-            leaf* l = (leaf*) c;
-            small_leaf* sl = (small_leaf*) c;
-            big_leaf* bl = (big_leaf*) c;
-            if (l->size < max_small_leaf_size) {
-              *cptr = (node*) small_leaf_pool.New(byte_pos, l, k, v, replace);
-              small_leaf_pool.Retire(sl);
-            } else if (l->size == max_small_leaf_size) {
-              if (replace)
-                *cptr = (node*) small_leaf_pool.New(byte_pos, l, k, v, true);
-              else
-                *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v, false);
-              small_leaf_pool.Retire(sl);
-            } else if (l->size < max_big_leaf_size || replace) {
-              *cptr = (node*) big_leaf_pool.New(byte_pos, l, k, v, replace);
-              big_leaf_pool.Retire(bl);
-            } else { // too large
-              int n = max_big_leaf_size + 1;
+            // insert new key-value pair into l and put result into tmp
+            KV tmp[n];
+            leaf::update(l->key_vals, tmp, n - 1, k, v, false);
+            // for (int i=0; i < max_big_leaf_size; i++)
+            //          tmp[i] = l->key_vals[i];
+            // tmp[max_big_leaf_size] = KV{k,v};
+            // std::sort(tmp, tmp + n, [&] (KV& a, KV& b) {return a.key < b.key;});
 
-              // insert new key-value pair into l and put result into tmp
-              KV tmp[n];
-              leaf::update(l->key_vals, tmp, n - 1, k, v, false);
-              // for (int i=0; i < max_big_leaf_size; i++)
-              //          tmp[i] = l->key_vals[i];
-              // tmp[max_big_leaf_size] = KV{k,v};
-              // std::sort(tmp, tmp + n, [&] (KV& a, KV& b) {return a.key < b.key;});
-
-              // break tmp up into multiple leafs base on byte value at byte_pos
-              auto gb = [&] (const KV& kv) {return String::get_byte(kv.key, byte_pos);};
-              int j = 0;
-              int start = 0;
-              int byteval = gb(tmp[0]);
-              node* children[n];
-              for (int i=1; i < n; i++) {
-                if (gb(tmp[i]) != byteval) {
-                  children[j++] = new_leaf(byte_pos+1, &tmp[start], &tmp[i]);
-                  start = i;
-                  byteval = gb(tmp[i]);
-                }
+            // break tmp up into multiple leafs base on byte value at byte_pos
+            auto gb = [&] (const KV& kv) {return String::get_byte(kv.key, byte_pos);};
+            int j = 0;
+            int start = 0;
+            int byteval = gb(tmp[0]);
+            node* children[n];
+            for (int i=1; i < n; i++) {
+              if (gb(tmp[i]) != byteval) {
+                children[j++] = new_leaf(byte_pos+1, &tmp[start], &tmp[i]);
+                start = i;
+                byteval = gb(tmp[i]);
               }
-              children[j++] = new_leaf(byte_pos+1, &tmp[start], &tmp[n]);
-
-              // insert the new leaves into a sparse node
-              *cptr = (node*) sparse_pool.New(byte_pos, &children[0], &children[j]);
-              big_leaf_pool.Retire(bl);
             }
-          } else { // not a leaf
-            node* new_l = (node*) small_leaf_pool.New(k, v);
-            *cptr = (node*) sparse_pool.New(byte_pos, c, c->key,
-                                                new_l, k);
+            children[j++] = new_leaf(byte_pos+1, &tmp[start], &tmp[n]);
+
+            // insert the new leaves into a sparse node
+            *cptr = (node*) sparse_pool.New(byte_pos, &children[0], &children[j]);
+            big_leaf_pool.Retire(bl);
           }
-          return true;})) return !replace;
+        } else { // not a leaf
+          node* new_l = (node*) small_leaf_pool.New(k, v);
+          *cptr = (node*) sparse_pool.New(byte_pos, c, c->key,
+                                          new_l, k);
+        }
+        return true;})) return !replace;
     } else { // no child pointer, need to add
       bool x = add_child(gp, p, k, v);
       if (x) return true;
@@ -515,51 +517,54 @@ struct ordered_map {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
     if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value()))
-      if (p->lck.read_lock([&] {return (cptr->load() == c) && !p->removed.load();}))
+      if (p->lck.read_lock([&] {return verlib::validate([&] {
+        return (cptr->load() == c) && !p->removed.load();});}))
         return false;
       else return {};
     if (p->lck.try_lock([=] {
-        if (p->removed.load() || cptr->load() != c) return false;
-        leaf* l = (leaf*) c;
-        if (l->size == 1) {
-          node* other_child = single_other_child(p, c);
-          // if (other_child != nullptr && gp->nt != Sparse) {
-          //   // if parent will become singleton try to remove parent as well
-          //   return gp->lck.try_lock([=] {
-          //     auto child_ptr = get_child(gp, p->key);
-          //     if (gp->removed.load() || child_ptr->load() != p)
-                // return false;
-          //     *child_ptr = other_child;
-          //     p->removed = true;
-          //     sparse_pool.Retire((sparse_node*) p);
-          //     small_leaf_pool.Retire((small_leaf*) l);
-          //     return true;});
-          // } else 
-    { // just remove child
-            *cptr = nullptr;
-            small_leaf_pool.Retire((small_leaf*) l);
-            return true;
-          }
-        } else { // at least 2 in leaf
-          if (l->size > max_small_leaf_size + 1) {
-            *cptr = (node*) big_leaf_pool.New(l, k);
-            big_leaf_pool.Retire((big_leaf*) l);
-          } else if (l->size == max_small_leaf_size + 1) {
-            *cptr = (node*) small_leaf_pool.New(l, k);
-            big_leaf_pool.Retire((big_leaf*) l);
-          } else {
-            *cptr = (node*) small_leaf_pool.New(l, k);
-            small_leaf_pool.Retire((small_leaf*) l);
-          }
+      if (!verlib::validate([&] {return !p->removed.load() && cptr->load() == c;}))
+        return false;
+      leaf* l = (leaf*) c;
+      if (l->size == 1) {
+        node* other_child = single_other_child(p, c);
+        // if (other_child != nullptr && gp->nt != Sparse) {
+        //   // if parent will become singleton try to remove parent as well
+        //   return gp->lck.try_lock([=] {
+        //     auto child_ptr = get_child(gp, p->key);
+        //     if (gp->removed.load() || child_ptr->load() != p)
+        // return false;
+        //     *child_ptr = other_child;
+        //     p->removed = true;
+        //     sparse_pool.Retire((sparse_node*) p);
+        //     small_leaf_pool.Retire((small_leaf*) l);
+        //     return true;});
+        // } else 
+        { // just remove child
+          *cptr = nullptr;
+          small_leaf_pool.Retire((small_leaf*) l);
           return true;
-        }})) return true;
+        }
+      } else { // at least 2 in leaf
+        if (l->size > max_small_leaf_size + 1) {
+          *cptr = (node*) big_leaf_pool.New(l, k);
+          big_leaf_pool.Retire((big_leaf*) l);
+        } else if (l->size == max_small_leaf_size + 1) {
+          *cptr = (node*) small_leaf_pool.New(l, k);
+          big_leaf_pool.Retire((big_leaf*) l);
+        } else {
+          *cptr = (node*) small_leaf_pool.New(l, k);
+          small_leaf_pool.Retire((small_leaf*) l);
+        }
+        return true;
+      }})) return true;
     return {};
   }
 
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [gp, p, cptr, l, pos] = find_location(root, k);
-    if (p->lck.read_lock([&] {return (cptr->load() == l) && !p->removed.load();}))
+    if (p->lck.read_lock([&] {return verlib::validate([&] {
+      return (cptr->load() == l) && !p->removed.load();});}))
       if (l == nullptr) return ot(std::optional<V>());
       else return ot(((leaf*) l)->find(k, pos));
     else return ot();
@@ -580,7 +585,7 @@ struct ordered_map {
 
   template<typename AddF>
   static void range_internal(node* a, AddF& add,
-                      std::optional<K> start, std::optional<K> end, int pos) {
+                             std::optional<K> start, std::optional<K> end, int pos) {
     if (a == nullptr) return;
     std::optional<K> empty;
     if (a->nt == Leaf) {
@@ -622,7 +627,7 @@ struct ordered_map {
         int o = ai->idx[i];
         if (o != -1) {
           range_internal(ai->ptr[o].read_snapshot(), add,
-                                    start, end, a->byte_num);
+                         start, end, a->byte_num);
         }
       }
     } else { // Sparse
@@ -656,40 +661,40 @@ struct ordered_map {
   void print() {
     std::function<void(node*)> prec;
     prec = [&] (node* p) {
-             if (p == nullptr) return;
-             switch (p->nt) {
-             case Leaf : {
-               auto l = (leaf*) p;
-               std::cout << std::hex << l->key << ":" << l->key_vals[0].key << std::dec << ", ";
-               return;
-             }
-             case Full : {
-               auto f_n = (full_node*) p;
-               for (int i=0; i < 256; i++) {
-                 prec(f_n->children[i].load());
-               }
-               return;
-             }
-             case Indirect : {
-               auto i_n = (indirect_node*) p;
-               for (int i=0; i < 256; i++) {
-                 int j = i_n->idx[i];
-                 if (j != -1) prec(i_n->ptr[j].load());
-               }
-               return;
-             }
-             case Sparse : {
-               using pr = std::pair<int,node*>;
-               auto s_n = (sparse_node*) p;
-               std::vector<pr> v;
-               for (int i=0; i < s_n->size; i++)
-                 v.push_back(std::make_pair(s_n->keys[i], s_n->ptr[i].load()));
-               std::sort(v.begin(), v.end()); 
-               for (auto x : v) prec(x.second);
-               return;
-             }
-             }
-           };
+      if (p == nullptr) return;
+      switch (p->nt) {
+      case Leaf : {
+        auto l = (leaf*) p;
+        std::cout << std::hex << l->key << ":" << l->key_vals[0].key << std::dec << ", ";
+        return;
+      }
+      case Full : {
+        auto f_n = (full_node*) p;
+        for (int i=0; i < 256; i++) {
+          prec(f_n->children[i].load());
+        }
+        return;
+      }
+      case Indirect : {
+        auto i_n = (indirect_node*) p;
+        for (int i=0; i < 256; i++) {
+          int j = i_n->idx[i];
+          if (j != -1) prec(i_n->ptr[j].load());
+        }
+        return;
+      }
+      case Sparse : {
+        using pr = std::pair<int,node*>;
+        auto s_n = (sparse_node*) p;
+        std::vector<pr> v;
+        for (int i=0; i < s_n->size; i++)
+          v.push_back(std::make_pair(s_n->keys[i], s_n->ptr[i].load()));
+        std::sort(v.begin(), v.end()); 
+        for (auto x : v) prec(x.second);
+        return;
+      }
+      }
+    };
     prec(root);
     std::cout << std::endl;
   }
@@ -714,7 +719,7 @@ struct ordered_map {
     } else {
       auto pp = (full_node*) p;
       parlay::parallel_for(0, 256, [&] (size_t i) {
-          retire_recursive(pp->children[i].load());});
+        retire_recursive(pp->children[i].load());});
       full_pool.Retire(pp);
     }
   }
@@ -723,45 +728,45 @@ struct ordered_map {
   long check() {
     std::function<size_t(node*)> crec;
     crec = [&] (node* p) -> size_t {
-             if (p == nullptr) return 0;
-             switch (p->nt) {
-             case Leaf : {
-               leaf* l = (leaf*) p;
-               for (int i = 1; i < l->size; i++)
-                 if (!(less(l->key_vals[i-1].key, l->key_vals[i].key))) {
-                   std::cout << "arttree: keys out of order at a leaf, leaf size = " << (int) l->size << std::endl;
-                   for (int j=0; j < String::length(l->key_vals[i-1].key); j++)
-                     std::cout << String::get_byte(l->key_vals[i-1].key, j) << ",";
-                   std::cout << std::endl;
-                   for (int j=0;  j < String::length(l->key_vals[i].key); j++)
-                     std::cout << String::get_byte(l->key_vals[i].key, j) << ",";
-                   std::cout << std::endl;
-                   abort();
-                 }
-               return l->size;
-             }
-             case Full : {
-               auto f_n = (full_node*) p;
-               auto x = parlay::tabulate(256, [&] (size_t i) {
-                                                return crec(f_n->children[i].load());});
-               return parlay::reduce(x);
-             }
-             case Indirect : {
-               auto i_n = (indirect_node*) p;
-               auto x = parlay::tabulate(256, [&] (size_t i) {
-                                                int j = i_n->idx[i];
-                                                return (j == -1) ? 0 : crec(i_n->ptr[j].load());});
-               return parlay::reduce(x);
-             }
-             case Sparse : {
-               auto s_n = (sparse_node*) p;
-               auto x = parlay::tabulate(s_n->size,
-                                         [&] (size_t i) {return crec(s_n->ptr[i].load());});
-               return parlay::reduce(x);
-             }
-             }
-             return 0;
-           };
+      if (p == nullptr) return 0;
+      switch (p->nt) {
+      case Leaf : {
+        leaf* l = (leaf*) p;
+        for (int i = 1; i < l->size; i++)
+          if (!(less(l->key_vals[i-1].key, l->key_vals[i].key))) {
+            std::cout << "arttree: keys out of order at a leaf, leaf size = " << (int) l->size << std::endl;
+            for (int j=0; j < String::length(l->key_vals[i-1].key); j++)
+              std::cout << String::get_byte(l->key_vals[i-1].key, j) << ",";
+            std::cout << std::endl;
+            for (int j=0;  j < String::length(l->key_vals[i].key); j++)
+              std::cout << String::get_byte(l->key_vals[i].key, j) << ",";
+            std::cout << std::endl;
+            abort();
+          }
+        return l->size;
+      }
+      case Full : {
+        auto f_n = (full_node*) p;
+        auto x = parlay::tabulate(256, [&] (size_t i) {
+          return crec(f_n->children[i].load());});
+        return parlay::reduce(x);
+      }
+      case Indirect : {
+        auto i_n = (indirect_node*) p;
+        auto x = parlay::tabulate(256, [&] (size_t i) {
+          int j = i_n->idx[i];
+          return (j == -1) ? 0 : crec(i_n->ptr[j].load());});
+        return parlay::reduce(x);
+      }
+      case Sparse : {
+        auto s_n = (sparse_node*) p;
+        auto x = parlay::tabulate(s_n->size,
+                                  [&] (size_t i) {return crec(s_n->ptr[i].load());});
+        return parlay::reduce(x);
+      }
+      }
+      return 0;
+    };
     size_t cnt = crec(root);
     return cnt;
   }

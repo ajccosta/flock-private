@@ -82,23 +82,25 @@ struct ordered_map {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = p_left ? &(p->left) : &(p->right);
     if (Equal(k, l))
-	//(!l->is_sentinal && (!upsert && equal(l->key, k))))
+      //(!l->is_sentinal && (!upsert && equal(l->key, k))))
       // || (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
       // l != prev_leaf)))
-      if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
+      if (p->lck.read_lock([&] {return verlib::validate([&] {
+        return (ptr->load() == (node*) l) && !p->removed.load();});}))
 	return false;
       else return {};
     //prev_leaf = l;
     bool r = p->lck.try_lock([=] {
-	auto l_new = ptr->load();
-	if (p->removed.load() || l_new != l) return false;
-	node* new_l = leaf_pool.New(k, v);
-	//if (!l->is_sentinal && equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
-	//else
-	*ptr = (Less(k, l) ?
-		internal_pool.New(l->key, new_l, l) :
-		internal_pool.New(k, l, new_l));
-	return true;});
+      auto l_new = ptr->load();
+      if (!verlib::validate([&] {return !p->removed.load() && l_new == l;}))
+        return false;
+      node* new_l = leaf_pool.New(k, v);
+      //if (!l->is_sentinal && equal(k, l->key)) *ptr = new_l; // update existing key (only if upsert)
+      //else
+      *ptr = (Less(k, l) ?
+              internal_pool.New(l->key, new_l, l) :
+              internal_pool.New(k, l, new_l));
+      return true;});
     if (r) return !Equal(k, l); 
     else return {};
   }
@@ -115,23 +117,25 @@ struct ordered_map {
     if (l->is_sentinal) return false; // need to deal with gp == nullptr
     if (!Equal(k, l)) {
       // || (prev_leaf != nullptr && prev_leaf != l))
-      if (gp->lck.read_lock([&] {return (ptr->load() == p) && !gp->removed.load();}))
+      if (gp->lck.read_lock([&] {return verlib::validate([&] {
+        return (ptr->load() == p) && !gp->removed.load();});}))
 	return false;
       else return {};
     }
     // prev_leaf = l;
     if (gp->lck.try_lock([=] {
       return p->lck.try_lock([=] {
-	  if (gp->removed.load() || ptr->load() != p) return false;
-	  node* ll = (p->left).load();
-	  node* lr = (p->right).load();
-	  if (p_left) std::swap(ll,lr);
-	  if (lr != l) return false;
-	  p->removed = true;
-	  (*ptr) = ll; // shortcut
-	  internal_pool.Retire(p);
-	  leaf_pool.Retire(l);
-	  return true; });}))
+        if (!verlib::validate([&] {return !gp->removed.load() && ptr->load() == p;}))
+          return false;
+        node* ll = (p->left).load();
+        node* lr = (p->right).load();
+        if (p_left) std::swap(ll,lr);
+        if (lr != l) return false;
+        p->removed = true;
+        (*ptr) = ll; // shortcut
+        internal_pool.Retire(p);
+        leaf_pool.Retire(l);
+        return true; });}))
       return std::optional<bool>(true);
     else return {};
   }
@@ -159,7 +163,8 @@ struct ordered_map {
     using ot = std::optional<std::optional<V>>;
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = p_left ? &(p->left) : &(p->right);
-    if (p->lck.read_lock([&] {return (ptr->load() == (node*) l) && !p->removed.load();}))
+    if (p->lck.read_lock([&] {return verlib::validate([&] {
+      return (ptr->load() == (node*) l) && !p->removed.load();});}))
       return ot(Equal(k, l) ?
 		std::optional<V>(l->value) :
 		std::optional<V>());
@@ -173,16 +178,16 @@ struct ordered_map {
   void print() {
     std::function<void(node*)> prec;
     prec = [&] (node* p) {
-	     if (p->is_sentinal) std::cout << "[";
-	     else if (p->is_leaf) std::cout << p->key;
-	     else {
-	       internal* pp = (internal*) p;
-	       prec((pp->left).load());
-	       if (!(pp->left).load()->is_sentinal)
-		 std::cout << ", ";
-	       prec((pp->right).load());
-	     }
-	   };
+      if (p->is_sentinal) std::cout << "[";
+      else if (p->is_leaf) std::cout << p->key;
+      else {
+        internal* pp = (internal*) p;
+        prec((pp->left).load());
+        if (!(pp->left).load()->is_sentinal)
+          std::cout << ", ";
+        prec((pp->right).load());
+      }
+    };
     prec(root->left.load());
     std::cout << "]" << std::endl;
   }
@@ -202,13 +207,13 @@ struct ordered_map {
   double total_height() {
     std::function<size_t(node*, size_t)> hrec;
     hrec = [&] (node* p, size_t depth) {
-	     if (p->is_leaf) return depth;
-	     internal* pp = (internal*) p;
-	     size_t d1, d2;
-	     parlay::par_do([&] () { d1 = hrec((pp->left).load(), depth + 1);},
-			    [&] () { d2 = hrec((pp->right).load(), depth + 1);});
-	     return d1 + d2;
-	   };
+      if (p->is_leaf) return depth;
+      internal* pp = (internal*) p;
+      size_t d1, d2;
+      parlay::par_do([&] () { d1 = hrec((pp->left).load(), depth + 1);},
+                     [&] () { d2 = hrec((pp->right).load(), depth + 1);});
+      return d1 + d2;
+    };
     return hrec(root->left.load(), 1);
   }
 
@@ -216,31 +221,31 @@ struct ordered_map {
     using rtup = std::tuple<K, K, long>;
     std::function<rtup(node*,bool)> crec;
     crec = [&] (node* p, bool leftmost) {
-	     if (p->is_leaf)
-	       if (leftmost) {
-		 if (p->is_sentinal) return rtup(p->key, p->key, 0);
-		 else {
-		   std::cout << "error, leftmost leaf is not a sentinal" << std::endl;
-		   abort();
-		 }
-	       } else if (p->is_sentinal) {
-		 std::cout << "error, not leftmost leaf is a sentinal" << std::endl;
-		 abort();
-	       } else return rtup(p->key, p->key, 1);
-	     if (p->is_sentinal) {
-	       std::cout << "error, interior node is a sentinal" << std::endl;
-	       abort();
-	     }
-	     internal* pp = (internal*) p;
-	     K lmin,lmax,rmin,rmax;
-	     long lsum, rsum;
-	     parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((pp->left).load(), leftmost);},
-			    [&] () { std::tie(rmin,rmax,rsum) = crec((pp->right).load(), false);});
-	     if ((lsum !=0 && !Less(lmax, pp)) || Less(rmin, pp))
-	       std::cout << "out of order key: " << lmax << ", " << pp->key << ", " << rmin << std::endl;
-	     if (lsum == 0) return rtup(pp->key, rmax, rsum);
-	     else return rtup(lmin, rmax, lsum + rsum);
-	   };
+      if (p->is_leaf)
+        if (leftmost) {
+          if (p->is_sentinal) return rtup(p->key, p->key, 0);
+          else {
+            std::cout << "error, leftmost leaf is not a sentinal" << std::endl;
+            abort();
+          }
+        } else if (p->is_sentinal) {
+          std::cout << "error, not leftmost leaf is a sentinal" << std::endl;
+          abort();
+        } else return rtup(p->key, p->key, 1);
+      if (p->is_sentinal) {
+        std::cout << "error, interior node is a sentinal" << std::endl;
+        abort();
+      }
+      internal* pp = (internal*) p;
+      K lmin,lmax,rmin,rmax;
+      long lsum, rsum;
+      parlay::par_do([&] () { std::tie(lmin,lmax,lsum) = crec((pp->left).load(), leftmost);},
+                     [&] () { std::tie(rmin,rmax,rsum) = crec((pp->right).load(), false);});
+      if ((lsum !=0 && !Less(lmax, pp)) || Less(rmin, pp))
+        std::cout << "out of order key: " << lmax << ", " << pp->key << ", " << rmin << std::endl;
+      if (lsum == 0) return rtup(pp->key, rmax, rsum);
+      else return rtup(lmin, rmax, lsum + rsum);
+    };
     auto l = (root->left).load();
     auto [minv, maxv, cnt] = crec(l, true);
     //std::cout << "average height = " << ((double) total_height(p) / cnt) << std::endl;

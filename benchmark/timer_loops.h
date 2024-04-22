@@ -79,7 +79,8 @@ auto do_atomic(const F& f) {
   if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
     verlib::with_transaction(f);
   } else {
-    return verlib::with_transaction([&] {return std::optional(f());});
+    return verlib::with_transaction([&] () -> std::optional<std::invoke_result_t<F>> {
+	return std::optional(f());});
   }
 }
 #else
@@ -336,7 +337,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
       auto start_op_time = start_time;
 
       while (true) {
-        //std::cout << all[j] << ", " << op_types[jj] << std::endl;
         if (check_end(cnt, local_stats, proc_id, start_time)) return;
 
 #ifdef Latency
@@ -344,7 +344,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #endif
         if (op_types[jj] == Find) {
           local_stats.query_count++;
-          auto val = tr.find(all[j]);
+          auto val = do_atomic([&] {return tr.find(all[j]);});
           if (val.has_value()) {
             local_stats.query_total_value += val.value()[0];
           }
@@ -358,7 +358,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #endif
         } else if (op_types[jj] == Insert) {
           local_stats.update_count++;
-          //if (verlib::with_transaction([&] {return std::optional(tr.insert(all[j], default_value));})) {
 	  if (do_atomic([&] {return tr.insert(all[j], default_value);})) {
             local_stats.added_count++;
             local_stats.update_success_count++;

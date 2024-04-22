@@ -13,6 +13,15 @@
 
 namespace verlib {
  bool strict_lock = false;
+
+  // STM does not need to validate after locks so this is just a way to avoid such validation
+#ifdef STM
+  template <typename F>
+  bool validate(const F& f) {return true;}
+#else
+  template <typename F>
+  bool validate(const F& f) { return f();}
+#endif
 }
 
 #ifdef Versioned

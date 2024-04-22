@@ -39,18 +39,18 @@ struct ordered_map {
     node* next = find_location(root, k);
     node* prev = (next->prev).load();
     if (!next->is_end && !less(k, next->key)) //already there
-      if (prev->lck.read_lock([&] {return ((prev->next.load() == next) &&
-					   !prev->removed.load());}))
+      if (prev->lck.read_lock([&] {return verlib::validate([&] {
+        return ((prev->next.load() == next) && !prev->removed.load());});}))
 	return false;
       else return {};
     if ((prev->is_end || prev->key < k) && 
 	prev->try_lock([=] {
-	   if (!prev->removed.load() && (prev->next).load() == next) {
-	     node* new_node = flck::New<node>(k, v, next, prev);
-	     prev->next = new_node;
-	     next->prev = new_node;
-	return true;
-      } else return false;})) return true;
+          if (verlib::validate([&] {return !prev->removed.load() && (prev->next).load() == next;})) {
+            node* new_node = flck::New<node>(k, v, next, prev);
+            prev->next = new_node;
+            next->prev = new_node;
+            return true;
+          } else return false;})) return true;
     else return {}; // failed
   }
 
@@ -64,21 +64,21 @@ struct ordered_map {
     node* loc = find_location(root, k);
     node* prev = (loc->prev).load();
     if (loc->is_end || less(k, loc->key)) // not found
-      if (prev->lck.read_lock([&] {return ((prev->next.load() == loc) &&
-					   !prev->removed.load());}))
+      if (prev->lck.read_lock([&] {return verlib::validate([&] {
+        return ((prev->next.load() == loc) && !prev->removed.load());});}))
 	return false;
       else return {};
     if (prev->try_lock([=] {
-        if (prev->removed.load() || (prev->next).load() != loc)
-	  return false;
-	return loc->try_lock([=] {
-         node* next = (loc->next).load();
-	 loc->removed = true;
-	 prev->next = next;
-	 next->prev = prev;
-	 flck::Retire<node>(loc);
+      if (!verlib::validate([&] {return !prev->removed.load() && (prev->next).load() == loc;}))
+        return false;
+      return loc->try_lock([=] {
+        node* next = (loc->next).load();
+        loc->removed = true;
+        prev->next = next;
+        next->prev = prev;
+        flck::Retire<node>(loc);
 	return true;
-        });}))
+      });}))
       return true;
     else return {};
   }
@@ -93,8 +93,8 @@ struct ordered_map {
     using ot = std::optional<std::optional<V>>;
     node* next = find_location(root, k);
     node* prev = next->prev.load();
-    if (prev->lck.read_lock([&] {return ((prev->next.load() == next) &&
-					 !prev->removed.load());}))
+    if (prev->lck.read_lock([&] {return verlib::validate([&] {
+      return ((prev->next.load() == next) && !prev->removed.load());});}))
       return ot(!next->is_end && !less(k, next->key) ?
 		std::optional<V>(next->value) :
 		std::optional<V>());

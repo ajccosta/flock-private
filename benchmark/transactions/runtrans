@@ -25,11 +25,11 @@ class transactions(parameters) :
     file_suffix = "trans"
     lists = ["list"]
     list_sizes = [100,1000]
-    trees = ["arttree", "btree", "hash_block", "hash_list", "leaftree", "skiplist" ]
+    trees = ["arttree", "btree", "hash_block", "leaftree", "skiplist" ]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0, 1, 16]
-    mix_percents = [[5,0,0,0], [50,0,0,0]]
+    mix_percents = [[0,0,0,0], [5,0,0,0], [50,0,0,0]]
     suffixes_all = ["_lck_stm", "_lf_stm", "_lck_tlf", "_lf_tlf"]
                     
 run_all(transactions)
@@ -39,11 +39,11 @@ class other(parameters) :
     file_suffix = "trans"
     lists = ["list"]
     list_sizes = [100,1000]
-    trees = ["arttree", "btree", "hash_block", "hash_list", "leaftree", "skiplist" ]
+    trees = ["arttree", "btree", "hash_block", "leaftree", "skiplist" ]
     tree_sizes = [100000,10000000]
     zipfians = [0, .99]
     trans_sizes = [0]
-    mix_percents = [[5,0,0,0], [50,0,0,0]]
+    mix_percents = [[0,0,0,0], [5,0,0,0], [50,0,0,0]]
     suffixes_all = ["_lck", "_lck_versioned", "_lf", "_lf_versioned"]
                     
 run_all(other)

@@ -45,11 +45,12 @@ struct ordered_map {
   std::optional<bool> try_insert(const K& k, const V& v) {
     auto [cur, nxt] = find_location(root, k);
     if (!nxt->is_end && !less(k, nxt->key)) //already there
-      if (cur->lck.read_lock([&] {return (cur->next.load() == nxt) && !cur->removed.load();}))
+      if (cur->lck.read_lock([&] {return verlib::validate([&] {
+        return (cur->next.load() == nxt) && !cur->removed.load();});}))
 	return false;
       else return {};
     if (cur->lck.try_lock([=] {
-      if (!cur->removed.load() && (cur->next).load() == nxt) {
+      if (verlib::validate([&] {return !cur->removed.load() && (cur->next).load() == nxt;})) {
 	node* new_node = node_pool.New(k, v, nxt);
 	cur->next = new_node; // splice in
 	return true;
@@ -66,13 +67,14 @@ struct ordered_map {
   std::optional<bool> try_remove(const K& k) {
     auto [cur, nxt] = find_location(root, k);
     if (nxt->is_end || less(k, nxt->key)) // not found
-      if (cur->lck.read_lock([&] {return (cur->next.load() == nxt) && !cur->removed.load();}))
+      if (cur->lck.read_lock([&] {return verlib::validate([&] {
+        return (cur->next.load() == nxt) && !cur->removed.load();});}))
 	return false;
       else return {};
     if (cur->lck.try_lock([=] {
-        if (cur->removed.load() || (cur->next).load() != nxt)
-	  return false;
-	return nxt->lck.try_lock([=] {
+      if (!verlib::validate([&] {return !cur->removed.load() && (cur->next).load() == nxt;}))
+        return false;
+      return nxt->lck.try_lock([=] {
         node* nxtnxt = (nxt->next).load();
 #ifdef Recorded_Once
 	// if recoreded once then need to copy nxtnxt and point to it
@@ -89,7 +91,7 @@ struct ordered_map {
 	node_pool.Retire(nxt);
 	return true;
 #endif
-        });}))
+      });}))
       return true;
     else return {};
   }
@@ -107,7 +109,8 @@ struct ordered_map {
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [cur, nxt] = find_location(root, k);
-    if (cur->lck.read_lock([&] {return (cur->next.load() == nxt) && !cur->removed.load();}))
+    if (cur->lck.read_lock([&] {return verlib::validate([&] {
+      return (cur->next.load() == nxt) && !cur->removed.load();});}))
       return ot(!nxt->is_end && !less(k, nxt->key) ?
 		std::optional<V>(nxt->value) :
 		std::optional<V>());

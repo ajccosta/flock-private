@@ -91,7 +91,7 @@ private:
     std::optional<V> find(const K& k) {
       if (cnt <= 31) { // regular node
 	if (KeyEqual{}(entries[0].key, k)) // shortcut for common case
-	   return entries[0].value;
+          return entries[0].value;
 	int i = find_in_range(entries+1, cnt-1, k);
 	if (i == -1) return {};
 	else return entries[i].value;
@@ -151,9 +151,9 @@ private:
 
   // structure for each bucket
   struct bucket
- #ifndef UseCAS
-     : verlib::lock
- #endif
+#ifndef UseCAS
+    : verlib::lock
+#endif
   {
     node* load() {return ptr.load();}
     verlib::versioned_ptr<node> ptr;
@@ -237,15 +237,16 @@ private:
     if (s->load() == old_node &&
 	s->ptr.cas(old_node, new_node)) 
 #else  // use try_lock
-    if (s->try_lock([=] {
-	    if (s->load() != old_node) return false;
-	    s->ptr = new_node;
-	    return true;})) 
+      if (s->try_lock([=] {
+        if (!verlib::validate([&] {return s->load() == old_node;}))
+          return false;
+        s->ptr = new_node;
+        return true;})) 
 #endif
-    {
-      retire_node(old_node);
-      return ret_val;
-    } 
+        {
+          retire_node(old_node);
+          return ret_val;
+        } 
     destruct_node(new_node);
     return {};
   }
@@ -254,7 +255,9 @@ private:
     node* old_node = s->load();
     if (old_node != nullptr && old_node->find_index(k) != -1) {
 #ifndef UseCAS
-      if (s->read_lock([&] {return s->load() == old_node;})) return false;
+      if (s->read_lock([&] {return verlib::validate([&] {
+        return s->load() == old_node;});}))
+        return false;
       else return {};
 #else
       return false;
@@ -272,12 +275,13 @@ private:
       return try_update(s, old_node, insert_to_node(old_node, k, f(std::optional<V>())), true);
     else
 #ifdef UseCAS
-    return try_update(s, old_node, update_node(old_node, k, f), false);
+      return try_update(s, old_node, update_node(old_node, k, f), false);
 #else  // use try_lock
     if (s->try_lock([=] {
-        if (s->load() != old_node) return false;
-	s->ptr = update_node(old_node, k, f); // f applied within lock
-	return true;})) {
+      if (!verlib::validate([&] {return s->load() == old_node;}))
+        return false;
+      s->ptr = update_node(old_node, k, f); // f applied within lock
+      return true;})) {
       retire_node(old_node);
       return false;
     } else return {};
@@ -288,7 +292,9 @@ private:
     node* old_node = s->load();
     if (old_node == nullptr || old_node->find_index(k) == -1) {
 #ifndef UseCAS
-      if (s->read_lock([&] {return s->load() == old_node;})) return false;
+      if (s->read_lock([&] {return verlib::validate([&] {
+        return s->load() == old_node;});}))
+        return false;
       else return {};
 #else
       return false;
@@ -315,7 +321,7 @@ public:
     bucket* s = hash_table.get_bucket(k);
     __builtin_prefetch (s);
     return verlib::with_epoch([&] {
-		return find_at(s->load(), k);});
+      return find_at(s->load(), k);});
   }
 
   std::optional<V> find_(const K& k) {
@@ -369,9 +375,9 @@ public:
   long size() {
     auto& table = hash_table.table;
     auto s = parlay::tabulate(table.size(), [&] (size_t i) {
-	      node* x = table[i].load();
-	      if (x == nullptr) return 0;
-	      else return x->cnt;});
+      node* x = table[i].load();
+      if (x == nullptr) return 0;
+      else return x->cnt;});
     return parlay::reduce(s);
   }
 
