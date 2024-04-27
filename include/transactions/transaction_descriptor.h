@@ -150,8 +150,8 @@ namespace tlf_internal {
 #ifdef NoHelp
   flck::internal::acquired_pool<transaction_descriptor> trans_descriptor_pool;
 #else
-  //flck::internal::acquired_pool<transaction_descriptor> trans_descriptor_pool;
-  flck::memory_pool<transaction_descriptor> trans_descriptor_pool;
+  flck::internal::acquired_pool<transaction_descriptor> trans_descriptor_pool;
+  //flck::memory_pool<transaction_descriptor> trans_descriptor_pool;
 #endif
 
 } // namespace tlf_internal
