@@ -41,9 +41,19 @@ void commit (transaction_descriptor* descriptor) {
   // Install writes at head of version lists
   std::pair<versioned*,versioned*> pointers[write_log.size()];
 
-  for (int i=0; i < write_log.size(); i++) {
-    auto [location, value] = write_log[i];
-    pointers[i] = install_store(location, value, descriptor);
+  int i = 0;
+  for (; i < write_log.size(); i++) {
+    auto [location, old_value, value] = write_log[i];
+    pointers[i] = install_store_(location, old_value, value, descriptor);
+    if (pointers[i].second == nullptr) break;
+  }
+  if (i < write_log.size()) {
+     descriptor->time_stamp = failed;
+     for (int j=0; j < i; j++) {
+       auto [location, old_value, value] = write_log[j];
+       finalize_store(location, pointers[j], failed);
+     }
+    return;
   }
 
   // Set timestamp to go into validate mode
@@ -55,7 +65,7 @@ void commit (transaction_descriptor* descriptor) {
 
   // finalize logged writes (whether passed or failed)
   for (int i=0; i < write_log.size(); i++) {
-    auto [location, old_value] = write_log[i];
+    auto [location, old_value, value] = write_log[i];
     finalize_store(location, pointers[i], ts);
   }
   });  
@@ -77,7 +87,7 @@ auto atomic_(const F& f) {
       current_transaction = descriptor;
       auto x = f();
       current_transaction = nullptr;
-      bool passed = x.has_value(); 
+      bool passed = x.has_value();
       if (passed && descriptor->write_ptr_log.size() > 0) {
         // if transactions has stores and an old version was read, then abort
         if (abort_if_update) passed = false;
@@ -85,9 +95,11 @@ auto atomic_(const F& f) {
           bool use_help = (try_count % 100) == 99;
           std::sort(descriptor->lock_log.data(),
                     descriptor->lock_log.data() + descriptor->lock_log.size());
-          passed = run_with_locks_rec(0, descriptor, [=] {
-               commit(descriptor); return true;}, use_help);
-          passed = passed && (descriptor->time_stamp.load() != failed);
+          if (passed) {
+            passed = run_with_locks_rec(0, descriptor, [=] {
+              commit(descriptor); return true;}, use_help);
+            passed = passed && (descriptor->time_stamp.load() != failed);
+          }
         }
       }
       assert(current_transaction == nullptr);
@@ -110,7 +122,7 @@ auto atomic_(const F& f) {
         if (delay == 0) {
           delay = 5 * (1  + 4 * descriptor->lock_log.size());
           max_delay = 16 * delay;
-        } else delay = std::min((int) std::ceil(1.2 * delay), max_delay);
+        } else delay = std::min((int) std::ceil(1.1 * delay), max_delay);
         for (volatile int i=0; i < delay; i++);
 
         if (try_count++ > 1000000000l/max_delay) {

@@ -50,7 +50,7 @@ namespace tlf_internal {
       // first see if it is in the write log
       std::optional<int> lid = current_transaction->find_in_write_log(v);
       if (lid.has_value())
-	return (V*) current_transaction->write_ptr_log[*lid].second;
+	return (V*) std::get<2>(current_transaction->write_ptr_log[*lid]);
 
       // if not then get the value and add to validate log if in a lock
       versioned* ptr = get_value(v.load_ni());
@@ -109,7 +109,7 @@ namespace tlf_internal {
 
     void store(V* ptr) { 
       if (current_transaction != nullptr) {
-	current_transaction->add_to_write_log(v, ptr);
+	current_transaction->add_to_write_log(v, get_value(v.load_ni()), ptr);
       } else { // not in a transaction
 	install_store(&v, ptr, nullptr);
       }
