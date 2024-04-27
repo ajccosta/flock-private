@@ -56,10 +56,13 @@ template <typename F>
 bool run_with_locks_rec(int i, transaction_descriptor* descriptor, F f, bool do_help) {
   int num_locks = descriptor->lock_log.size();
   if (num_locks == 0) return f();
-  // descriptor->lock_descriptor.init(descriptor->lock_log.data(), num_locks);
-  // return flck::internal::lock::multi_try_lock_(&descriptor->lock_descriptor,
-  // 					       descriptor->lock_log.data(), num_locks, f, do_help);
-  return flck::internal::lock::multi_try_lock(descriptor->lock_log.data(), num_locks, f, do_help);
+  auto d = flck::internal::get_descriptor_pool().New();
+  d->init(descriptor->lock_log.data(), num_locks);
+  bool r = flck::internal::lock::multi_try_lock_(d, descriptor->lock_log.data(), num_locks, f, do_help);
+  if (d->acquired.load())
+    descriptor->acquired = true;
+  flck::internal::get_descriptor_pool().Retire(d);
+  return r;
 }
 #endif
   

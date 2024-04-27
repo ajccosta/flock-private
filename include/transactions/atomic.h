@@ -1,6 +1,6 @@
 // Main code for atomic region
 // Includes:
-//   atomic(F f), which calls
+//   with_transaction(F f), which calls
 //   commit(transaction_descriptor* descriptor), which calls
 //   validate(transaction_descriptor* descriptor)
 
@@ -60,7 +60,6 @@ void commit (transaction_descriptor* descriptor) {
   }
   });  
 }
-
 
 // wrapper for a transaction
 template <typename F>
@@ -126,14 +125,6 @@ auto atomic_(const F& f) {
     if (r.has_value()) return *r;
   }
 }
-
-    // to allow for no results
-// template <typename F>
-// auto atomic(const F& f) {
-//   if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
-//       atomic_([&] {f(); return std::optional(true);});
-//   } else return atomic_(f);
-// }
 
   template <typename F>
 auto with_transaction(const F& f) {
