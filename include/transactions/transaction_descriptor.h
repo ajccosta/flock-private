@@ -72,7 +72,7 @@ namespace tlf_internal {
     const int owner;
     const int round;  // for debugging
 
-    transaction_log<std::pair<flck::atomic<versioned*>*,versioned*>,
+    transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*,versioned*>,
 		    init_log_size> write_ptr_log;
     transaction_log<std::tuple<flck::atomic<versioned*>*,versioned*>,
 		    init_validate_log_size> validate_ptr_log;
@@ -112,17 +112,17 @@ namespace tlf_internal {
     std::optional<int> find_in_write_log(flck::atomic<versioned*>& v) {
       if (filter.find((unsigned long) &v)) 
 	for (int i=0; i < write_ptr_log.size(); i++)
-	  if (write_ptr_log[i].first == &v) {
+	  if (std::get<0>(write_ptr_log[i]) == &v) {
 	    return std::optional<int>(i);
 	  }
       return std::optional<int>();
     }
 
-    void add_to_write_log(flck::atomic<versioned*>& v, versioned* ptr) {
+    void add_to_write_log(flck::atomic<versioned*>& v, versioned* old_ptr, versioned* new_ptr) {
       std::optional<int> lid = find_in_write_log(v);
-      if (lid.has_value()) write_ptr_log[*lid].second = ptr;
+      if (lid.has_value()) std::get<2>(write_ptr_log[*lid]) = new_ptr;
       else {
-	int id = write_ptr_log.add(std::pair(&v,ptr));
+	int id = write_ptr_log.add(std::tuple(&v, old_ptr, new_ptr));
 	filter.insert((unsigned long) &v);
       }
     }
