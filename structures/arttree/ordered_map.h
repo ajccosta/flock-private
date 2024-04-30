@@ -1,6 +1,37 @@
+// A concurrent ART (Adaptive Radix Tree) implementation roughly based on:
+//
+// V. Leis, A. Kemper and T. Neumann,
+// The adaptive radix tree: ARTful indexing for main-memory databases
+// ICDE 2013
+//
+// Based on radix 256 (8 bits) and supports 4 kinds of nodes:
+//   full -- have 256 children each with a pointer (roughly 2100 bytes)
+//   indirect -- have 256 bytes indicating children + up to 64 children (roughly 800 bytes)
+//   sparse -- up to 16 children each with a byte key (roughly 150 bytes)
+//   leaf -- up to 14 key-value pairs (comes in two size -- 2 and 14).
+//
+// Interface only requires a "string" definition which defines a struture supporting
+//    int length(key) -- returns the length in bytes of the key
+//    int get_byte(key, i) -- returns i-th (moth significant) byte
+//
+// Supports, insert, remove, find, upsert, range, size, check, clear, print (if key is printable)
+
+#ifndef FLOCK_ARTTREE_H_
+#define FLOCK_ARTTREE_H_
+
+#include <algorithm>
+#include <functional>
+#include <ios>
+#include <iostream>
+#include <optional>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
 
+// string definition for integer types
 template <typename K>
 struct int_string {
   static int length(const K& key) { return sizeof(K);}
@@ -17,19 +48,29 @@ struct ordered_map {
   using V = V_;
   using String = String_;
 
-  // compare two keys based on bytes
-  static bool less(K a, K b, int byte_pos = 0) {
-    int la = String::length(a);
-    int lb = String::length(b);
-    int lmin = std::min(la,lb);
-    for (int i = byte_pos; i < lmin; i++) {
-      int byte_a = String::get_byte(a,i);
-      int byte_b = String::get_byte(b,i);
-      if (byte_a < byte_b) return true;
-      if (byte_b < byte_a) return false;
+  // compare two keys based on bytes starting at byte_pos
+  // assumes earlier bytes are equal
+  // return -1 (a < b), 0 (a == b), 1 (a > b)
+  static int compare(K a, K b, int byte_pos) {
+    if constexpr (std::is_integral_v<K>) {
+      // special case for integer keys (just compare directly)
+      return (a < b) ? -1 : ((b < a) ? 1 : 0);
+    } else {
+      int la = String::length(a);
+      int lb = String::length(b);
+      int lmin = std::min(la,lb);
+      for (int i = byte_pos; i < lmin; i++) {
+        int byte_a = String::get_byte(a,i);
+        int byte_b = String::get_byte(b,i);
+        if (byte_a < byte_b) return -1;
+        if (byte_b < byte_a) return 1;
+      }
+      return (la < lb) ? -1 : ((la > lb) ? 1 : 0);
     }
-    return (la < lb);
   }
+
+  static bool less(K a, K b, int byte_pos = 0) {
+    return compare(a, b, byte_pos) == -1;}
 
   enum node_type : char {Full, Indirect, Sparse, Leaf};
 
@@ -52,9 +93,8 @@ struct ordered_map {
   };
 
   // generic node
-  struct node : header {
+  struct node : header, verlib::lock {
     verlib::atomic_bool removed;
-    verlib::lock lck;
     node(node_type nt, char size)
       : header(nt, size), removed(false) {}
     node(const K& key, node_type nt, char size, int byte_num)
@@ -134,18 +174,15 @@ struct ordered_map {
     // constructor for a new sparse node with two children
     sparse_node(int byte_num, node* v1, const K& k1, node* v2, const K& k2)
       : node(k1, Sparse, 2, byte_num) {
-      // if (k1 == k2) {
-      //         std::cout << "new sparse: " << k1 << ", " << k2 << ", " << byte_num << std::endl;
-      //         abort();
-      // }
       keys[0] = String::get_byte(k1, byte_num);
       ptr[0].init(v1);
       keys[1] = String::get_byte(k2, byte_num);
       ptr[1].init(v2);
     }
 
+    // constructor for a sparse node with multiple children 
     sparse_node(int byte_num, node** start, node** end) :
-      node((*start)->key, Sparse, end-start, byte_num) {
+      node((*start)->key, Sparse, end - start, byte_num) {
       for (int i=0; i < (end-start); i++) {
         keys[i] = String::get_byte((*(start+i))->key, byte_num);
         ptr[i] = *(start + i);
@@ -153,44 +190,25 @@ struct ordered_map {
     }
     
     // an empty sparse node
-    sparse_node() : node(Sparse,0) {}
+    sparse_node() : node(Sparse, 0) {}
   };
 
   struct KV {K key; V value;};
 
+  // A leaf node can hold up to MaxSize entries
+  // Entries are kept in sorted key order within a leaf
   template <int MaxSize>
   struct alignas(64) generic_leaf : header {
     using leaf_ptr = generic_leaf<0>*;
     KV key_vals[MaxSize];
 
-    // starts comparing a and b at the start byte (prior bytes are equal)
-    // -1 if a < b, 0 if equal and 1 if a > b
-    static int cmp(const K& a, const K& b, int start_byte) {
-      int la = String::length(a);
-      int lb = String::length(b);
-      int l = std::min(la,lb);
-      int i = start_byte;
-      while (i < l && String::get_byte(a, i) == String::get_byte(b, i)) i++;
-      if (i == l) return (la < lb) ? -1 : ((la == lb) ? 0 : 1);
-      return (String::get_byte(a,i) < String::get_byte(b,i)) ? -1 : 1;
-    } 
-
     std::optional<V> find(const K& k, int byte_pos) {
-      // if integer than just search leaf using <.
-      if constexpr (std::is_integral_v<K>) {
-        for (int i = 0; i < header::size; i++) {
-          if (!(key_vals[i].key < k))
-            if (k < key_vals[i].key) return {};
-            else return key_vals[i].value;
-        }
-      } else {
-        if (byte_pos < header::byte_num) return {};
-        for (int i = 0; i < header::size; i++) {
-          int x = cmp(key_vals[i].key, k, byte_pos);
-          if (x != -1)
-            if (x == 1) return {};
-            else return key_vals[i].value;
-        }
+      if (byte_pos < header::byte_num) return {};
+      for (int i = 0; i < header::size; i++) {
+        int x = compare(key_vals[i].key, k, byte_pos);
+        if (x != -1)
+          if (x == 1) return {};
+          else return key_vals[i].value;
       }
       return {};}
 
@@ -254,6 +272,8 @@ struct ordered_map {
     }
 
   };
+
+  // Define two sizes of leaf, small and big
   using leaf = generic_leaf<0>; // only used generically
   using small_leaf = generic_leaf<max_small_leaf_size>;
   using big_leaf = generic_leaf<max_big_leaf_size>;
@@ -291,13 +311,13 @@ struct ordered_map {
   // This should never be called on a full node.
   // Returns false if it fails.
   static bool add_child(node* gp, node* p, const K& k, const V& v) {
-    return gp->lck.try_lock([=] {
+    return gp->try_lock([=] {
       auto child_ptr = get_child(gp, p->key);
       bool rm = gp->removed.load();
       bool pt = child_ptr->load() != p;
       if (!verlib::validate([&] {return !gp->removed.load() && child_ptr->load() == p;}))
         return false;
-      return p->lck.try_lock([=] {
+      return p->try_lock([=] {
         if (!verlib::validate([&] {return get_child(p,k) == nullptr;}))
           return false;
         node* c = (node*) small_leaf_pool.New(k, v);
@@ -376,9 +396,10 @@ struct ordered_map {
         return std::make_tuple(gp, p, cptr, (node*) nullptr, byte_pos);
       // could be read()
       node* c = cptr->load();
-      if (c == nullptr) // has empty child with given key
+      if (c == nullptr) { // has empty child with given key
         return std::make_tuple(gp, p, cptr, c, byte_pos);
-
+      }
+      
       byte_pos++;
       while (byte_pos < c->byte_num &&
              String::get_byte(k, byte_pos) == String::get_byte(c->key, byte_pos))
@@ -416,14 +437,14 @@ struct ordered_map {
                   c->is_leaf() &&
                   ((leaf*) c)->find(k, byte_pos).has_value());
     if (!upsert && found)
-      if (p->lck.read_lock([&] {return verlib::validate([&] {
+      if (p->read_lock([&] {return verlib::validate([&] {
         return (cptr->load() == c) && !p->removed.load();});}))
         return false;
       else return {};
     bool replace = upsert && found;
 
     if (cptr != nullptr) {// child pointer exists, always true for full node
-      if (p->lck.try_lock([=] {
+      if (p->try_lock([=] {
         // exit and retry if state has changed
         if (!verlib::validate([&] {return !p->removed.load() && cptr->load() == c;}))
           return false;
@@ -452,12 +473,8 @@ struct ordered_map {
             // insert new key-value pair into l and put result into tmp
             KV tmp[n];
             leaf::update(l->key_vals, tmp, n - 1, k, v, false);
-            // for (int i=0; i < max_big_leaf_size; i++)
-            //          tmp[i] = l->key_vals[i];
-            // tmp[max_big_leaf_size] = KV{k,v};
-            // std::sort(tmp, tmp + n, [&] (KV& a, KV& b) {return a.key < b.key;});
 
-            // break tmp up into multiple leafs base on byte value at byte_pos
+            // break tmp up into multiple leaves base on byte value at byte_pos
             auto gb = [&] (const KV& kv) {return String::get_byte(kv.key, byte_pos);};
             int j = 0;
             int start = 0;
@@ -517,11 +534,11 @@ struct ordered_map {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
     if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value()))
-      if (p->lck.read_lock([&] {return verlib::validate([&] {
+      if (p->read_lock([&] {return verlib::validate([&] {
         return (cptr->load() == c) && !p->removed.load();});}))
         return false;
       else return {};
-    if (p->lck.try_lock([=] {
+    if (p->try_lock([=] {
       if (!verlib::validate([&] {return !p->removed.load() && cptr->load() == c;}))
         return false;
       leaf* l = (leaf*) c;
@@ -529,7 +546,7 @@ struct ordered_map {
         node* other_child = single_other_child(p, c);
         // if (other_child != nullptr && gp->nt != Sparse) {
         //   // if parent will become singleton try to remove parent as well
-        //   return gp->lck.try_lock([=] {
+        //   return gp->try_lock([=] {
         //     auto child_ptr = get_child(gp, p->key);
         //     if (gp->removed.load() || child_ptr->load() != p)
         // return false;
@@ -563,11 +580,13 @@ struct ordered_map {
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [gp, p, cptr, l, pos] = find_location(root, k);
-    if (p->lck.read_lock([&] {return verlib::validate([&] {
-      return (cptr->load() == l) && !p->removed.load();});}))
-      if (l == nullptr) return ot(std::optional<V>());
-      else return ot(((leaf*) l)->find(k, pos));
-    else return ot();
+    //if (p->read_lock([&] {return verlib::validate([&] {
+    //return (cptr->load() == l) && !p->removed.load();});}))
+    cptr->validate();
+    p->removed.validate();
+    if (l == nullptr) return ot(std::optional<V>());
+    else return ot(((leaf*) l)->find(k, pos));
+    //else return ot();
   }
 
   std::optional<V> find_(const K& k) {
@@ -771,6 +790,8 @@ struct ordered_map {
     return cnt;
   }
 
+  long size() {  return check(); }
+
   static void clear() {
     full_pool.clear();
     indirect_pool.clear();
@@ -809,3 +830,5 @@ template <typename K, typename V, typename S>
 verlib::memory_pool<typename ordered_map<K,V,S>::small_leaf> ordered_map<K,V,S>::small_leaf_pool;
 template <typename K, typename V, typename S>
 verlib::memory_pool<typename ordered_map<K,V,S>::big_leaf> ordered_map<K,V,S>::big_leaf_pool;
+
+#endif // FLOCK_ARTTREE_H_

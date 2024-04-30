@@ -702,10 +702,12 @@ struct ordered_map {
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;
     auto [p, cidx, l] = find_no_fix(root, k);
-    if (p->lck.read_lock([&] {return verlib::validate([&] {
-      return (p->children[cidx].load() == (node*) l) && !p->removed.load();});}))
-      return ot(l->find_value(k));
-    else return ot();
+    //if (p->lck.read_lock([&] {return verlib::validate([&] {
+    //return (p->children[cidx].load() == (node*) l) && !p->removed.load();});}))
+    p->children[cidx].validate();
+    p->removed.validate();
+    return ot(l->find_value(k));
+      //else return ot();
   }
 
   std::optional<V> find_locked(const K& k) {

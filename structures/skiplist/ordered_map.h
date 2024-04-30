@@ -203,12 +203,13 @@ struct ordered_map {
     return flck::try_loop([&] () -> ot {
       auto [cur, nxt] = find_at_level(k, 0);
       if (cur->read_lock([&] { return verlib::validate([&] {
-        return (cur->next[0].load() == nxt) && !cur->removed.load();});})) {
+      return (cur->next[0].load() == nxt) && !cur->removed.load();});})) {
         if (nxt != nullptr && !less(k, nxt->key))
           return std::optional(nxt->value.load()->v);
         else return std::optional(std::optional<V>());
-      }
-      else return ot();});
+        }
+      else return ot();
+      });
   }
 
   std::optional<V> find_(const K& k) {

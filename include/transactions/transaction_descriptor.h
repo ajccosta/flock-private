@@ -29,7 +29,6 @@ namespace tlf_internal {
     int add(T v) {
       if (cnt < init_log_length) {vals[cnt++] = v; return cnt-1;}
       if (cnt == init_log_length) {
-	//std::cout << cnt << std::endl;
 	extra_vals.reserve(2*init_log_length);
 	for (int i=0; i < init_log_length; i++)
 	  extra_vals.push_back(vals[i]);

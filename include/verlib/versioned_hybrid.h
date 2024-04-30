@@ -16,7 +16,7 @@ const TS tbd = std::numeric_limits<TS>::max()/4;
 template <typename T>
 using atomic = flck::atomic<T>;
 using lock = flck::lock;
-using atomic_bool = flck::atomic_write_once<bool>;
+using atomic_bool = flck::atomic<bool>;
   
 struct versioned {
   flck::atomic_write_once<TS> time_stamp;
@@ -132,6 +132,8 @@ public:
     } else return (V*) head;
   }
 
+  void validate() {}
+  
   V* load() {  // can be used anywhere
     if (local_stamp != -1) return read_snapshot();
     else return get_ptr_shortcut(set_stamp(v.load()));
@@ -141,7 +143,7 @@ public:
     return get_ptr_shortcut(v.read());
   }
 
-  void validate() {
+  void validate_() {
     set_stamp(v.load());     // ensure time stamp is set
   }
 

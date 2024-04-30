@@ -163,12 +163,14 @@ struct ordered_map {
     using ot = std::optional<std::optional<V>>;
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = p_left ? &(p->left) : &(p->right);
-    if (p->lck.read_lock([&] {return verlib::validate([&] {
-      return (ptr->load() == (node*) l) && !p->removed.load();});}))
-      return ot(Equal(k, l) ?
-		std::optional<V>(l->value) :
-		std::optional<V>());
-    return ot();
+    //if (p->lck.read_lock([&] {return verlib::validate([&] {
+    //return (ptr->load() == (node*) l) && !p->removed.load();});}))
+    ptr->validate();
+    p->removed.validate();
+    return ot(Equal(k, l) ?
+              std::optional<V>(l->value) :
+              std::optional<V>());
+    // return ot();
   }
 
   ordered_map() : root(internal_pool.New(leaf_pool.New())) {}

@@ -48,10 +48,13 @@ namespace tlf_internal {
     // Load when in a transaction (only used by load)
     V* load_transactional() {
       // first see if it is in the write log
-      std::optional<int> lid = current_transaction->find_in_write_log(v);
-      if (lid.has_value())
-	return (V*) std::get<2>(current_transaction->write_ptr_log[*lid]);
 
+      if (current_transaction->write_ptr_log.size() > 0) {
+        std::optional<int> lid = current_transaction->find_in_write_log(v);
+        if (lid.has_value())
+          return (V*) std::get<2>(current_transaction->write_ptr_log[*lid]);
+      }
+      
       // if not then get the value and add to validate log if in a lock
       versioned* ptr = get_value(v.load_ni());
       if (in_lock > 0) 
@@ -107,6 +110,13 @@ namespace tlf_internal {
       } else return load_transactional();
     }
 
+    void validate() {
+      if (current_transaction != nullptr) {
+        versioned* ptr = get_value(v.load_ni());
+	current_transaction->validate_ptr_log.add(std::tuple(&v, ptr));
+      }
+    }
+
     void store(V* ptr) { 
       if (current_transaction != nullptr) {
 	current_transaction->add_to_write_log(v, get_value(v.load_ni()), ptr);
@@ -130,6 +140,7 @@ namespace tlf_internal {
   struct atomic_bool {
     versioned_ptr<Empty> val;
     bool load() {return val.load() == true_val;}
+    void validate() {val.validate();}
     void store(bool v) {val = (v ? true_val : false_val);}
     atomic_bool(bool v) : val(v ? true_val : false_val) {}
     bool operator=(bool b) {store(b); return b; }

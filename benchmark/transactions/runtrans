@@ -11,7 +11,7 @@ compile_clear("trans")
 class tpcc(parameters) :
     rounds = 3
     file_suffix = "trans"
-    trees = ["tpcc_arttree", "tpcc_btree", "tpcc_hash_block", "tpcc_hash_list", "tpcc_skiplist", "tpcc_mix" ]
+    trees = ["tpcc_arttree", "tpcc_btree", "tpcc_hash_block", "tpcc_skiplist", "tpcc_mix" ]
     tree_sizes = [0]
     zipfians = [0]
     trans_sizes = [0]
