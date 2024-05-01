@@ -186,7 +186,7 @@ namespace tlf_internal {
   // store will be completed by finalize_store.
   // - Otherwise set the timestamp and no finalization is required.
   std::pair<versioned*,versioned*>
-  install_store_(flck::atomic<versioned*>* loc,
+  install_store(flck::atomic<versioned*>* loc,
                 versioned* old_ptr,
                 versioned* ptr,
                 transaction_descriptor* descriptor) {
@@ -204,11 +204,10 @@ namespace tlf_internal {
     else ptr->init_next_version(old_v);
     
     // install descriptor if in transaction
-    if (descriptor != nullptr)
-      strip_indirect(new_v)->set_descriptor(descriptor);  // logged
+    strip_indirect(new_v)->set_descriptor(descriptor);  // logged
+
 #ifdef NoShortcut
     loc->store_conditional(old_tag, new_v);
-    // *loc = new_v;
     if (is_indirect(old_v))
       link_pool.retire_on_success(descriptor, (ver_link*) strip_indirect(old_v)); 
 #else
@@ -223,18 +222,11 @@ namespace tlf_internal {
       } else link_pool.retire_on_success(descriptor, old_l);
     } else loc->store_conditional(old_tag, new_v); // logged 
 #endif
-    // set timestamp and try shortcut if not in transaction
-    if (descriptor == nullptr) {
-      strip_indirect(new_v)->set_with_current_stamp();  // not logged
-      if (use_indirect) shortcut(loc, new_v); // not logged
-    }
     return std::pair(old_v, new_v);
   }
 
-    std::pair<versioned*,versioned*>
-  install_store(flck::atomic<versioned*>* loc,
-                versioned* ptr,
-                transaction_descriptor* descriptor) {
+  void nontransactional_store(flck::atomic<versioned*>* loc,
+                              versioned* ptr) {
     assert(current_transaction == nullptr);
     auto [old_tag, old_v] = loc->load_linked();
     versioned* new_v = ptr;
@@ -242,19 +234,15 @@ namespace tlf_internal {
     bool use_indirect = (ptr == nullptr || ptr->is_recorded()); // logged
     if (use_indirect) {
       ver_link* link = link_pool.New(old_v, new_v); // logged
-      link_pool.retire_on_abort(descriptor, link);
       new_v = add_indirect(link);
     }
     else ptr->init_next_version(old_v);
     
-    // install descriptor if in transaction
-    if (descriptor != nullptr)
-      strip_indirect(new_v)->set_descriptor(descriptor);  // logged
 #ifdef NoShortcut
     loc->store_conditional(old_tag, new_v);
     // *loc = new_v;
     if (is_indirect(old_v))
-      link_pool.retire_on_success(descriptor, (ver_link*) strip_indirect(old_v)); 
+      link_pool.retire_on_success(nullptr, (ver_link*) strip_indirect(old_v)); 
 #else
     // if using shortcutting then need to deal with race
     if (is_indirect(old_v)) {
@@ -264,15 +252,12 @@ namespace tlf_internal {
       if (val == old_l->value) { // if has been concurrently shortcut
         old_v = old_l->value;
         loc->cam(old_v, new_v); // logged, but unusal
-      } else link_pool.retire_on_success(descriptor, old_l);
+      } else link_pool.retire_on_success(nullptr, old_l);
     } else loc->store_conditional(old_tag, new_v); // logged 
 #endif
     // set timestamp and try shortcut if not in transaction
-    if (descriptor == nullptr) {
       strip_indirect(new_v)->set_with_current_stamp();  // not logged
       if (use_indirect) shortcut(loc, new_v); // not logged
-    }
-    return std::pair(old_v, new_v);
   }
 
   void finalize_store(flck::atomic<versioned*>* loc,

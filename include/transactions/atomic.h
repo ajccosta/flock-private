@@ -44,7 +44,7 @@ void commit (transaction_descriptor* descriptor) {
   int i = 0;
   for (; i < write_log.size(); i++) {
     auto [location, old_value, value] = write_log[i];
-    pointers[i] = install_store_(location, old_value, value, descriptor);
+    pointers[i] = install_store(location, old_value, value, descriptor);
     if (pointers[i].second == nullptr) break;
   }
   if (i < write_log.size()) {

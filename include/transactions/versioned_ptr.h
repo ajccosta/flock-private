@@ -121,7 +121,7 @@ namespace tlf_internal {
       if (current_transaction != nullptr) {
 	current_transaction->add_to_write_log(v, get_value(v.load_ni()), ptr);
       } else { // not in a transaction
-	install_store(&v, ptr, nullptr);
+	nontransactional_store(&v, ptr);
       }
     }
     V* operator=(V* b) {store(b); return b; }
