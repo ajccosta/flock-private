@@ -71,7 +71,7 @@ namespace flck {
 #ifdef HashLock
 struct lock {
 private:
-  static const int bucket_bits = 16;
+  static const int bucket_bits = 18;
   static const size_t mask = ((1ul) << bucket_bits) - 1;
   static std::vector<internal::lock> locks;
 public:

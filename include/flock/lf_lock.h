@@ -52,6 +52,7 @@ struct descriptor {
   std::vector<size_t> counters;
 
   descriptor() :
+    done(false), freed(false),
     thread_id(get_current_id()),
     epoch_num(epoch::internal::get_epoch().get_my_epoch()) {}
 
@@ -61,7 +62,7 @@ struct descriptor {
   }
 
   template <typename Thunk>
-  void set_function(Thunk &g) { f = [=] {g();}; }
+  void set_function(Thunk& g) { f = [=] {g();}; }
   
   template <typename Thunk>
   descriptor(Thunk& g, long counter) : 
@@ -151,6 +152,8 @@ public:
     bool still_locked = (lck_p->read() == le); // not idempotent
     if (!still_locked) return false;
     long my_epoch = epoch::internal::get_epoch().get_my_epoch();
+    if ((((unsigned long) desc) >> 48) != 0)
+      std::cout << "ouch: " << (le & ((1ul << 48) - 1)) << std::endl;
     long other_epoch = desc->epoch_num;
     if (other_epoch < my_epoch)
       epoch::internal::get_epoch().set_my_epoch(other_epoch); // inherit epoch of helpee
@@ -316,7 +319,7 @@ public:
     for (int i=0; i < num_locks; i++) {
       lock_entry li = locks[i]->read();
       if (is_locked_(li)) {
-	//if (do_help) help_descriptor(locks[i], li);
+	if (do_help) help_descriptor(locks[i], li);
 	return false;
       }
       d->counters[i] = li;
@@ -325,7 +328,7 @@ public:
     // This is run both by the main caller and by any helpers that
     // come across a lock taken by this lock-set.
     // It needs to be idempotent
-    auto g = [&] () -> bool {
+    auto g = [=] () -> bool {
       // try to acquire locks
       for (int i = 0; i < num_locks; i++) {
 	if (i > 0 && locks[i] == locks[i-1]) 
@@ -336,7 +339,8 @@ public:
 	  // failed acquiring a lock, release those already acquired
 	  for (int j = 0; j < i; j++) 
 	    locks[j]->cas((lock_entry) d, d->counters[j] + 1);
-	  //if (do_help) help_descriptor(locks[i], li);
+	  if (do_help && lock::is_locked_(li))
+            help_descriptor(locks[i], li);
 	  return false;
 	}
       }
@@ -345,8 +349,9 @@ public:
       bool result = f();
 
       // release locks
-      for (int i = 0; i < num_locks; i++) 
+      for (int i = 0; i < num_locks; i++)
 	locks[i]->cas((lock_entry) d, d->counters[i] + 1);
+
       return result;
     };
 

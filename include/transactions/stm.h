@@ -25,7 +25,8 @@
 
 namespace verlib {
   using tlf_internal::memory_pool;
-  using tlf_internal::with_transaction;
+  using tlf_internal::atomic_region;
+  using tlf_internal::atomic_read_only;
   using tlf_internal::versioned;
 
   // locks are noops
@@ -45,19 +46,30 @@ namespace verlib {
     versioned_ptr(T* v) : v(v) {}
     versioned_ptr() : v(nullptr) {}
     T* load() { return read_lock([&] {return v.load();});}
+    void validate() {}
     T* read_snapshot() { return load(); }
     void init(T* x) { v.init(x);}
     void store(T* x) { try_lock([&] {v.store(x); return true;});}
     T* operator=(T* b) {store(b); return b; }
   };
 
-  struct atomic_bool : tlf_internal::lock {
+  struct atomic_bool_ : tlf_internal::lock {
   private:
     tlf_internal::atomic_bool v;
   public:
-    atomic_bool(bool x) : v(x) {}
+    atomic_bool_(bool x) : v(x) {}
     bool load() { return read_lock([&] {return v.load();});}
+    void validate() {}
     void store(bool x) { try_lock([&] {v.store(x); return true;});}
+    bool operator=(bool b) {store(b); return b; }
+  };
+  
+  struct atomic_bool {
+  public:
+    atomic_bool(bool x)  {}
+    bool load() { return false;}
+    void validate() {}
+    void store(bool x) { }
     bool operator=(bool b) {store(b); return b; }
   };
 

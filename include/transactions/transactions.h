@@ -26,7 +26,8 @@
 // now expose the full interface in the verlib namespace
 namespace verlib {
   using tlf_internal::memory_pool;
-  using tlf_internal::with_transaction;
+  using tlf_internal::atomic_region;
+  using tlf_internal::atomic_read_only;
   using tlf_internal::lock;
   using tlf_internal::versioned;
   using tlf_internal::versioned_ptr;

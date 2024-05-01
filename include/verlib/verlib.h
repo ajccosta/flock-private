@@ -13,6 +13,15 @@
 
 namespace verlib {
  bool strict_lock = false;
+
+  // STM does not need to validate after locks so this is just a way to avoid such validation
+#ifdef STM
+  template <typename F>
+  bool validate(const F& f) {return true;}
+#else
+  template <typename F>
+  bool validate(const F& f) { return f();}
+#endif
 }
 
 #ifdef Versioned
@@ -30,10 +39,13 @@ namespace verlib {
 
 namespace verlib {
   template <typename F>
-  auto with_transaction(const F& f) {
+  auto atomic_region(const F& f) {
     if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
     else {return *(f());}
   }
+
+  template <typename F>
+  auto atomic_read_only(const F& f) { return f();}
 }
 
 #elif Transactional
@@ -58,8 +70,12 @@ namespace verlib {
   auto with_snapshot(F f, bool unused_parameter=false) {
     return flck::with_epoch([&] { return f();});
   }
+
   template <typename F>
-  auto with_transaction(const F& f) {
+  auto atomic_read_only(F f) { return f();}
+  
+  template <typename F>
+  auto atomic_region(const F& f) {
     if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
     else return *(f());
   }

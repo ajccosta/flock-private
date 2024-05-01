@@ -77,17 +77,25 @@ statistics adds(statistics s1, statistics s2) {
 template <typename F>
 auto do_atomic(const F& f) {
   if constexpr (std::is_void_v<std::invoke_result_t<F>>) {
-    verlib::with_transaction(f);
+    verlib::atomic_region(f);
   } else {
-    return verlib::with_transaction([&] {return std::optional(f());});
+    return verlib::atomic_region([&] () -> std::optional<std::invoke_result_t<F>> {
+	return std::optional(f());});
   }
 }
+
+template <typename F>
+auto do_ro_atomic(const F& f) {
+  return verlib::atomic_read_only([&] {return f();});}
 #else
 template <typename F>
 auto do_atomic(const F& f) {
   if constexpr (std::is_void_v<std::invoke_result_t<F>>) { f(); }
   else { return f();}
 }
+
+template <typename F>
+auto do_ro_atomic(const F& f) { return f();}
 #endif			   
 
 template<typename SetType, typename K>
@@ -281,7 +289,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
         if (jj + trans_size > end) jj = start + trans_size;
 
         // run trans_size operations atomically in a transaction
-        auto [added, queries, found, update_success] = verlib::with_transaction([&] {
+        auto [added, queries, found, update_success] = verlib::atomic_region([&] {
           int loc_added = 0;
           int loc_queries = 0;
           int loc_found = 0;
@@ -336,7 +344,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
       auto start_op_time = start_time;
 
       while (true) {
-        //std::cout << all[j] << ", " << op_types[jj] << std::endl;
         if (check_end(cnt, local_stats, proc_id, start_time)) return;
 
 #ifdef Latency
@@ -344,7 +351,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #endif
         if (op_types[jj] == Find) {
           local_stats.query_count++;
-          auto val = tr.find(all[j]);
+          auto val = do_ro_atomic([&] {return tr.find(all[j]);});
           if (val.has_value()) {
             local_stats.query_total_value += val.value()[0];
           }
@@ -358,7 +365,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #endif
         } else if (op_types[jj] == Insert) {
           local_stats.update_count++;
-          //if (verlib::with_transaction([&] {return std::optional(tr.insert(all[j], default_value));})) {
 	  if (do_atomic([&] {return tr.insert(all[j], default_value);})) {
             local_stats.added_count++;
             local_stats.update_success_count++;
@@ -456,7 +462,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
         std::cout << "percent within latency = " << (100.0*overall_stats.within_latency)/num_ops << std::endl;
       }
 
-      double percent_aborts = overall_stats.aborts * 100.0 / overall_stats.transactions;
+      double percent_aborts = (overall_stats.transactions == 0 ?
+                               0.0 :
+                               overall_stats.aborts * 100.0 / overall_stats.transactions);
       
       if (range_query_threads == 0) {
         std::cout << std::setprecision(4)
