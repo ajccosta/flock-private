@@ -143,6 +143,9 @@ public:
     return v.compare_exchange_strong(exp_v, new_v);}
   V operator=(V b) { store(b); return b; }
   // inline operator V() { return load(); } // implicit conversion
+  // compatibility with multiversioning
+  void validate() {}
+
 };
 
 // *****************************
