@@ -59,6 +59,7 @@ struct atomic_write_once {
       v.compare_exchange_strong(old_v,new_v);}
   V operator=(V b) { store(b); return b; }
   // inline operator V() { return load(); } // implicit conversion
+  void validate() {}
 };
 
 template <typename V>

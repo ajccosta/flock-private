@@ -75,9 +75,9 @@ struct ordered_map {
   enum node_type : char {Full, Indirect, Sparse, Leaf};
 
   constexpr static int max_indirect_size = 64;
-  constexpr static int max_sparse_size = 16;
-  static constexpr int max_small_leaf_size = 2;
-  static constexpr int max_big_leaf_size = 14;
+  constexpr static int max_sparse_size = 32;
+  static constexpr int max_small_leaf_size = 4;
+  static constexpr int max_big_leaf_size = 30;
   
   struct header : verlib::versioned {
     const node_type nt;
