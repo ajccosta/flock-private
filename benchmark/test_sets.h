@@ -117,13 +117,12 @@ void test_sets(size_t default_size, commandLine P) {
   // verbose
   bool verbose = P.getOption("-verbose");
 
+  // read data from file
+  std::string filename = P.getOptionValue("-file", "");
+
   // clear the memory pool between rounds
   //bool clear = P.getOption("-clear");
 
-  // number of samples
-  int range_size = P.getOptionIntValue("-rs",16);
-  long m = P.getOptionIntValue("-m", fixed_time ? 10 * n + 1000 * p : n);
-    
   // check consistency, on by default
   bool do_check = ! P.getOption("-no_check");
 
@@ -143,6 +142,9 @@ void test_sets(size_t default_size, commandLine P) {
 #endif
 
   int buckets = P.getOptionIntValue("-bu", n);
+
+  // number of samples
+  int range_size = P.getOptionIntValue("-rs",16);
 
   // print memory usage statistics
   bool stats = P.getOption("-stats");
@@ -184,26 +186,40 @@ void test_sets(size_t default_size, commandLine P) {
     
   } else {  // main test
     using key_type = unsigned long;
-  
-    // generate 2*n unique numbers in random order
     parlay::sequence<key_type> a;
-    key_type max_key;
+    parlay::sequence<key_type> b;
+    key_type max_key = 0;
 
-    if (use_sparse) {
-      max_key = ~0ul;
-      auto x = parlay::delayed_tabulate(1.2*nn,[&] (size_t i) {
-	  return (key_type) parlay::hash64(i);}); // generate 64-bit keys
-      auto xx = parlay::remove_duplicates(x);
-      auto y = parlay::random_shuffle(xx);
-      // don't use zero since it breaks setbench code
-      a = parlay::tabulate(nn, [&] (size_t i) {return std::min(max_key-1,y[i])+1;}); 
+    if (filename.size() == 0) {
+    // generate 2*n unique numbers in random order
+      if (use_sparse) {
+        max_key = ~0ul;
+        auto x = parlay::delayed_tabulate(1.2*nn,[&] (size_t i) {
+                  return (key_type) parlay::hash64(i);}); // generate 64-bit keys
+        auto xx = parlay::remove_duplicates(x);
+        auto y = parlay::random_shuffle(xx);
+        // don't use zero since it breaks setbench code
+        a = parlay::tabulate(nn, [&] (size_t i) {return std::min(max_key-1,y[i])+1;}); 
+      } else {
+        max_key = nn;
+        a = parlay::random_shuffle(parlay::tabulate(nn, [] (key_type i) {
+                       return i+1;}));
+      }
     } else {
-      max_key = nn;
-      a = parlay::random_shuffle(parlay::tabulate(nn, [] (key_type i) {
-	    return i+1;}));
+      auto fmap = parlay::file_map(filename);
+      if (fmap.size() == 0) {
+        std::cout << "bad filename: " << filename << std::endl;
+        abort();
+      }
+      n = *((long*) fmap.begin());
+      auto data = parlay::tabulate(n, [&] (long i) {
+            return *((unsigned long*) (8 + fmap.begin() + i * 8));});
+      
+      a = parlay::random_shuffle(parlay::remove_duplicates(data));
     }
 
-    parlay::sequence<key_type> b;
+    long m = P.getOptionIntValue("-m", fixed_time ? 10 * n + 1000 * p : n);
+
     if (use_zipfian) { 
       Zipfian z(nn, zipfian_param);
       b = parlay::tabulate(m, [&] (int i) { return a[z(i)]; });
