@@ -195,6 +195,11 @@ struct unordered_map {
     return flck::try_loop([&] {return try_update_at(s, k, v);});
   }
 
+  template <typename F>
+  bool upsert_f(const K& k, const F& f) {
+    return upsert_(k,f(find_(k)));
+  }
+
     
   static std::optional<bool> try_remove_at(bucket* s, const K& k) {
     link* head = s->load();

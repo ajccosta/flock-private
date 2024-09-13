@@ -136,6 +136,9 @@ void test_sets(size_t default_size, commandLine P) {
 
   // use numbers from 1...2n if dense otherwise sparse numbers
   bool use_sparse = !P.getOption("-dense");
+#ifdef DENSE
+  use_sparse = false;
+#endif
   int range_percent = P.getOptionIntValue("-range",0);
 #ifdef Dense_Keys  // for range queries on hash tables
   if (range_percent > 0)

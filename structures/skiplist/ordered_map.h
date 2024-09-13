@@ -146,6 +146,11 @@ struct ordered_map {
   bool upsert(const K& k, const V& v) {
     return verlib::with_epoch([=] {return upsert_(k, v);}); }
 
+  template <typename F>
+  bool upsert_f(const K& k, const F& f) {
+    return upsert_(k,f(find_(k)));
+  }
+
   // Recursively locks prev node of to_delete on each level going down
   // from level.  When reaching the bottom it goes through top-down
   // and splices out to_delete from each level.

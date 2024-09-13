@@ -619,6 +619,11 @@ struct ordered_map {
   bool upsert(const K& k, const V& v) {
     return verlib::with_epoch([=] {return upsert_(k, v);}); }
 
+  template <typename F>
+  bool upsert_f(const K& k, const F& f) {
+    return upsert_(k,f(find_(k)));
+  }
+
   std::optional<bool> try_insert(const K& k, const V& v, const bool upsert=false) {
     auto [p, cidx, l] = find_and_fix(root, k);
     int idx = l->find(k);

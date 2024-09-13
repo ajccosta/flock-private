@@ -75,9 +75,9 @@ struct ordered_map {
   enum node_type : char {Full, Indirect, Sparse, Leaf};
 
   constexpr static int max_indirect_size = 64;
-  constexpr static int max_sparse_size = 32;
-  static constexpr int max_small_leaf_size = 4;
-  static constexpr int max_big_leaf_size = 30;
+  constexpr static int max_sparse_size = (sizeof(K) + sizeof(V) > 16) ? 16 : 32;
+  static constexpr int max_small_leaf_size = 2;
+  static constexpr int max_big_leaf_size = (sizeof(K) + sizeof(V) > 16) ? 14 : 30;
   
   struct header : verlib::versioned {
     const node_type nt;
@@ -430,6 +430,11 @@ struct ordered_map {
   
   bool upsert(const K& k, const V& v) {
     return verlib::with_epoch([=] {return upsert_(k, v);}); }
+
+  template <typename F>
+  bool upsert_f(const K& k, const F& f) {
+    return upsert_(k,f(find_(k)));
+  }
 
   std::optional<bool> try_insert(const K& k, const V& v, bool upsert = false) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);

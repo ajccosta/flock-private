@@ -40,12 +40,17 @@ namespace verlib {
 namespace verlib {
   template <typename F>
   auto atomic_region(const F& f) {
-    if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
-    else {return *(f());}
+    return epoch::with_epoch([&] { 
+      if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
+      else {return *(f());}
+    });
   }
 
   template <typename F>
-  auto atomic_read_only(const F& f) { return f();}
+  auto atomic_read_only(const F& f) {
+    return epoch::with_epoch([&] {
+      return f();});
+  }
 }
 
 #elif Transactional
@@ -72,12 +77,16 @@ namespace verlib {
   }
 
   template <typename F>
-  auto atomic_read_only(F f) { return f();}
+  auto atomic_read_only(F f) {
+    return flck::with_epoch([&] { return f();});
+  }
   
   template <typename F>
   auto atomic_region(const F& f) {
-    if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
-    else return *(f());
+    return epoch::with_epoch([&] { 
+      if constexpr (std::is_void_v<std::invoke_result_t<F>>) {f();}
+      else {return *(f());}
+    });
   }
 }
 

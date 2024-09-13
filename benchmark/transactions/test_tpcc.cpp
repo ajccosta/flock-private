@@ -17,6 +17,7 @@ int main(int argc, char* argv[]) {
   int rounds = P.getOptionIntValue("-r", 1);
   int warmup = !P.getOption("-nowarmup");
   bool verbose = P.getOption("-v");
+  int num_warehouses = P.getOptionIntValue("-num_warehouses", threads);
   int new_order = P.getOptionIntValue("-new_order", 50);
   int payment = 100 - new_order;
 
@@ -25,6 +26,7 @@ int main(int argc, char* argv[]) {
     auto gtc = new GlobalTestConfig();
     gtc->task_num = threads;
     gtc->interval = time;
+    gtc->num_warehouses = num_warehouses;
     gtc->verbose = verbose;
     tpcc_struct.init(gtc);
 

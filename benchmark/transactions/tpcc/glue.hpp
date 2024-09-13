@@ -48,7 +48,12 @@ struct RMap_ {
   bool put_(const K& key, const V& value, long tid) {
     return m.upsert_(key, value);
   }
-  
+
+  template <typename F>
+  bool upsert_f(const K& key, const F& f, long tid) {
+    return m.upsert_f(key, f);
+  }
+
   bool remove(const K& k) {
     return m.remove(k);
   }

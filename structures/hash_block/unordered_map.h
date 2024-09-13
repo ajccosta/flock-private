@@ -50,7 +50,7 @@ private:
       i++;
     }
     out[i].key = entries[i].key;
-    out[i].value = f(entries[i].value);
+    out[i].value = f(std::optional(entries[i].value));
     i++;
     while (i < cnt) {
       out[i] = entries[i];
@@ -266,9 +266,9 @@ private:
     return try_update(s, old_node, insert_to_node(old_node, k, v), true);
   }
 
-  template <typename V>
-  static std::optional<bool> try_upsert_at(bucket* s, const K& k, V& v) {
-    auto f = [&] (auto x) {return v;};
+  template <typename F>
+  static std::optional<bool> try_upsert_at(bucket* s, const K& k, const F& f) {
+    //auto f = [&] (auto x) {return v;};
     node* old_node = s->load();
     bool found = old_node != nullptr && old_node->find_index(k) != -1;
     if (!found)
@@ -355,13 +355,21 @@ public:
     bucket* s = hash_table.get_bucket(k);
     __builtin_prefetch (s);
     return verlib::with_epoch([&] {
-      return flck::try_loop([&] {return try_upsert_at(s, k, v);});});
+      auto f = [&] (auto x) {return v;};
+      return flck::try_loop([&] {return try_upsert_at(s, k, f);});});
   }
 
   template <typename V>
   bool upsert_(const K& k, const V& v) {
     bucket* s = hash_table.get_bucket(k);
-    return flck::try_loop([&] {return try_upsert_at(s, k, v);});
+    auto f = [&] (auto x) {return v;};
+    return flck::try_loop([&] {return try_upsert_at(s, k, f);});
+  }
+
+  template <typename F>
+  bool upsert_f(const K& k, const F& f) {
+    bucket* s = hash_table.get_bucket(k);
+    return flck::try_loop([&] {return try_upsert_at(s, k, f);});
   }
 
   bool remove(const K& k) {
@@ -429,3 +437,4 @@ template <typename K, typename V, typename H, typename E>
 verlib::memory_pool<typename unordered_map<K,V,H,E>::Node31> unordered_map<K,V,H,E>::node_pool_31;
 template <typename K, typename V, typename H, typename E>
 verlib::memory_pool<typename unordered_map<K,V,H,E>::BigNode> unordered_map<K,V,H,E>::big_node_pool;
+
