@@ -43,7 +43,7 @@ public:
 #ifdef TPCC_STATS
         tpcc_puts[tid*TPCC_PADDING]++;
 #endif
-        bool b = hashtable.upsert_(key, [&] (auto x) { return val; });
+        bool b = hashtable.upsert_(key, val); //[&] (auto x) { return val; });
         if(b) return optional<V>(val); //TPCC never makes use of return value
         else return {};
     }

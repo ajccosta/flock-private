@@ -5,7 +5,6 @@
 #include "OneFile/OneFileLF.hpp"
 #include "LFTTSkipList.hpp"
 #include <verlib/verlib.h>
-#include <transactions/transactions.h>
 
 enum TxnType { None, NBTC, TDSL, OneFile, LFTT, Fuse};
 
@@ -35,7 +34,7 @@ struct TxnManager {
 
 template <>
 void TxnManager<TxnType::Fuse>::do_tx(int tid, std::function<void(void)> f, int){
-    verlib::atomic([&] {f(); return std::optional<int>(0);});
+  //verlib::atomic([&] {f(); return std::optional<int>(0);});
 }
 
 template <>

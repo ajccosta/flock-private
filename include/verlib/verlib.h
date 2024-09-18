@@ -6,7 +6,9 @@
 // They support snapshotting via version chains, and without
 // indirection, but pointers to objects (ptr_type) must be "recorded
 // once" as described in the paper.
-#pragma once
+#ifndef VERLIB_LIBRARY_H_
+#define VERLIB_LIBRARY_H_
+
 #include <parlay/parallel.h>
 #include <parlay/sequence.h>
 #include "flock/flock.h"
@@ -95,3 +97,5 @@ namespace verlib {
 namespace verlib {
   using flck::with_epoch;
 }
+
+#endif // VERLIB_LIBRARY_H_
