@@ -23,8 +23,8 @@ struct ordered_map {
   };
 
   // internal node
-  struct internal : node {
-    verlib::lock lck;
+  struct internal : node, verlib::lock {
+    //verlib::lock lck;
     verlib::atomic_bool removed;
     verlib::versioned_ptr<node> left;
     verlib::versioned_ptr<node> right;
@@ -85,12 +85,12 @@ struct ordered_map {
       //(!l->is_sentinal && (!upsert && equal(l->key, k))))
       // || (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
       // l != prev_leaf)))
-      if (p->lck.read_lock([&] {return verlib::validate([&] {
+      if (p->read_lock([&] {return verlib::validate([&] {
         return (ptr->load() == (node*) l) && !p->removed.load();});}))
 	return false;
       else return {};
     //prev_leaf = l;
-    bool r = p->lck.try_lock([=] {
+    bool r = p->try_lock([=] {
       auto l_new = ptr->load();
       if (!verlib::validate([&] {return !p->removed.load() && l_new == l;}))
         return false;
@@ -117,14 +117,14 @@ struct ordered_map {
     if (l->is_sentinal) return false; // need to deal with gp == nullptr
     if (!Equal(k, l)) {
       // || (prev_leaf != nullptr && prev_leaf != l))
-      if (gp->lck.read_lock([&] {return verlib::validate([&] {
+      if (gp->read_lock([&] {return verlib::validate([&] {
         return (ptr->load() == p) && !gp->removed.load();});}))
 	return false;
       else return {};
     }
     // prev_leaf = l;
-    if (gp->lck.try_lock([=] {
-      return p->lck.try_lock([=] {
+    if (gp->try_lock([=] {
+      return p->try_lock([=] {
         if (!verlib::validate([&] {return !gp->removed.load() && ptr->load() == p;}))
           return false;
         node* ll = (p->left).load();

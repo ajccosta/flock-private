@@ -57,6 +57,34 @@ namespace tlf_internal {
       retire_on_success(current_transaction, ptr);
     }
   };
+  
+  template <typename T>
+  extern inline memory_pool<T>& get_pool() {
+    static memory_pool<T> pool;
+    return pool;
+  }
+
+  template <typename T, typename ... Args>
+  inline T* New(Args... args) {
+    return get_pool<T>().New(std::forward<Args>(args)...);}
+
+  // f is a function that initializes a new object before it is shared
+  template <typename T, typename F, typename ... Args>
+  inline T* NewInit(const F& f, Args... args) {
+    return get_pool<T>().new_init(f, std::forward<Args>(args)...);
+  }
+
+  template <typename T>
+  inline void Delete(T* p) {get_pool<T>().Delete(p);}
+
+  template <typename T>
+  inline void Retire(T* p) {get_pool<T>().Retire(p);}
+
+  template <typename T>
+  inline void pool_clear() {get_pool<T>().clear();}
+
+  template <typename T>
+  inline void pool_stats() {get_pool<T>().stats();}
 
 } // tlf_internal
 

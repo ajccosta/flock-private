@@ -59,9 +59,6 @@ private:
     return !(a->s != IsKey || Less{}(k, a->key) || Less{}(a->key ,k));
   }
 
-  static verlib::memory_pool<internal> internal_pool;
-  static verlib::memory_pool<leaf> leaf_pool;
-
   static tlf::atomic<node*>* get_child(internal* a, const K& k) {
     return less(k, a) ? &(a->left) : &(a->right);}
 
@@ -96,10 +93,10 @@ public:
       std::unique_lock lck_p(p->lck);
       if (p->removed.load() || ptr->load() != l)
         continue;
-      node* new_l = leaf_pool.New(k, v);
+      node* new_l = tlf::New<leaf>(k, v);
       *ptr = (less(k, l) ?
-              internal_pool.New(l->key, new_l, l) :
-              internal_pool.New(k, l, new_l));
+              tlf::New<internal>(l->key, new_l, l) :
+              tlf::New<internal>(k, l, new_l));
       return true;
     }
   }
@@ -120,8 +117,8 @@ public:
           p_ptr->load() == l) {
         *g_ptr = less(k, p) ? (p->right).load() : (p->left).load();
         p->removed = true;
-        internal_pool.Retire(p);
-        leaf_pool.Retire(l);
+        tlf::Retire<internal>(p);
+        tlf::Retire<leaf>(l);
         return true;
       }
     }
@@ -150,8 +147,8 @@ public:
     }
   }
 
-  ordered_map() : root(internal_pool.New(leaf_pool.New())) {}
-  ordered_map(size_t n) : root(internal_pool.New(leaf_pool.New())) {}
+  ordered_map() : root(tlf::New<internal>(tlf::New<leaf>())) {}
+  ordered_map(size_t n) : root(tlf::New<internal>(tlf::New<leaf>())) {}
   ~ordered_map() { Retire(root);}
   
   void print() {
@@ -173,12 +170,12 @@ public:
 
   static void Retire(node* p) {
     if (p == nullptr) return;
-    if (p->is_leaf) leaf_pool.Retire((leaf*) p);
+    if (p->is_leaf) tlf::Retire<leaf>((leaf*) p);
     else {
       internal* pp = (internal*) p;
       parlay::par_do([&] () { Retire((pp->left).load()); },
 		     [&] () { Retire((pp->right).load()); });
-      internal_pool.Retire(pp);
+      tlf::Retire<internal>(pp);
     }
   }
   
@@ -235,29 +232,24 @@ public:
   }
   
   static void clear() {
-    internal_pool.clear();
-    leaf_pool.clear();
+    tlf::pool_clear<internal>();
+    tlf::pool_clear<leaf>();
   }
 
   static void reserve(size_t n) {
-    internal_pool.reserve(n);
-    leaf_pool.reserve(n);
+    //internal_pool.reserve(n);
+    //leaf_pool.reserve(n);
   }
 
   static void shuffle(size_t n) {
-    internal_pool.shuffle(n);
-    leaf_pool.shuffle(n);
+    //internal_pool.shuffle(n);
+    //leaf_pool.shuffle(n);
   }
 
   static void stats() {
-    internal_pool.stats();
-    leaf_pool.stats();
+    tlf::pool_stats<internal>();
+    tlf::pool_stats<leaf>();
   }
   
 };
 
-template <typename K, typename V, typename C>
-verlib::memory_pool<typename ordered_map<K,V,C>::internal> ordered_map<K,V,C>::internal_pool;
-
-template <typename K, typename V, typename C>
-verlib::memory_pool<typename ordered_map<K,V,C>::leaf> ordered_map<K,V,C>::leaf_pool;

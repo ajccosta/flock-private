@@ -3,7 +3,7 @@
 
 #include<optional>
 
-namespace tlf {
+namespace tlf_internal {
 
 struct shared_mutex {
   flck::lock lck;
@@ -41,6 +41,6 @@ struct shared_mutex {
 
 };
 
-} // namespace tlf
+} // namespace tlf_internal
 
 #endif // TLF_LOCK_I_H_
