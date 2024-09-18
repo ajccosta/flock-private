@@ -41,6 +41,7 @@ def runstring(op) :
 
 def runtest(ds, tm, txn_size, up, sz, zipf, th):
   cmd = "PARLAY_NUM_THREADS=" + str(th+3) + preamble + "./bin/release/main -t " + str(th) + " -i " + str(runtime) + " -R " + ds + " -M " + tm + ":txn=" + str(txn_size) + ":update=" + str(up) + ":size=" + str(sz) + ":zipf=" + str(zipf)
+  print(cmd)
   for i in range(repeats):
     runstring(cmd)
 

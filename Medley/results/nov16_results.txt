@@ -262,3 +262,4 @@ Failed
 128,443128,OneFileSkipList,OneFile:txn=16:update=100:size=10000000:zipf=0
 128,443800,OneFileSkipList,OneFile:txn=16:update=100:size=10000000:zipf=0
 128,444640,OneFileSkipList,OneFile:txn=16:update=100:size=10000000:zipf=0
+16,144629072,FuseHashTable,Fuse:txn=16:update=5:size=10000000:zipf=0

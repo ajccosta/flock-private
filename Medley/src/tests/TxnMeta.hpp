@@ -34,7 +34,7 @@ struct TxnManager {
 
 template <>
 void TxnManager<TxnType::Fuse>::do_tx(int tid, std::function<void(void)> f, int){
-  //verlib::atomic([&] {f(); return std::optional<int>(0);});
+  verlib::atomic_region([&] {f(); return std::optional<int>(0);});
 }
 
 template <>
