@@ -1,4 +1,4 @@
-
+from datetime import date
 import os
 import sys
 
@@ -25,7 +25,8 @@ repeats = 3
 if test_only:
   runtime = 1
 
-outfile = "results/nov16_results.txt"
+today = date.today().strftime("%m_%d_%y")
+outfile = "results/" + today + "_results.txt"
 
 def runstring(op) :
     if test_only:
