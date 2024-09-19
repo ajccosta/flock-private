@@ -46,6 +46,7 @@ namespace verlib {
     versioned_ptr(T* v) : v(v) {}
     versioned_ptr() : v(nullptr) {}
     T* load() { return read_lock([&] {return v.load();});}
+    T* load_weak() { return v.load();}
     void validate() {}
     T* read_snapshot() { return load(); }
     void init(T* x) { v.init(x);}
@@ -59,6 +60,7 @@ namespace verlib {
   public:
     atomic_bool_(bool x) : v(x) {}
     bool load() { return read_lock([&] {return v.load();});}
+    bool load_weak() { return v.load(); }
     void validate() {}
     void store(bool x) { try_lock([&] {v.store(x); return true;});}
     bool operator=(bool b) {store(b); return b; }

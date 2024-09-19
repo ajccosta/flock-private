@@ -61,8 +61,12 @@ endforeach()
 add_benchmark(tlf_leaftree_lck_tlf ${STRUCT_DIR}/tlf_leaftree "NoHelp;Transactional;HWWriteStamp")
 
 add_benchmark(array_lck_stm ${STRUCT_DIR}/array "NoHelp;STM;HWWriteStamp")
+
 add_benchmark(stm_arttree_lck ${STRUCT_DIR}/stm_arttree "NoHelp;STM;HWWriteStamp")
 add_benchmark(stm_arttree_lf ${STRUCT_DIR}/stm_arttree "STM;HWWriteStamp")
+
+add_benchmark(stm_skiplist_lck ${STRUCT_DIR}/stm_skiplist "NoHelp;STM;HWWriteStamp")
+add_benchmark(stm_skiplist_lf ${STRUCT_DIR}/stm_skiplist "STM;HWWriteStamp")
 
 # *************************
 #    Strings
