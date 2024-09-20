@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PARLAY_GET_TIME_H_
+#define PARLAY_GET_TIME_H_
 
 #include <chrono>
 #include <iomanip>
@@ -20,7 +21,7 @@ private:
     return std::chrono::system_clock::now();
   }
 
-  void report(double time, std::string str) {
+  void report(double time, const std::string& str) {
     std::ios::fmtflags cout_settings = std::cout.flags();
     std::cout.precision(4);
     std::cout << std::fixed;
@@ -38,7 +39,7 @@ public:
 
 
   timer(std::string name = "Parlay time", bool start_ = true)
-  : total_so_far(0.0), on(false), name(name) {
+    : total_so_far(0.0), on(false), name(std::move(name)) {
     if (start_) start();
   }
   
@@ -73,7 +74,7 @@ public:
     else return total_so_far;
   }
 
-  void next(std::string str) {
+  void next(const std::string& str) {
     if (on) report(next_time(), str);
   }
 
@@ -84,3 +85,5 @@ public:
 
   }
 }
+
+#endif  // PARLAY_GET_TIME_H_
