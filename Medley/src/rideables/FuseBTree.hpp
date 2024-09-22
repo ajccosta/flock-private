@@ -6,9 +6,12 @@
 #include <algorithm>
 #include <utility>
 #include <functional>
-    
-#include <structures/btree/ordered_map.h>
 
+#ifdef UseSkiplist
+#include <structures/skiplist/ordered_map.h>
+#else
+#include <structures/btree/ordered_map.h>
+#endif
 
 /**
  *

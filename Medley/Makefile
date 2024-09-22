@@ -137,12 +137,15 @@ endif
 WARNING_FLAGS:=-ftrapv -Wreturn-type -W -Wall \
 -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-invalid-offsetof
 
+FUSEFLAGS :=  -DHWWriteStamp -DHashLock -DTransactional $(FuseExtra)
+$(info    FuseExtra is $(FuseExtra))
+
 # Default build flags.  
 # CFLAGS:=-pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) 
-CFLAGS:= $(FLAGS) -fopenmp -pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -DHWWriteStamp -DHashLock -DTransactional -DSHM_SIMULATING # -DNestedEpochs
+CFLAGS:= $(FLAGS) -fopenmp -pthread -g -gdwarf-2 -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm $(FUSEFLAGS) -DSHM_SIMULATING # -DNestedEpochs
 
 # CXXFLAGS:= -pthread -std=c++11 -g -fpic $(WARNING_FLAGS) #-std=c++1y 
-CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -std=gnu++17 -mclwb -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -mcx16 -DHWWriteStamp -DHashLock -DTransactional -DSHM_SIMULATING #-DNestedEpochs
+CXXFLAGS:= $(FLAGS) -fopenmp -pthread -g -fpic $(WARNING_FLAGS) -D_REENTRANT -fno-strict-aliasing -march=native -std=gnu++17 -mclwb -DTESTS_KEY_SIZE=$(K_SZ) -DTESTS_VAL_SIZE=$(V_SZ) -mrtm -mcx16 $(FUSEFLAGS) -DSHM_SIMULATING #-DNestedEpochs
 # linker flags
 # LDFLAGS := 
 
@@ -583,7 +586,3 @@ clean_memory:
 	rm -f -r /dev/shm/* || :
 
 print_%: ; @echo $*=$($*)
-
-
-
-

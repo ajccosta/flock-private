@@ -1,0 +1,21 @@
+#! /bin/bash
+
+make clean
+make -j FuseExtra=""
+mv bin/release/main bin/release/main_lf_btree
+
+make clean
+make -j FuseExtra="-DUseSkiplist"
+mv bin/release/main bin/release/main_lf_skiplist
+
+make clean
+make -j FuseExtra="-DNoHelp"
+mv bin/release/main bin/release/main_lck_btree
+
+make clean
+make -j FuseExtra="-DUseSkiplist -DNoHelp"
+mv bin/release/main bin/release/main_lck_skiplist
+
+
+
+
