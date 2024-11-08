@@ -38,3 +38,6 @@ CMakeSettings.json
 *.exe
 *.out
 *.app
+
+#Timings
+timings/*
