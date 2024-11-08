@@ -226,7 +226,7 @@ public:
 
         recmgr->endOp(tid);
 
-        root = rbnode_create(tid, KEY_NEG_INFTY, NULL, NULL);
+        root = rbnode_create(tid, KEY_NEG_INFTY, 0, NULL);
     }
 
     RecMgr * debugGetRecMgr() {
@@ -524,7 +524,7 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::getImpl(node_t<skey_t, sval_t>* tree, skey
     while (1) {
         right = (node_t<skey_t, sval_t>*) tree->right;
         if (right == NULL) {
-            return NULL;
+            return 0;
         } else {
             //rightCmp = key - right->key;
 
@@ -540,7 +540,7 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::getImpl(node_t<skey_t, sval_t>* tree, skey
             } else if (right == tree->right) {
                 // the reread of .right is the one protected by our read of ovl
                 vo = attemptGet(key, right, (key < right->key ? LEFT : RIGHT), ovl);
-                if (vo != SpecialRetry) {
+                if (vo != (sval_t) SpecialRetry) {
                     return vo;
                 }
                 // else RETRY
@@ -580,7 +580,7 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::attemptGet(skey_t key,
             // Note is not present.  Read of node.child occurred while
             // parent.child was valid, so we were not affected by any
             // shrinks.
-            return NULL;
+            return 0;
         } else {
             //childCmp = key - child->key;
             if (key == child->key) {
@@ -629,8 +629,8 @@ template <typename skey_t, typename sval_t, class RecMgr>
 int ccavl<skey_t, sval_t, RecMgr>::shouldUpdate(int func, sval_t prev, sval_t expected) {
     switch (func) {
         case UpdateAlways: return 1;
-        case UpdateIfAbsent: return prev == NULL;
-        case UpdateIfPresent: return prev != NULL;
+        case UpdateIfAbsent: return prev == 0;
+        case UpdateIfPresent: return prev != 0;
         default: return prev == expected; // TODO: use .equals
     }
 }
@@ -640,7 +640,7 @@ int ccavl<skey_t, sval_t, RecMgr>::shouldUpdate(int func, sval_t prev, sval_t ex
 template <typename skey_t, typename sval_t, class RecMgr>
 sval_t ccavl<skey_t, sval_t, RecMgr>::putIfAbsent(const int tid, node_t<skey_t, sval_t>* tree, skey_t key, sval_t value) {
     auto guard = recmgr->getGuard(tid);
-    auto retval = decodeNull(update(tid, tree, key, UpdateIfAbsent, NULL, encodeNull(value)));
+    auto retval = decodeNull(update(tid, tree, key, UpdateIfAbsent, 0, encodeNull(value)));
     return retval;
 }
 
@@ -654,7 +654,7 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::put(const int tid, node_t<skey_t, sval_t>*
 template <typename skey_t, typename sval_t, class RecMgr>
 sval_t ccavl<skey_t, sval_t, RecMgr>::remove_node(const int tid, node_t<skey_t, sval_t>* tree, skey_t key) {
     auto guard = recmgr->getGuard(tid);
-    auto retval = decodeNull(update(tid, tree, key, UpdateAlways, NULL, NULL));
+    auto retval = decodeNull(update(tid, tree, key, UpdateAlways, 0, 0));
     return retval;
 }
 
@@ -717,11 +717,11 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::attemptUpdate(
 
         if (child == NULL) {
             // key is not present
-            if (newValue == NULL) {
+            if (newValue == 0) {
                 // Removal is requested.  Read of node.child occurred
                 // while parent.child was valid, so we were not affected
                 // by any shrinks.
-                return NULL;
+                return 0;
             } else {
                 // Update will be an insert.
                 int success;
@@ -745,9 +745,9 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::attemptUpdate(
                     } else {
                         // We're valid.  Does the user still want to
                         // perform the operation?
-                        if (!shouldUpdate(func, NULL, expected)) {
+                        if (!shouldUpdate(func, 0, expected)) {
                             mutex_unlock(&(curr->lock));
-                            return NULL;
+                            return 0;
                         }
 
                         // Create a new leaf
@@ -762,7 +762,7 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::attemptUpdate(
                 mutex_unlock(&(curr->lock));
                 if (success) {
                     fixHeightAndRebalance(tid, damaged);
-                    return NULL;
+                    return 0;
                 }
                 // else RETRY
             }
@@ -807,11 +807,11 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::update(const int tid, node_t<skey_t, sval_
         node_t<skey_t, sval_t>* right = tree->right;
         if (right == NULL) {
             // key is not present
-            if (!shouldUpdate(func, NULL, expected) ||
-                    newValue == NULL ||
+            if (!shouldUpdate(func, 0, expected) ||
+                    newValue == 0 ||
                     attemptInsertIntoEmpty(tid, tree, key, newValue)) {
                 // nothing needs to be done, or we were successful, prev value is Absent
-                return NULL;
+                return 0;
             }
             // else RETRY
         } else {
@@ -845,15 +845,15 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::attemptNodeUpdate(
         node_t<skey_t, sval_t>* curr) {
     sval_t prev;
 
-    if (newValue == NULL) {
+    if (newValue == 0) {
         // removal
-        if (curr->value == NULL) {
+        if (curr->value == 0) {
             // This node is already removed, nothing to do.
-            return NULL;
+            return 0;
         }
     }
 
-    if (newValue == NULL && (curr->left == NULL || curr->right == NULL)) {
+    if (newValue == 0 && (curr->left == NULL || curr->right == NULL)) {
         // potential unlink, get ready by locking the parent
         node_t<skey_t, sval_t>* damaged;
         mutex_lock(&(parent->lock));
@@ -866,7 +866,7 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::attemptNodeUpdate(
             mutex_lock(&(curr->lock));
             {
                 prev = curr->value;
-                if (prev == NULL || !shouldUpdate(func, prev, expected)) {
+                if (prev == 0 || !shouldUpdate(func, prev, expected)) {
                     // nothing to do
                     mutex_unlock(&(curr->lock));
                     mutex_unlock(&(parent->lock));
@@ -903,7 +903,7 @@ sval_t ccavl<skey_t, sval_t, RecMgr>::attemptNodeUpdate(
             }
 
             // retry if we now detect that unlink is possible
-            if (newValue == NULL && (curr->left == NULL || curr->right == NULL)) {
+            if (newValue == 0 && (curr->left == NULL || curr->right == NULL)) {
                 mutex_unlock(&(curr->lock));
                 return (sval_t) SpecialRetry;
             }
@@ -965,7 +965,7 @@ int ccavl<skey_t, sval_t, RecMgr>::attemptUnlink_nl(const int tid, node_t<skey_t
 
     lock_mb();
     curr->changeOVL = UnlinkedOVL;
-    curr->value = NULL;
+    curr->value = 0;
     lock_mb();
     //printf("unlink %p %p %p\n", parent, node, splice);
     // NOTE: this is a hack to allow deeply nested routines to be able to
@@ -994,7 +994,7 @@ int ccavl<skey_t, sval_t, RecMgr>::nodeCondition(node_t<skey_t, sval_t>* curr) {
     node_t<skey_t, sval_t>* nL = (node_t<skey_t, sval_t>*) curr->left;
     node_t<skey_t, sval_t>* nR = (node_t<skey_t, sval_t>*) curr->right;
 
-    if ((nL == NULL || nR == NULL) && curr->value == NULL) {
+    if ((nL == NULL || nR == NULL) && curr->value == 0) {
         return UnlinkRequired;
     }
 
@@ -1091,7 +1091,7 @@ node_t<skey_t, sval_t>* ccavl<skey_t, sval_t, RecMgr>::rebalance_nl(const int ti
     node_t<skey_t, sval_t>* nL = (node_t<skey_t, sval_t>*) n->left;
     node_t<skey_t, sval_t>* nR = (node_t<skey_t, sval_t>*) n->right;
 
-    if ((nL == NULL || nR == NULL) && n->value == NULL) {
+    if ((nL == NULL || nR == NULL) && n->value == 0) {
         if (attemptUnlink_nl(tid, nParent, n)) {
             // attempt to fix nParent.height while we've still got the lock
             return fixHeight_nl(nParent);

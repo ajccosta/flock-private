@@ -63,7 +63,7 @@ public:
     }
 
     V getNoValue() {
-        return NULL;
+        return 0;
     }
 
     void initThread(const int tid) {
@@ -153,7 +153,7 @@ public:
             return (node->left != NULL) + (node->right != NULL);
         }
         size_t getNumKeys(NodePtrType node) {
-            if (node->value == NULL) return 0;
+            if (node->value == 0) return 0;
             if (node->key == minKey || node->key == maxKey) return 0;
             return 1;
         }
