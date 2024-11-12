@@ -1,3 +1,4 @@
 [submodule "include/parlay"]
 	path = include/parlay
 	url = https://github.com/ajccosta/parlaylib_deqalloc.git
+	branch = include_only
