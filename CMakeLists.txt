@@ -12,29 +12,37 @@ message(STATUS "--------------- General configuration -------------")
 message(STATUS "CMake Generator:                ${CMAKE_GENERATOR}")
 message(STATUS "Compiler:                       ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "Build type:                     ${CMAKE_BUILD_TYPE}")
+message(STATUS "Architecture:                   ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "CMAKE_CXX_FLAGS:                ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG:          ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "CMAKE_CXX_FLAGS_RELEASE:        ${CMAKE_CXX_FLAGS_RELEASE}")
 message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 message(STATUS "CMAKE_EXE_LINKER_FLAGS          ${CMAKE_EXE_LINKER_FLAGS}")
 message(STATUS "CMAKE_INSTALL_PREFIX:           ${CMAKE_INSTALL_PREFIX}" )
-
 # -------------------------------------------------------------------
 #                       Library definition
 
 set(FLOCK_INCLUDE_DIR "${FLOCK_SOURCE_DIR}/include")
 
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
+        #To be able to use dwcas on non-x86 archs
+        #https://large-scale-oltp-team.github.io/foedus_code/group__ARMV8.html
+        set(ATOMIC_LIB "-latomic")
+else()
+        set(ATOMIC_LIB "-mcx16")
+endif()
+
 add_library(flock INTERFACE)
 target_include_directories(flock INTERFACE ${FLOCK_INCLUDE_DIR})
 target_compile_features(flock INTERFACE cxx_std_17)
-target_compile_options(flock INTERFACE -mcx16 -march=native -g)
+target_compile_options(flock INTERFACE ${ATOMIC_LIB} -march=native -g)
 
 add_library(verlib INTERFACE)
 target_include_directories(verlib INTERFACE ${FLOCK_INCLUDE_DIR})
 target_compile_features(verlib INTERFACE cxx_std_17)
 #target_compile_options(verlib INTERFACE -mcx16 -march=native -g -DPARLAY_USE_STD_ALLOC=1 -fsanitize=address)
 #target_link_options(verlib INTERFACE -fsanitize=address -static-libasan)
-target_compile_options(verlib INTERFACE -mcx16 -march=native)
+target_compile_options(verlib INTERFACE ${ATOMIC_LIB} -march=native)
 
 # Find threading library
 find_package(Threads REQUIRED)

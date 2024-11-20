@@ -60,6 +60,7 @@ template <typename V>
 struct atomic_double {
 private:
   struct alignas(16) TV {size_t count; V val; };
+  static_assert(std::atomic<TV>::is_always_lock_free);
   TV v;
   void cam(TV oldv, TV newv) {
     __int128 oldvi = *((__int128*) &oldv);

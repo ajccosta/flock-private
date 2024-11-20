@@ -2,7 +2,10 @@
 #include <limits>
 #include <atomic>
 #include "flock/epoch.h"
-#include <x86intrin.h>
+
+#if defined(__x86_64__) || defined(__i386__)
+#       include <x86intrin.h>
+#endif
 
 namespace verlib {
   using TS = long;
@@ -11,9 +14,19 @@ thread_local int read_delay = 1;
 thread_local int write_delay = 1;
 
   TS rdtsc(){
+      uint64_t ret;
+#if defined(__x86_64__) || defined(__i386__)
       unsigned int lo,hi;
       __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
-      return (TS) (((uint64_t)(hi & ~(1<<31)) << 32) | lo);
+      ret = (((uint64_t)(hi & ~(1<<31)) << 32) | lo);
+#elif defined (__arm__)
+      //Read counter timer register on Arm
+      //mrs is a system to general-purpose move
+      //cntvctl_el0 is a 64-bit register that holds a 64-bit virtual timer
+      //TODO: older arm archs require checking permissions (e.g. https://github.com/google/benchmark/blob/4f8bfeae470950ef005327973f15b0044eceaceb/src/cycleclock.h#L116)
+      __asm__ __volatile__ ("mrs %0, cntvct_el0" : "=r" (ret));
+#endif
+      return (TS) ret;
   }
 
   thread_local TS last_ts = 0;
