@@ -46,7 +46,6 @@ namespace internal {
 struct pool_allocator {
 
   // Maximum alignment guaranteed by the allocator
-  #
   static inline constexpr size_t max_alignment = 128;
   
  private:

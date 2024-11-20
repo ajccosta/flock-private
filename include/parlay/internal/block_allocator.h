@@ -27,6 +27,8 @@
 #include "../thread_specific.h"
 
 #include "concurrency/hazptr_stack.h"
+#include "work_stealing_deque_private.h"
+#include "../random_gen.h"
 
 #include "memory_size.h"
 
@@ -49,8 +51,8 @@ struct block_allocator {
 #else
   static inline constexpr size_t default_list_bytes = (1ul << 18) - 64;  // in bytes
 #endif
-  
   static inline constexpr size_t min_alignment = 128;  // for cache line padding
+  static inline constexpr size_t steal_retries = 8; // number of steal attempts
 
   struct block {
     block* next;
@@ -64,14 +66,18 @@ struct block_allocator {
   };
 
   hazptr_stack<std::byte*> allocated_buffers;
-  hazptr_stack<block*> global_stack;
+  //Deque where each element is a filled local_list (i.e., all lists have list_length elements)
+  ThreadSpecific<Deque<block>> my_deq;
+  //List that we are currently allocating from
   ThreadSpecific<local_list> my_local_list;
+  //RNG for each thread
+  ThreadSpecific<random> my_rand;
 
-  size_t block_size;
+  size_t block_size; //Size of each block
   std::align_val_t block_align;
-  size_t list_length;
-  size_t max_blocks;
-  std::atomic<size_t> blocks_allocated;
+  size_t list_length; //Size of each local list and used for the threshold to return blocks to global pool
+  size_t max_blocks; //Maximum number of blocks accross all threads
+  std::atomic<size_t> blocks_allocated; //Number of blocks allocated (accross all threads)
 
   block* get_block(std::byte* buffer, size_t i) const {
     // Since block is an aggregate type, it has implicit lifetime, so the following code
@@ -89,18 +95,44 @@ struct block_allocator {
   size_t get_block_size() const { return block_size; }
   size_t num_allocated_blocks() const { return blocks_allocated.load(); }
 
-  // Allocate a new list of list_length elements
+  explicit block_allocator(size_t block_size_,
+    size_t block_align_ = alignof(std::max_align_t),
+    [[maybe_unused]] size_t reserved_blocks = 0,
+    size_t list_length_ = 0,
+    size_t max_blocks_ = 0) :
+      my_deq(),
+      my_local_list(),                                                               
+      my_rand([](parlay::thread_id_type tid) { return random(tid); }),               // Each block needs to be at least
+      block_size(std::max<size_t>(block_size_, sizeof(block))),    // <------------- // large enough to hold the struct
+      block_align(std::align_val_t{std::max<size_t>(block_align_, min_alignment)}),  // representing a free block.
+      list_length(list_length_ == 0 ? (default_list_bytes + block_size + 1) / block_size : list_length_),
+      max_blocks(max_blocks_ == 0 ? (3 * getMemorySize() / block_size) / 4 : max_blocks_),
+      blocks_allocated(0) {
 
+  }
+
+  // Allocate a new list of list_length elements
   auto initialize_list(std::byte* buffer) const -> block* {
+    //Allocate list into buffer
+    //For each element, except the last, set the next ptr to the following element
     for (size_t i=0; i < list_length - 1; i++) {
       new (buffer + i * block_size) block{get_block(buffer, i+1)};
     }
+    //The last element has next set to nullptr
     new (buffer + (list_length - 1) * block_size) block{nullptr};
+    //Return first element
     return get_block(buffer, 0);
   }
 
+  //Return the number of blocks requested by the user
   size_t num_used_blocks() {
-    size_t free_blocks = global_stack.size()*list_length;
+    size_t free_blocks = 0;
+    //Sum the number of blocks in each thread's deque
+    //  (ThreadSpecific allows iteration over all thread's objects)
+    my_deq.for_each([&](auto&& deq) {
+      free_blocks += deq.size() * list_length;
+    });
+    //Sum the number blocks in each thread's local list
     my_local_list.for_each([&](auto&& list) {
       free_blocks += list.sz;
     });
@@ -115,7 +147,6 @@ struct block_allocator {
 #else
     auto buffer = static_cast<std::byte*>(::operator new(total_bytes, block_align));
 #endif
-    
     assert(buffer != nullptr);
 
     blocks_allocated.fetch_add(num_blocks);
@@ -128,8 +159,20 @@ struct block_allocator {
   // Either grab a list from the global pool, or if there is none
   // then allocate a new list
   auto get_list() -> block* {
-    std::optional<block*> rem = global_stack.pop();
-    if (rem) return *rem;
+    //Try to get list from our deque
+    block* rem = my_deq->pop_bottom();
+    if (rem) return rem;
+
+    //Our deque is empty, attempt to steal a list
+    size_t attempts_left = steal_retries;
+    auto num_threads = num_thread_ids();
+    while(attempts_left-- > 0) {
+      rem = my_deq[my_rand->rand() % num_threads].pop_top().first;
+      if(rem)
+        return rem; //Successfuly stole list from other thread's deque!
+    }
+
+    //All else failed, allocate more memory
     std::byte* buffer = allocate_blocks(list_length);
     return initialize_list(buffer);
   }
@@ -144,20 +187,6 @@ struct block_allocator {
     std::cout << "Used: " << used << ", allocated: " << allocated
 	      << ", block size: " << sz
 	      << ", bytes: " << sz*allocated << "\n";
-  }
-
-  explicit block_allocator(size_t block_size_,
-    size_t block_align_ = alignof(std::max_align_t),
-    [[maybe_unused]] size_t reserved_blocks = 0,
-    size_t list_length_ = 0,
-    size_t max_blocks_ = 0) :
-      my_local_list(),                                                               // Each block needs to be at least
-      block_size(std::max<size_t>(block_size_, sizeof(block))),    // <------------- // large enough to hold the struct
-      block_align(std::align_val_t{std::max<size_t>(block_align_, min_alignment)}),  // representing a free block.
-      list_length(list_length_ == 0 ? (default_list_bytes + block_size + 1) / block_size : list_length_),
-      max_blocks(max_blocks_ == 0 ? (3 * getMemorySize() / block_size) / 4 : max_blocks_),
-      blocks_allocated(0) {
-
   }
 
   // Clears all memory ever allocated by this allocator. All allocated blocks
@@ -178,10 +207,15 @@ struct block_allocator {
         list.sz = 0;
       });
 
+      //Clear deques
+      my_deq.for_each([](auto&& deq) {
+        deq.clear();
+      });
+
       // throw away all allocated memory
       std::optional<std::byte*> x;
       while ((x = allocated_buffers.pop())) ::operator delete(*x, block_align);
-      global_stack.clear();
+      
       blocks_allocated.store(0);
       return true;
     }
@@ -192,28 +226,30 @@ struct block_allocator {
 #if !defined(NDEBUG) && !defined(PARLAY_ALLOC_ALLOW_LEAK)
     if (!cleared) {
       std::cerr << "There are un-freed blocks obtained from block_allocator. If this is intentional you may"
-                        "suppress this messsage with -DPARLAY_ALLOC_ALLOW_LEAK\n";
+                        " suppress this messsage with -DPARLAY_ALLOC_ALLOW_LEAK\n";
     }
 #endif
   }
 
   void free(void* ptr) {
-
     if (my_local_list->sz == list_length+1) {
+      //Record middle of the list
       my_local_list->mid = my_local_list->head;
     } else if (my_local_list->sz == 2*list_length) {
-      global_stack.push(my_local_list->mid->next);
+      //Return half of the list to our deque
+      my_deq->push_bottom(my_local_list->mid->next);
       my_local_list->mid->next = nullptr;
       my_local_list->sz = list_length;
     }
 
+    //Insert freed note at the head of the list
     auto new_node = new (ptr) block{my_local_list->head};
     my_local_list->head = new_node;
     my_local_list->sz++;
   }
 
   inline void* alloc() {
-    if (my_local_list->sz == 0)  {
+    if (my_local_list->sz == 0)  { //No blocks on the local list, get a new list
       auto new_list = get_list();
 
       // !! Critical problem !! If this task got stolen during get_list(), the
@@ -227,12 +263,13 @@ struct block_allocator {
       }
       else {
         // Looks like the task got stolen and the new thread already had a
-        // non-empty local list, so we can push the new one into the global
-        // pool for someone else to use in the future
-        global_stack.push(new_list);
+        // non-empty local list, so we can push the new one into out local
+        // deque for use in the future
+        my_deq->push_bottom(new_list);
       }
     }
 
+    //Pop block from head of local list
     block* p = my_local_list->head;
     my_local_list->head = my_local_list->head->next;
     my_local_list->sz--;

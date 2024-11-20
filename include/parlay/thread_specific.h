@@ -194,6 +194,7 @@ class ThreadSpecific {
 
   T& operator*() { return get(); }
   T* operator->() { return std::addressof(get()); }
+  T& operator[](std::size_t p) { return begin()[p]; }
 
   T& get() {
     auto chunk_data = internal::get_chunk_data();
