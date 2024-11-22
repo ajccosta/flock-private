@@ -1,5 +1,8 @@
 set(BENCH_FILES "runtests.py")
 
+#surppress warning
+SET(CMAKE_CXX_FLAGS "-Wno-stringop-overflow")
+
 function(copy_bench_file NAME)
   file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${NAME}
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
