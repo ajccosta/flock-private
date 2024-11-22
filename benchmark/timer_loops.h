@@ -518,7 +518,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
         }
 
 	if (use_upsert) {
-	  if (success_ratio != 1)
+	  if (success_ratio != 1 && update_percent != 100)
 	    std::cout << "bad query success ratio, should be 1 is "
 		      << success_ratio << std::endl;
 	  if (update_success_ratio != 0)
