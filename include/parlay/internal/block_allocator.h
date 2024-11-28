@@ -72,6 +72,8 @@ struct block_allocator {
   ThreadSpecific<local_list> my_local_list;
   //RNG for each thread
   ThreadSpecific<random> my_rand;
+  ThreadSpecific<size_t> num_allocs; //Number of alloc calls per-thread
+  ThreadSpecific<size_t> num_frees;  //Number of free calls per-thread
 
   size_t block_size; //Size of each block
   std::align_val_t block_align;
@@ -184,7 +186,17 @@ struct block_allocator {
     size_t used = num_used_blocks();
     size_t allocated = num_allocated_blocks();
     size_t sz = get_block_size();
+    size_t total_allocs = 0;
+    num_allocs.for_each([&total_allocs](auto&& n) {
+      total_allocs += n;
+    });
+    size_t total_frees = 0;
+    num_frees.for_each([&total_frees](auto&& n) {
+      total_frees += n;
+    });
     std::cout << "Used: " << used << ", allocated: " << allocated
+        << ", total allocs: " << total_allocs
+        << ", total frees: " << total_frees
 	      << ", block size: " << sz
 	      << ", bytes: " << sz*allocated << "\n";
   }
@@ -232,6 +244,7 @@ struct block_allocator {
   }
 
   void free(void* ptr) {
+    num_frees++;
     if (my_local_list->sz == list_length+1) {
       //Record middle of the list
       my_local_list->mid = my_local_list->head;
@@ -249,6 +262,7 @@ struct block_allocator {
   }
 
   inline void* alloc() {
+    num_allocs++;
     if (my_local_list->sz == 0)  { //No blocks on the local list, get a new list
       auto new_list = get_list();
 

@@ -229,6 +229,49 @@ class ThreadSpecific {
     }
   }
 
+  //Numeric specialization functions
+  template<typename U = T>
+  typename std::enable_if_t<std::is_integral<U>::value, U>
+  load() {
+    return get();
+  }
+
+  template<typename U = T>
+  typename std::enable_if_t<std::is_integral<U>::value, U>
+  operator++(int) {
+    return get()++;
+  }
+
+  template<typename U = T>
+  typename std::enable_if_t<std::is_integral<U>::value, U>
+  operator++() {
+    return ++get();
+  }
+
+  template<typename U = T>
+  typename std::enable_if_t<std::is_integral<U>::value, U>
+  operator+=(U u) {
+    return get() += u;
+  }
+
+  template<typename U = T>
+  typename std::enable_if_t<std::is_integral<U>::value, U>
+  operator--(int) {
+    return get()--;
+  }
+
+  template<typename U = T>
+  typename std::enable_if_t<std::is_integral<U>::value, U>
+  operator--() {
+    return --get();
+  }
+
+  template<typename U = T>
+  typename std::enable_if_t<std::is_integral<U>::value, U>
+  operator-=(U u) {
+    return get() -= u;
+  }
+
   // Allow looping over all thread's data
   template<bool Const>
   class iterator_t {
