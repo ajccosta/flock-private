@@ -38,7 +38,7 @@ struct alignas(128) Deque {
   //Deque(uint64_t N, int64_t anchor_drop, i_quiescent_manager *qm)
   //  : N(N), anchor_drop(anchor_drop), num_pops(0), bot(0), qm(qm), top(0) {
   Deque()
-    : N(50), anchor_drop(5), num_pops(0), bot(0), top(0) {
+    : N(5), anchor_drop(2), num_pops(0), bot(0), top(0) {
     qm=new faa_dist_qm();
     deq = new continuous_array<V*>();
   }

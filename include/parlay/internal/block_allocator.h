@@ -52,7 +52,6 @@ struct block_allocator {
   static inline constexpr size_t default_list_bytes = (1ul << 18) - 64;  // in bytes
 #endif
   static inline constexpr size_t min_alignment = 128;  // for cache line padding
-  static inline constexpr size_t steal_retries = 8; // number of steal attempts
 
   struct block {
     block* next;
@@ -68,6 +67,7 @@ struct block_allocator {
   hazptr_stack<std::byte*> allocated_buffers;
   //Deque where each element is a filled local_list (i.e., all lists have list_length elements)
   ThreadSpecific<Deque<block>> my_deq;
+  size_t max_steal_retries; // number of steal attempts
   //List that we are currently allocating from
   ThreadSpecific<local_list> my_local_list;
   //RNG for each thread
@@ -107,10 +107,21 @@ struct block_allocator {
       my_rand([](parlay::thread_id_type tid) { return random(tid); }),               // Each block needs to be at least
       block_size(std::max<size_t>(block_size_, sizeof(block))),    // <------------- // large enough to hold the struct
       block_align(std::align_val_t{std::max<size_t>(block_align_, min_alignment)}),  // representing a free block.
-      list_length(list_length_ == 0 ? (default_list_bytes + block_size + 1) / block_size : list_length_),
       max_blocks(max_blocks_ == 0 ? (3 * getMemorySize() / block_size) / 4 : max_blocks_),
       blocks_allocated(0) {
 
+      //Get number of steal retries from env variable
+      auto steal_retries_env = std::getenv("PARLAY_STEAL_RETRIES");
+      max_steal_retries = steal_retries_env != nullptr ?
+        std::stoi(steal_retries_env) :
+        std::thread::hardware_concurrency();
+
+      //Get number of list bytes from env variable
+      auto list_bytes_env = std::getenv("PARLAY_LIST_BYTES");
+      size_t list_bytes = list_bytes_env != nullptr ?
+        std::stoll(list_bytes_env) :
+        default_list_bytes;
+      list_length = (list_bytes + block_size + 1) / block_size;
   }
 
   // Allocate a new list of list_length elements
@@ -166,7 +177,7 @@ struct block_allocator {
     if (rem) return rem;
 
     //Our deque is empty, attempt to steal a list
-    size_t attempts_left = steal_retries;
+    size_t attempts_left = max_steal_retries;
     auto num_threads = num_thread_ids();
     while(attempts_left-- > 0) {
       rem = my_deq[my_rand->rand() % num_threads].pop_top().first;
