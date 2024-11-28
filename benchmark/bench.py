@@ -12,21 +12,26 @@ class bench_conf():
   num_threads=None
   num_rounds=None
   time=None
-  time_step=None #How much to increase time each time a stddev run is done
   extra_arguments=None
+  steal_retries=None
+  list_bytes=None
 
   def __init__(self, benchmark,\
     extra_arguments="",\
     num_threads=multiprocessing.cpu_count(),\
     num_rounds=10,\
     time=0.4,\
-    time_step=0):
-    self.benchmark=benchmark
+    steal_retries=32,\
+    list_bytes=(2**18-64),\
+    ):
+    #get fullpath of file
+    self.benchmark=subprocess.getoutput("realpath " + benchmark)
     self.num_threads=num_threads
     self.num_rounds=num_rounds
     self.time=time
     self.extra_arguments=extra_arguments
-    self.time_step=time_step
+    self.steal_retries=steal_retries
+    self.list_bytes=list_bytes
     
   def __str__(self):
     return "Benchmark configuration "+\
@@ -35,15 +40,20 @@ class bench_conf():
     ",num_rounds="+str(self.num_rounds)+\
     ",time="+str(self.time)+\
     ",extra_arguments="+self.extra_arguments+\
+    ",steal_retries="+str(self.steal_retries)+\
+    ",list_bytes="+str(self.list_bytes)+\
     "}"
 
   def build_cmd(self):
     cmd=""
     cmd+="PARLAY_NUM_THREADS="+str(self.num_threads)+" "
+    cmd+="PARLAY_STEAL_RETRIES="+str(self.steal_retries)+" "
+    cmd+="PARLAY_LIST_BYTES="+str(self.list_bytes)+" "
     cmd+="numactl -i all "
-    cmd+="./"+self.benchmark+" "
+    cmd+=self.benchmark+" "
     cmd+="-t "+str(self.time)+" "
     cmd+="-r "+str(self.num_rounds)+" "
+    cmd+="-p "+str(self.num_threads)+" "
     cmd+=self.extra_arguments
     return cmd
 
@@ -60,31 +70,51 @@ class bench_conf():
     stddev=statistics.stdev(throughputs)
     return mean, stddev, throughputs
 
-  #runs num_rounds times until the relative stddev is under rel_stddev_perc_threshold
-  def run_relative_stddev(self, rel_stddev_perc_threshold:float):
-    all_throughputs=[]
-    curr_relative_stddev=100
-    while curr_relative_stddev >= rel_stddev_perc_threshold:
-      all_throughputs.extend(self.run_once())
-      stddev=statistics.stdev(all_throughputs)
-      mean=statistics.mean(all_throughputs)
-      curr_relative_stddev=100*(stddev/mean)
 
-      self.time+=self.time_step #increase time of test, to attempt to stabilize tests
+n_iters=500
 
-      #filter outliers
-      num_quartiles=20
-      quantiles=statistics.quantiles(all_throughputs, n=num_quartiles)
-      Q1_thresh=quantiles[0]
-      QLast_thresh=quantiles[num_quartiles-2]
-      all_throughputs=list(filter(lambda a : a >= Q1_thresh and a <= QLast_thresh, all_throughputs))
+directories=[\
+  "$HOME/flock-private/build/benchmark/transactions/",\
+  "$HOME/tmp/flock-private/build/benchmark/transactions/",\
+]
 
-      print("relative stddev:", curr_relative_stddev, "stddev:", stddev, "mean:", mean)
-      #print(all_throughputs)
+benchmarks=[\
+  "hash_block_lck",\
+]
 
-    return mean, stddev, all_throughputs
+configs=[\
+  #("-u 0 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
+  #("-u 5 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
+  #("-u 20 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
+  #("-u 50 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
 
-bc = bench_conf("hash_block_lck", "-u 100 -upsert", 64, 10, 1, 0)
-print(bc)
-res=bc.run_relative_stddev(1.0)
-print(res)
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**18-64),\
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**17-64),\
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**16-64),\
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**15-64),\
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**14-64),\
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**13-64),\
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**12-64),\
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**11-64),\
+  #("-u 100 -upsert", 64, n_iters, 1.0, 64, 2**10-64),\
+
+  ("-u 100 -upsert -n 100", 64, n_iters, 1.0, 64, 2**18-64),\
+  ("-u 100 -upsert -n 1000", 64, n_iters, 1.0, 64, 2**18-64),\
+  ("-u 100 -upsert -n 10000", 64, n_iters, 1.0, 64, 2**18-64),\
+  ("-u 100 -upsert -n 100000", 64, n_iters, 1.0, 64, 2**18-64),\
+  ("-u 100 -upsert -n 100000", 64, n_iters, 1.0, 64, 2**18-64),\
+  ("-u 100 -upsert -n 1000000", 64, n_iters, 1.0, 64, 2**18-64),\
+  ("-u 100 -upsert -n 10000000", 64, n_iters, 1.0, 64, 2**18-64),\
+]
+
+bcs=[]
+
+for dire in directories:
+  for bench in benchmarks:
+    for conf in configs:
+      bcs.append(bench_conf(dire+bench, *conf))
+
+for bc in bcs:
+  print(bc)
+  mean, stddev, throughputs = bc.run()
+  print(mean, stddev)
