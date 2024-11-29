@@ -10,6 +10,10 @@
 
 #include "continuous_array.h"
 #include "quiescent_manager.h"
+
+namespace parlay {
+namespace internal {
+
 //#include "stats.hh"
 //extern struct stats *st;
 
@@ -23,7 +27,7 @@
 // pop_top:    Non-owning threads may call this
 //
 template <typename V>
-struct alignas(128) Deque {
+struct alignas(128) PrivateDeque {
 
   //The ordering of these variables matters due to cache contention
   continuous_array<V*> *deq;
@@ -37,13 +41,13 @@ struct alignas(128) Deque {
 
   //Deque(uint64_t N, int64_t anchor_drop, i_quiescent_manager *qm)
   //  : N(N), anchor_drop(anchor_drop), num_pops(0), bot(0), qm(qm), top(0) {
-  Deque()
+  PrivateDeque()
     : N(5), anchor_drop(2), num_pops(0), bot(0), top(0) {
     qm=new faa_dist_qm();
     deq = new continuous_array<V*>();
   }
 
-  ~Deque() {
+  ~PrivateDeque() {
     delete deq;
   }
 
@@ -192,3 +196,5 @@ struct alignas(128) Deque {
   }
 };
 
+}  // namespace internal
+}  // namespace parlay

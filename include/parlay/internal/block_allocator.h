@@ -36,6 +36,11 @@
 #include <sys/mman.h>
 #endif
 
+
+/*\ Whether to use a deque-based (defined)
+or stack-based (undefined) global pool \*/
+//#define DEQALLOC
+
 // IWYU pragma: no_include <array>
 // IWYU pragma: no_include <vector>
 
@@ -65,8 +70,12 @@ struct block_allocator {
   };
 
   hazptr_stack<std::byte*> allocated_buffers;
+#ifndef DEQALLOC
+  hazptr_stack<block*> global_stack;
+#else
   //Deque where each element is a filled local_list (i.e., all lists have list_length elements)
-  ThreadSpecific<Deque<block>> my_deq;
+  ThreadSpecific<PrivateDeque<block>> my_deq;
+#endif
   size_t max_steal_retries; // number of steal attempts
   //List that we are currently allocating from
   ThreadSpecific<local_list> my_local_list;
@@ -105,7 +114,9 @@ struct block_allocator {
     [[maybe_unused]] size_t reserved_blocks = 0,
     size_t list_length_ = 0,
     size_t max_blocks_ = 0) :
+#ifdef DEQALLOC
       my_deq(),
+#endif
       my_local_list(),                                                               
       my_rand([](parlay::thread_id_type tid) { return random(tid); }),               // Each block needs to be at least
       block_size(std::max<size_t>(block_size_, sizeof(block))),    // <------------- // large enough to hold the struct
@@ -125,7 +136,6 @@ struct block_allocator {
         std::stoll(list_bytes_env) :
         default_list_bytes;
       list_length = (list_bytes + block_size + 1) / block_size;
-      list_length = block_size;
   }
 
   // Allocate a new list of list_length elements
@@ -143,12 +153,16 @@ struct block_allocator {
 
   //Return the number of blocks requested by the user
   size_t num_used_blocks() {
+#ifndef DEQALLOC
+    size_t free_blocks = global_stack.size()*list_length;
+#else
     size_t free_blocks = 0;
     //Sum the number of blocks in each thread's deque
     //  (ThreadSpecific allows iteration over all thread's objects)
     my_deq.for_each([&](auto&& deq) {
       free_blocks += deq.size() * list_length;
     });
+#endif
     //Sum the number blocks in each thread's local list
     my_local_list.for_each([&](auto&& list) {
       free_blocks += list.sz;
@@ -177,6 +191,10 @@ struct block_allocator {
   // then allocate a new list
   auto get_list() -> block* {
     num_global_pool_accesses++;
+#ifndef DEQALLOC
+    std::optional<block*> rem = global_stack.pop();
+    if (rem) return *rem;
+#else
     //Try to get list from our deque
     block* rem = my_deq->pop_bottom();
     if (rem) return rem;
@@ -189,6 +207,7 @@ struct block_allocator {
       if(rem)
         return rem; //Successfuly stole list from other thread's deque!
     }
+#endif
 
     //All else failed, allocate more memory
     std::byte* buffer = allocate_blocks(list_length);
@@ -228,10 +247,14 @@ struct block_allocator {
         list.sz = 0;
       });
 
+#ifndef DEQALLOC
+      global_stack.clear();
+#else
       //Clear deques
       my_deq.for_each([](auto&& deq) {
         deq.clear();
       });
+#endif
 
       // throw away all allocated memory
       std::optional<std::byte*> x;
@@ -258,8 +281,12 @@ struct block_allocator {
       //Record middle of the list
       my_local_list->mid = my_local_list->head;
     } else if (my_local_list->sz == 2*list_length) {
+#ifndef DEQALLOC
+      global_stack.push(my_local_list->mid->next);
+#else
       //Return half of the list to our deque
       my_deq->push_bottom(my_local_list->mid->next);
+#endif
       my_local_list->mid->next = nullptr;
       my_local_list->sz = list_length;
       num_global_pool_accesses++;
@@ -289,7 +316,11 @@ struct block_allocator {
         // Looks like the task got stolen and the new thread already had a
         // non-empty local list, so we can push the new one into out local
         // deque for use in the future
+#ifndef DEQALLOC
+        global_stack.push(new_list);
+#else
         my_deq->push_bottom(new_list);
+#endif
       }
     }
 
