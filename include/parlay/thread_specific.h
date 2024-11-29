@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <numeric>
 
 #include "internal/thread_id_pool.h"
 
@@ -270,6 +271,14 @@ class ThreadSpecific {
   typename std::enable_if_t<std::is_integral<U>::value, U>
   operator-=(U u) {
     return get() -= u;
+  }
+
+  template<typename U = T>
+  typename std::enable_if_t<std::is_integral<U>::value, U>
+  sum() {
+    size_t c = 0;
+    for_each([&c](auto&& n) { c += n; });
+    return c;
   }
 
   // Allow looping over all thread's data

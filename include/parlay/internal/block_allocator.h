@@ -72,8 +72,11 @@ struct block_allocator {
   ThreadSpecific<local_list> my_local_list;
   //RNG for each thread
   ThreadSpecific<random> my_rand;
+
+  /*\ Counters for statistical analysis \*/
   ThreadSpecific<size_t> num_allocs; //Number of alloc calls per-thread
   ThreadSpecific<size_t> num_frees;  //Number of free calls per-thread
+  ThreadSpecific<size_t> num_global_pool_accesses;  //Number of times the global pool is accessed
 
   size_t block_size; //Size of each block
   std::align_val_t block_align;
@@ -122,6 +125,7 @@ struct block_allocator {
         std::stoll(list_bytes_env) :
         default_list_bytes;
       list_length = (list_bytes + block_size + 1) / block_size;
+      list_length = block_size;
   }
 
   // Allocate a new list of list_length elements
@@ -172,6 +176,7 @@ struct block_allocator {
   // Either grab a list from the global pool, or if there is none
   // then allocate a new list
   auto get_list() -> block* {
+    num_global_pool_accesses++;
     //Try to get list from our deque
     block* rem = my_deq->pop_bottom();
     if (rem) return rem;
@@ -197,17 +202,10 @@ struct block_allocator {
     size_t used = num_used_blocks();
     size_t allocated = num_allocated_blocks();
     size_t sz = get_block_size();
-    size_t total_allocs = 0;
-    num_allocs.for_each([&total_allocs](auto&& n) {
-      total_allocs += n;
-    });
-    size_t total_frees = 0;
-    num_frees.for_each([&total_frees](auto&& n) {
-      total_frees += n;
-    });
     std::cout << "Used: " << used << ", allocated: " << allocated
-        << ", total allocs: " << total_allocs
-        << ", total frees: " << total_frees
+        << ", total allocs: " << num_allocs.sum()
+        << ", total frees: " << num_frees.sum()
+        << ", global pool accesses: " << num_global_pool_accesses.sum()
 	      << ", block size: " << sz
 	      << ", bytes: " << sz*allocated << "\n";
   }
@@ -264,6 +262,7 @@ struct block_allocator {
       my_deq->push_bottom(my_local_list->mid->next);
       my_local_list->mid->next = nullptr;
       my_local_list->sz = list_length;
+      num_global_pool_accesses++;
     }
 
     //Insert freed note at the head of the list
