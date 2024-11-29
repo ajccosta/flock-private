@@ -15,6 +15,8 @@ class bench_conf():
   extra_arguments=None
   steal_retries=None
   list_bytes=None
+  clear=None #whether to clear the allocator in each run
+  shuffle=None #whether to shuffle memory in the allocator before run
 
   def __init__(self, benchmark,\
     extra_arguments="",\
@@ -23,6 +25,8 @@ class bench_conf():
     time=0.4,\
     steal_retries=32,\
     list_bytes=(2**18-64),\
+    clear=True,\
+    shuffle=True,\
     ):
     #get fullpath of file
     self.benchmark=subprocess.getoutput("realpath " + benchmark)
@@ -32,6 +36,8 @@ class bench_conf():
     self.extra_arguments=extra_arguments
     self.steal_retries=steal_retries
     self.list_bytes=list_bytes
+    self.clear=clear
+    self.shuffle=shuffle
     
   def __str__(self):
     return "Benchmark configuration "+\
@@ -54,6 +60,8 @@ class bench_conf():
     cmd+="-t "+str(self.time)+" "
     cmd+="-r "+str(self.num_rounds)+" "
     cmd+="-p "+str(self.num_threads)+" "
+    if self.clear: cmd+="-clear "
+    if self.shuffle: cmd+="-shuffle "
     cmd+=self.extra_arguments
     return cmd
 
