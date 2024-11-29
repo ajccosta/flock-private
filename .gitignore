@@ -1,2 +1,5 @@
 build
 Medley/ext
+timings
+*.swp
+tags
