@@ -37,9 +37,11 @@
 #endif
 
 
-/*\ Whether to use a deque-based (defined)
-or stack-based (undefined) global pool \*/
+/*\ Whether to use a deque-based (define DEQALLOC undefine DISTACK),
+stack-based (undefine DEQALLOC undefine DISTACK) global pool or to use
+a distributed (undefine DEQALLOC define DISTACK) stack-based pool\*/
 //#define DEQALLOC
+//#define DISTACK
 
 // IWYU pragma: no_include <array>
 // IWYU pragma: no_include <vector>
@@ -70,11 +72,13 @@ struct block_allocator {
   };
 
   hazptr_stack<std::byte*> allocated_buffers;
-#ifndef DEQALLOC
+#if !defined(DEQALLOC) && !defined(DISTACK)
   hazptr_stack<block*> global_stack;
-#else
+#elif defined(DEQALLOC)
   //Deque where each element is a filled local_list (i.e., all lists have list_length elements)
   ThreadSpecific<PrivateDeque<block>> my_deq;
+#else //defined(DISTACK)
+  ThreadSpecific<hazptr_stack<block*>> dist_stack;
 #endif
   size_t max_steal_retries; // number of steal attempts
   //List that we are currently allocating from
@@ -153,14 +157,20 @@ struct block_allocator {
 
   //Return the number of blocks requested by the user
   size_t num_used_blocks() {
-#ifndef DEQALLOC
-    size_t free_blocks = global_stack.size()*list_length;
-#else
-    size_t free_blocks = 0;
+    size_t free_blocks;
+#if !defined(DEQALLOC) && !defined(DISTACK)
+    free_blocks = global_stack.size()*list_length;
+#elif defined(DEQALLOC)
+    free_blocks = 0;
     //Sum the number of blocks in each thread's deque
     //  (ThreadSpecific allows iteration over all thread's objects)
     my_deq.for_each([&](auto&& deq) {
       free_blocks += deq.size() * list_length;
+    });
+#else //defined(DISTACK)
+    free_blocks = 0;
+    dist_stack.for_each([&](auto&& stack) {
+      free_blocks += stack.size()*list_length;
     });
 #endif
     //Sum the number blocks in each thread's local list
@@ -191,10 +201,9 @@ struct block_allocator {
   // then allocate a new list
   auto get_list() -> block* {
     num_global_pool_accesses++;
-#ifndef DEQALLOC
+#if !defined(DEQALLOC) && !defined(DISTACK)
     std::optional<block*> rem = global_stack.pop();
-    if (rem) return *rem;
-#else
+#elif defined(DEQALLOC)
     //Try to get list from our deque
     block* rem = my_deq->pop_bottom();
     if (rem) return rem;
@@ -206,6 +215,16 @@ struct block_allocator {
       rem = my_deq[my_rand->rand() % num_threads].pop_top().first;
       if(rem)
         return rem; //Successfuly stole list from other thread's deque!
+    }
+#else //defined(DISTACK)
+    std::optional<block*> rem = dist_stack->pop();
+    if (rem) return *rem;
+
+    size_t attempts_left = max_steal_retries;
+    auto num_threads = num_thread_ids();
+    while(attempts_left-- > 0) {
+      rem = dist_stack[my_rand->rand() % num_threads].pop();
+      if(rem) return *rem; //Successfuly stole list from other thread's deque!
     }
 #endif
 
@@ -247,12 +266,17 @@ struct block_allocator {
         list.sz = 0;
       });
 
-#ifndef DEQALLOC
+#if !defined(DEQALLOC) && !defined(DISTACK)
       global_stack.clear();
-#else
+#elif defined(DEQALLOC)
       //Clear deques
       my_deq.for_each([](auto&& deq) {
         deq.clear();
+      });
+#else //defined(DISTACK)
+      //Clear stacks
+      dist_stack.for_each([](auto&& stack) {
+        stack.clear();
       });
 #endif
 
@@ -281,11 +305,13 @@ struct block_allocator {
       //Record middle of the list
       my_local_list->mid = my_local_list->head;
     } else if (my_local_list->sz == 2*list_length) {
-#ifndef DEQALLOC
+#if !defined(DEQALLOC) && !defined(DISTACK)
       global_stack.push(my_local_list->mid->next);
-#else
+#elif defined(DEQALLOC)
       //Return half of the list to our deque
       my_deq->push_bottom(my_local_list->mid->next);
+#else //defined(DISTACK)
+      dist_stack->push(my_local_list->mid->next);
 #endif
       my_local_list->mid->next = nullptr;
       my_local_list->sz = list_length;
@@ -316,10 +342,12 @@ struct block_allocator {
         // Looks like the task got stolen and the new thread already had a
         // non-empty local list, so we can push the new one into out local
         // deque for use in the future
-#ifndef DEQALLOC
+#if !defined(DEQALLOC) && !defined(DISTACK)
         global_stack.push(new_list);
-#else
+#elif defined(DEQALLOC)
         my_deq->push_bottom(new_list);
+#else //defined(DISTACK)
+        dist_stack->push(new_list);
 #endif
       }
     }
