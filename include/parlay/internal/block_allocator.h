@@ -203,6 +203,7 @@ struct block_allocator {
     num_global_pool_accesses++;
 #if !defined(DEQALLOC) && !defined(DISTACK)
     std::optional<block*> rem = global_stack.pop();
+    if (rem) return *rem;
 #elif defined(DEQALLOC)
     //Try to get list from our deque
     block* rem = my_deq->pop_bottom();
