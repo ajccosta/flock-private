@@ -27,7 +27,6 @@ message(STATUS "CMAKE_INSTALL_PREFIX:           ${CMAKE_INSTALL_PREFIX}" )
 set(FLOCK_INCLUDE_DIR "${FLOCK_SOURCE_DIR}/include")
 
 if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
-message(STATUS "${CMAKE_CXX_COMPILER_ID}--------------- General configuration -------------")
         if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
                 #To be able to use dwcas on non-x86 archs
                 #https://large-scale-oltp-team.github.io/foedus_code/group__ARMV8.html
@@ -36,6 +35,11 @@ message(STATUS "${CMAKE_CXX_COMPILER_ID}--------------- General configuration --
 else()
         set(ATOMIC_LIB "-mcx16")
 endif()
+
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-volatile")
+endif()
+
 
 add_library(flock INTERFACE)
 target_include_directories(flock INTERFACE ${FLOCK_INCLUDE_DIR})
