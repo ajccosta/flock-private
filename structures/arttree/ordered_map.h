@@ -206,9 +206,10 @@ struct ordered_map {
       if (byte_pos < header::byte_num) return {};
       for (int i = 0; i < header::size; i++) {
         int x = compare(key_vals[i].key, k, byte_pos);
-        if (x != -1)
+        if (x != -1) {
           if (x == 1) return {};
           else return key_vals[i].value;
+        }
       }
       return {};}
 
@@ -291,6 +292,7 @@ struct ordered_map {
     case Full : return ((full_node*) x)->get_child(k);
     case Indirect : return ((indirect_node*) x)->get_child(k);
     case Sparse : return ((sparse_node*) x)->get_child(k);
+    case Leaf : std::abort(); //Leaf case not handled
     }
     return nullptr;
   }
@@ -301,6 +303,7 @@ struct ordered_map {
     case Full : return ((full_node*) p)->is_full(); // never full
     case Indirect : return ((indirect_node*) p)->is_full();
     case Sparse : return ((sparse_node*) p)->is_full();
+    case Leaf : std::abort(); //Leaf case not handled
     }
     return false;
   }
@@ -423,13 +426,13 @@ struct ordered_map {
     return flck::try_loop([&] () {return try_insert(k, v);});}
 
   bool insert(const K& k, const V& v) {
-    return verlib::with_epoch([=] { return insert_(k, v);});}
+    return verlib::with_epoch([=, this] { return insert_(k, v);});}
   
   bool upsert_(const K& k, const V& v) {
     return flck::try_loop([&] {return try_insert(k, v, true);});}
   
   bool upsert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return upsert_(k, v);}); }
+    return verlib::with_epoch([=, this] {return upsert_(k, v);}); }
 
   template <typename F>
   bool upsert_f(const K& k, const F& f) {
@@ -441,11 +444,12 @@ struct ordered_map {
     bool found = (c != nullptr &&
                   c->is_leaf() &&
                   ((leaf*) c)->find(k, byte_pos).has_value());
-    if (!upsert && found)
+    if (!upsert && found) {
       if (p->read_lock([&] {return verlib::validate([&] {
         return (cptr->load() == c) && !p->removed.load();});}))
         return false;
       else return {};
+    }
     bool replace = upsert && found;
 
     if (cptr != nullptr) {// child pointer exists, always true for full node
@@ -519,9 +523,10 @@ struct ordered_map {
     node* result = nullptr;
     for (int i=0; i < ps->size; i++) {
       node* oc = ps->ptr[i].load();
-      if (oc != nullptr && oc != c)
+      if (oc != nullptr && oc != c) {
         if (result != nullptr) return nullptr; // quit if second child
         else result = oc; // set first child
+      }
     }
     return result;
   }
@@ -530,7 +535,7 @@ struct ordered_map {
     return flck::try_loop([&] () {return try_remove(k);});}
 
   bool remove(const K& k) {
-    return verlib::with_epoch([=] { return remove_(k);});}
+    return verlib::with_epoch([=, this] { return remove_(k);});}
 
   // currently a "lazy" remove that only removes
   //   1) the leaf
@@ -538,11 +543,12 @@ struct ordered_map {
   std::optional<bool> try_remove(const K& k) {
     auto [gp, p, cptr, c, byte_pos] = find_location(root, k);
     // if not found return
-    if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value()))
+    if (c == nullptr || !(c->is_leaf() && ((leaf*) c)->find(k, byte_pos).has_value())) {
       if (p->read_lock([&] {return verlib::validate([&] {
         return (cptr->load() == c) && !p->removed.load();});}))
         return false;
       else return {};
+    }
     if (p->try_lock([=] {
       if (!verlib::validate([&] {return !p->removed.load() && cptr->load() == c;}))
         return false;

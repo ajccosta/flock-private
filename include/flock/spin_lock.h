@@ -116,7 +116,7 @@ public:
     long cnt = 0;
     while(true) {
       if (try_lock_no_unlock()) return;
-      for (volatile int i=0; i < delay; i++);
+      for (volatile int i=0; i < delay; i+=1);
       delay = std::min(2*delay, max_delay);
       if (cnt++ > 1000000) {
         std::cout << "in apparent infinite loop while taking lock: " << this << std::endl;
@@ -145,7 +145,7 @@ public:
     while(true) {
       auto result = try_lock_result(f);
       if(result.has_value()) return result.value();
-      for (volatile int i=0; i < delay; i++);
+      for (volatile int i=0; i < delay; i+=1);
       delay = std::min(2*delay, max_delay);
     }
   }

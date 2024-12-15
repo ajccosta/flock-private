@@ -65,7 +65,7 @@ struct alignas(128) timestamp_tl2 {
   TS increment_stamp(TS ts) {
     TS id = epoch::internal::worker_id();
     TS new_ts = ((ts + step) & ~mask) | id;
-    for (volatile int i = 1; i < delay; i++) {}
+    for (volatile int i = 1; i < delay; i+=1) {}
     if (ts == stamp.load()) 
       stamp.compare_exchange_strong(ts, new_ts);
     last_ts = new_ts;
@@ -140,7 +140,7 @@ struct alignas(128) timestamp_read {
   void increment_stamp(TS ts) {
     if(delay == -1) {
       // delay to reduce contention
-      for(volatile int i = 1; i < read_delay; i++) {}
+      for(volatile int i = 1; i < read_delay; i+=1) {}
       // std::atomic_thread_fence(std::memory_order_seq_cst);
 
       // only update timestamp if has not changed
@@ -154,7 +154,7 @@ struct alignas(128) timestamp_read {
         }
       }
     } else {
-      for(volatile int i = 1; i < delay; i++) {}
+      for(volatile int i = 1; i < delay; i+=1) {}
       if (stamp.load() == ts)
         stamp.fetch_add(1);
     }
@@ -187,7 +187,7 @@ struct alignas(64) timestamp_write {
 
     if(delay == -1) {
       // delay to reduce contention
-      for(volatile int i = 1; i < write_delay; i++) {}
+      for(volatile int i = 1; i < write_delay; i+=1) {}
       // std::atomic_thread_fence(std::memory_order_seq_cst);
 
       // only update timestamp if has not changed
@@ -200,7 +200,7 @@ struct alignas(64) timestamp_write {
         }
       }
     } else {
-      for(volatile int i = 1; i < delay; i++) {}
+      for(volatile int i = 1; i < delay; i+=1) {}
       if (stamp.load() == ts)
         stamp.fetch_add(1);
     }
@@ -237,7 +237,7 @@ struct alignas(64) timestamp_multiple {
     TS ts = get_write_stamp();
     //int i = sched_getcpu() / 36; //% slots;
     int i = epoch::internal::worker_id() % slots;
-    for(volatile int j = 0; j < delay ; j++);
+    for(volatile int j = 0; j < delay ; j+=1);
     TS tsl = stamps[i*gap].load();
     if (ts == get_write_stamp()) {
       //int i = epoch::internal::worker_id() % slots;
@@ -284,10 +284,10 @@ struct alignas(64) timestamp_read_write {
     TS s = stamp.load();
     if (s % 2 == 1) return s;
     if(delay == -1) {
-      for(volatile int j = 1; j < adaptive_backoff ; j++) {}
+      for(volatile int j = 1; j < adaptive_backoff ; j+=1) {}
     }
     else {
-      for(volatile int i = 1; i < delay; i++) {}
+      for(volatile int i = 1; i < delay; i+=1) {}
     }
     if (s != stamp.load()) return s;
     TS tmp = s;
@@ -301,10 +301,10 @@ struct alignas(64) timestamp_read_write {
     TS s = stamp.load();
     if (s % 2 == 0) return s;
     if(delay == -1) {
-      for(volatile int j = 1; j < adaptive_backoff ; j++) {}
+      for(volatile int j = 1; j < adaptive_backoff ; j+=1) {}
     }
     else {
-      for(volatile int j = 1; j < delay ; j++) {}
+      for(volatile int j = 1; j < delay ; j+=1) {}
     }
     if (s != stamp.load()) return s;
     TS tmp = s;

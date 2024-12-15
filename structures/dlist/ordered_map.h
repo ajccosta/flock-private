@@ -38,11 +38,12 @@ struct ordered_map {
   std::optional<bool> try_insert(const K& k, const V& v) {
     node* next = find_location(root, k);
     node* prev = (next->prev).load();
-    if (!next->is_end && !less(k, next->key)) //already there
+    if (!next->is_end && !less(k, next->key)) { //already there
       if (prev->lck.read_lock([&] {return verlib::validate([&] {
         return ((prev->next.load() == next) && !prev->removed.load());});}))
 	return false;
       else return {};
+    }
     if ((prev->is_end || prev->key < k) && 
 	prev->try_lock([=] {
           if (verlib::validate([&] {return !prev->removed.load() && (prev->next).load() == next;})) {
@@ -58,16 +59,17 @@ struct ordered_map {
     return flck::try_loop([&] {return try_insert(k, v);});}
   
   bool insert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return insert_(k, v);}); }
+    return verlib::with_epoch([=, this] {return insert_(k, v);}); }
 
   std::optional<bool> try_remove(const K& k) {
     node* loc = find_location(root, k);
     node* prev = (loc->prev).load();
-    if (loc->is_end || less(k, loc->key)) // not found
+    if (loc->is_end || less(k, loc->key)) { // not found
       if (prev->lck.read_lock([&] {return verlib::validate([&] {
         return ((prev->next.load() == loc) && !prev->removed.load());});}))
 	return false;
       else return {};
+    }
     if (prev->try_lock([=] {
       if (!verlib::validate([&] {return !prev->removed.load() && (prev->next).load() == loc;}))
         return false;
@@ -87,7 +89,7 @@ struct ordered_map {
     return flck::try_loop([&] {return try_remove(k);});}
   
   bool remove(const K& k) {
-    return verlib::with_epoch([=] { return remove_(k);});}
+    return verlib::with_epoch([=, this] { return remove_(k);});}
 
   std::optional<std::optional<V>> try_find(const K& k) {
     using ot = std::optional<std::optional<V>>;

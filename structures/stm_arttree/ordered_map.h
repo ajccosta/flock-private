@@ -205,9 +205,10 @@ struct ordered_map {
       if (byte_pos < header::byte_num) return {};
       for (int i = 0; i < header::size; i++) {
         int x = compare(key_vals[i].key, k, byte_pos);
-        if (x != -1)
+        if (x != -1) {
           if (x == 1) return {};
           else return key_vals[i].value;
+        }
       }
       return {};}
 
@@ -290,6 +291,7 @@ struct ordered_map {
     case Full : return ((full_node*) x)->get_child(k);
     case Indirect : return ((indirect_node*) x)->get_child(k);
     case Sparse : return ((sparse_node*) x)->get_child(k);
+    case Leaf : std::abort(); //Leaf case not handled
     }
     return nullptr;
   }
@@ -300,6 +302,7 @@ struct ordered_map {
     case Full : return ((full_node*) p)->is_full(); // never full
     case Indirect : return ((indirect_node*) p)->is_full();
     case Sparse : return ((sparse_node*) p)->is_full();
+    case Leaf : std::abort(); //Leaf case not handled
     }
     return false;
   }
@@ -489,9 +492,10 @@ struct ordered_map {
     node* result = nullptr;
     for (int i=0; i < ps->size; i++) {
       node* oc = ps->ptr[i].load();
-      if (oc != nullptr && oc != c)
+      if (oc != nullptr && oc != c) {
         if (result != nullptr) return nullptr; // quit if second child
         else result = oc; // set first child
+      }
     }
     return result;
   }

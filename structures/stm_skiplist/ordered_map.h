@@ -104,7 +104,7 @@ struct ordered_map {
   }
   
   bool insert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return insert_(k, v);}); }
+    return verlib::with_epoch([=, this] {return insert_(k, v);}); }
 
   bool upsert_(const K& k, const V& v) {
     // int level = get_level(k);
@@ -123,7 +123,7 @@ struct ordered_map {
   }
 
   bool upsert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return upsert_(k, v);}); }
+    return verlib::with_epoch([=, this] {return upsert_(k, v);}); }
 
   template <typename F>
   bool upsert_f(const K& k, const F& f) {
@@ -149,7 +149,7 @@ struct ordered_map {
   }
 
   bool remove(const K& k) {
-    return verlib::with_epoch([=] { return remove_(k);});}
+    return verlib::with_epoch([=, this] { return remove_(k);});}
 
   std::optional<V> find_(const K& k) {
     auto [cur, nxt] = find_at_level(k, 0);

@@ -300,7 +300,7 @@ namespace tlf_internal {
     } else { //otherwise wait for a while to see if other is done, then help if not
       int cnt = 0;
       while (descriptor->time_stamp.load() == tbs && cnt++ < 50)
-              for (volatile int i=0; i < 100; i++);
+              for (volatile int i=0; i < 100; i+=1);
       if (descriptor->time_stamp.load() == tbs) validate(descriptor);
     }
     if (descriptor->time_stamp.load() == failed) return old_v;

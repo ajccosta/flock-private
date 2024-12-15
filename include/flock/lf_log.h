@@ -34,7 +34,7 @@ struct log_array {
   log_array() : next(nullptr) {
     for (int i=0; i < Log_Len; i++) {
       if (log_entries[i].load() != nullptr) 
-        log_entries[i].store(nullptr, std::memory_order::memory_order_relaxed);
+        log_entries[i].store(nullptr, std::memory_order_relaxed);
     }
   }
 
@@ -172,7 +172,7 @@ bool skip_if_done_no_log(F f) {
   if (l->load() == nullptr) { // check that not already completed
     f();
     // mark as completed
-    l->store((void*) 1, std::memory_order::memory_order_release);
+    l->store((void*) 1, std::memory_order_release);
     return true;
   }
   return false;
@@ -188,7 +188,7 @@ bool skip_if_done(F f) {
     f();
     // after running the code store the log location and log pointer
     size_t x = (((size_t) lg.count) << 48) | ((size_t) lg.vals);
-    l->store((void*) x, std::memory_order::memory_order_release);
+    l->store((void*) x, std::memory_order_release);
     return true;
   }
   // If we skip the code retrieve log location and pointer, so we can

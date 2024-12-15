@@ -8,6 +8,9 @@
 #include <atomic>
 #include <utility>
 
+//https://stackoverflow.com/questions/35311711/whats-the-right-way-to-compute-integral-base-2-logarithms-at-compile-time
+constexpr unsigned cilog2(unsigned val) { return val ? 1 + cilog2(val >> 1) : -1; }
+
 namespace tlf_internal {
   using namespace verlib;
   
@@ -81,7 +84,7 @@ namespace tlf_internal {
 
     struct hash_filter {
       static constexpr int num_bits = 1024;
-      static constexpr int high_mask = ((int) std::log2(num_bits/64)) - 1;
+      static constexpr int high_mask = ((int) cilog2(num_bits/64)) - 1;
       unsigned long hash_bits[num_bits/64];
       hash_filter() {
 	for (int i = 0; i < num_bits/64; i++)

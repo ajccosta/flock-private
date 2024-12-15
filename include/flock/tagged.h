@@ -43,7 +43,7 @@ struct write_annoucements {
     announcements[id*stride] = val;}
   void clear() {
     int id = epoch::internal::worker_id();
-    announcements[id*stride].store(0, std::memory_order::memory_order_release);}
+    announcements[id*stride].store(0, std::memory_order_release);}
 };
 
 write_annoucements announce_write = {};

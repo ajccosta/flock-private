@@ -70,18 +70,18 @@ struct ordered_map {
     return flck::try_loop([&] {return try_insert(k, v);});}
   
   bool upsert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {
+    return verlib::with_epoch([=, this] {
       return flck::try_loop([&] {return try_insert(k, v, true);});
     });
   }
 
   bool insert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return insert_(k, v);}); }
+    return verlib::with_epoch([=, this] {return insert_(k, v);}); }
       
   std::optional<bool> try_insert(const K& k, const V& v, bool upsert=false) {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
     auto ptr = p_left ? &(p->left) : &(p->right);
-    if (Equal(k, l))
+    if (Equal(k, l)) {
       //(!l->is_sentinal && (!upsert && equal(l->key, k))))
       // || (upsert && prev_leaf != nullptr && equal(prev_leaf->key, k) &&
       // l != prev_leaf)))
@@ -89,6 +89,7 @@ struct ordered_map {
         return (ptr->load() == (node*) l) && !p->removed.load();});}))
 	return false;
       else return {};
+    }
     //prev_leaf = l;
     bool r = p->try_lock([=] {
       auto l_new = ptr->load();
@@ -109,7 +110,7 @@ struct ordered_map {
     return flck::try_loop([&] {	return try_remove(k); });}
 
   bool remove(const K& k) {
-    return verlib::with_epoch([=] { return remove_(k);});}
+    return verlib::with_epoch([=, this] { return remove_(k);});}
 
   std::optional<bool> try_remove(const K& k) {
     auto [gp, gp_left, p, p_left, l] = find_location(root, k);
@@ -223,7 +224,7 @@ struct ordered_map {
     using rtup = std::tuple<K, K, long>;
     std::function<rtup(node*,bool)> crec;
     crec = [&] (node* p, bool leftmost) {
-      if (p->is_leaf)
+      if (p->is_leaf) {
         if (leftmost) {
           if (p->is_sentinal) return rtup(p->key, p->key, 0);
           else {
@@ -234,6 +235,7 @@ struct ordered_map {
           std::cout << "error, not leftmost leaf is a sentinal" << std::endl;
           abort();
         } else return rtup(p->key, p->key, 1);
+      }
       if (p->is_sentinal) {
         std::cout << "error, interior node is a sentinal" << std::endl;
         abort();

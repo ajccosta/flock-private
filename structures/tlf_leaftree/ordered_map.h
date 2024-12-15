@@ -102,7 +102,7 @@ public:
   }
 
   bool insert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return insert_(k, v);}); }
+    return verlib::with_epoch([=, this] {return insert_(k, v);}); }
 
   bool remove_(const K& k) {
     while (true) {
@@ -125,7 +125,7 @@ public:
   }
 
   bool remove(const K& k) {
-    return verlib::with_epoch([=] { return remove_(k);});}
+    return verlib::with_epoch([=, this] { return remove_(k);});}
 
   std::optional<V> find_(const K& k) {
     auto [gp, p, l] = find_location(root, k);
@@ -141,9 +141,10 @@ public:
       auto [gp, p, l] = find_location(root, k);
       auto ptr = get_child(p, k);
       std::shared_lock lck_p(p->lck);
-      if ((ptr->load() == (node*) l) && !p->removed.load())
+      if ((ptr->load() == (node*) l) && !p->removed.load()) {
         if (equal(k, l)) return l->value;
         else return {};
+      }
     }
   }
 
@@ -159,7 +160,7 @@ public:
 	     else {
 	       internal* pp = (internal*) p;
 	       prec((pp->left).load());
-	       if (!(pp->left).load()->s == MaxSentinal)
+	       if (!((pp->left).load()->s == MaxSentinal))
 		 std::cout << ", ";
 	       prec((pp->right).load());
 	     }
@@ -201,7 +202,7 @@ public:
     using rtup = std::tuple<K, K, long>;
     std::function<rtup(node*,bool)> crec;
     crec = [&] (node* p, bool leftmost) {
-	     if (p->is_leaf)
+	     if (p->is_leaf) {
 	       if (leftmost) {
 		 if (p->s == MinSentinal) return rtup(p->key, p->key, 0);
 		 else {
@@ -212,6 +213,7 @@ public:
 		 std::cout << "error, in leaftree not leftmost leaf is a sentinal" << std::endl;
 		 abort();
 	       } else return rtup(p->key, p->key, 1);
+             }
 	     if (p->s != IsKey) {
 	       std::cout << "error, in leaftree interior node is a sentinal" << std::endl;
 	       abort();

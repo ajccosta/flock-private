@@ -123,7 +123,7 @@ auto atomic_(const F& f) {
           delay = 5 * (1  + 4 * descriptor->lock_log.size());
           max_delay = 16 * delay;
         } else delay = std::min((int) std::ceil(1.1 * delay), max_delay);
-        for (volatile int i=0; i < delay; i++);
+        for (volatile int i=0; i < delay; i+=1);
 
         if (try_count++ > 1000000000l/max_delay) {
           std::cout << "looks like an infinite retry loop" << std::endl;

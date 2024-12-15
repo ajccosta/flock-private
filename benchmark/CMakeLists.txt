@@ -1,7 +1,10 @@
 set(BENCH_FILES "runtests.py")
 
 #surppress warning
-SET(CMAKE_CXX_FLAGS "-Wno-stringop-overflow")
+if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        #Clang warnings to surpress
+        SET(CMAKE_CXX_FLAGS "-Wno-stringop-overflow")
+endif()
 
 function(copy_bench_file NAME)
   file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${NAME}

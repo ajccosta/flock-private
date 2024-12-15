@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 project(FLOCK VERSION 1.0 DESCRIPTION "Lock-Free Locks" LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
+
 # Set a default build type
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (Debug Release RelWithDebInfo MinSizeRel)" FORCE)
@@ -25,9 +27,12 @@ message(STATUS "CMAKE_INSTALL_PREFIX:           ${CMAKE_INSTALL_PREFIX}" )
 set(FLOCK_INCLUDE_DIR "${FLOCK_SOURCE_DIR}/include")
 
 if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
-        #To be able to use dwcas on non-x86 archs
-        #https://large-scale-oltp-team.github.io/foedus_code/group__ARMV8.html
-        set(ATOMIC_LIB "-latomic")
+message(STATUS "${CMAKE_CXX_COMPILER_ID}--------------- General configuration -------------")
+        if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+                #To be able to use dwcas on non-x86 archs
+                #https://large-scale-oltp-team.github.io/foedus_code/group__ARMV8.html
+                set(ATOMIC_LIB "-latomic")
+        endif()
 else()
         set(ATOMIC_LIB "-mcx16")
 endif()
@@ -46,6 +51,7 @@ target_compile_options(verlib INTERFACE ${ATOMIC_LIB} -march=native)
 
 # Find threading library
 find_package(Threads REQUIRED)
+
 
 # Link against ParlayLib
 #

@@ -119,7 +119,7 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
       //if (try_time_taken != -1) delay = try_time_taken;
       if (r.has_value()) return *r;
       multiplier = std::min(2*multiplier, max_multiplier);
-      for (volatile int i=0; i < delay * multiplier; i++);
+      for (volatile int i=0; i < delay * multiplier; i+=1);
     }
   }
 
@@ -131,7 +131,7 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
       auto r = f();
       if (r.has_value()) return r;
       multiplier = std::min(2*multiplier, max_multiplier);
-      for (volatile int i=0; i < delay * multiplier; i++);
+      for (volatile int i=0; i < delay * multiplier; i+=1);
     }
     using RT = decltype(f());
     return RT();

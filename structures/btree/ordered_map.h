@@ -611,13 +611,13 @@ struct ordered_map {
     return flck::try_loop([&] {return try_insert(k, v);});}
   
   bool insert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return insert_(k, v);}); }
+    return verlib::with_epoch([=, this] {return insert_(k, v);}); }
 
   bool upsert_(const K& k, const V& v) {
     return flck::try_loop([&] {return try_insert(k, v, true);});}
   
   bool upsert(const K& k, const V& v) {
-    return verlib::with_epoch([=] {return upsert_(k, v);}); }
+    return verlib::with_epoch([=, this] {return upsert_(k, v);}); }
 
   template <typename F>
   bool upsert_f(const K& k, const F& f) {
@@ -651,7 +651,7 @@ struct ordered_map {
     return flck::try_loop([&] {return try_remove(k);});}
 
   bool remove(const K& k) {
-    return verlib::with_epoch([=] { return remove_(k);});}
+    return verlib::with_epoch([=, this] { return remove_(k);});}
 
   std::optional<bool> try_remove(const K& k) {
     auto [p, cidx, l] = find_and_fix(root, k);
