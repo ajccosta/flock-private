@@ -92,6 +92,10 @@ class alignas(64) continuous_array
       head = new_block;
     }
     
+    //TODO: FIX BUG
+    // if two threads calling ca_retire_last_block concurrently
+    // read the same tail value into old_block, only 1 block will be popped,
+    // where the correct value has to be exactly 1 block is popped per call
     void
     ca_retire_last_block()
     //Swing tail from last to next to last block and add last block for retirement
