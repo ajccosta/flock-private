@@ -27,6 +27,7 @@ int main(int argc, char* argv[]) {
 [-insert_find_delete] : just insert, then find, then delete
 [-verbose] : print some info
 [-stats] : print some memory statistics 
+[-clear] : clear the memory pool between rounds
 [-no_check] : do not check correctness of answers
 [-rqthreads <num range query threads>] : number of dedicated range-query threads
 [-trans <ops-per-transaction>] : size of transaction in operations (0 means no transaction)
