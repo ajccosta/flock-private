@@ -4,3 +4,4 @@ timings
 *.swp
 tags
 nohup.out
+.vscode/

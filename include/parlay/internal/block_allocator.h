@@ -36,6 +36,16 @@
 #include <sys/mman.h>
 #endif
 
+#include <jemalloc/jemalloc.h>
+size_t jemalloc_get_allocated() {
+    size_t epoch = 1;
+    size_t sz, allocated;
+    sz = sizeof(size_t);
+    mallctl("thread.tcache.flush", NULL, NULL, NULL, 0);
+    mallctl("epoch", NULL, NULL, &epoch, sizeof(epoch));
+    mallctl("stats.allocated", &allocated, &sz, NULL, 0);
+    return allocated;
+}
 
 /*\ Whether to use a deque-based (define DEQALLOC undefine DISTACK),
 stack-based (undefine DEQALLOC undefine DISTACK) global pool or to use
@@ -165,7 +175,7 @@ struct block_allocator {
     //Sum the number of blocks in each thread's deque
     //  (ThreadSpecific allows iteration over all thread's objects)
     my_deq.for_each([&](auto&& deq) {
-      free_blocks += deq.size() * list_length;
+      free_blocks += deq.real_size() * list_length;
     });
 #else //defined(DISTACK)
     free_blocks = 0;
@@ -246,6 +256,7 @@ struct block_allocator {
         << ", total frees: " << num_frees.sum()
         << ", global pool accesses: " << num_global_pool_accesses.sum()
 	      << ", block size: " << sz
+	      << ", jemalloc: " << jemalloc_get_allocated()
 	      << ", bytes: " << sz*allocated << "\n";
   }
 
@@ -292,7 +303,7 @@ struct block_allocator {
 
   ~block_allocator() {
     [[maybe_unused]] auto cleared = clear();
-#if !defined(NDEBUG) && !defined(PARLAY_ALLOC_ALLOW_LEAK)
+#if !defined(PARLAY_ALLOC_ALLOW_LEAK)
     if (!cleared) {
       std::cerr << "There are un-freed blocks obtained from block_allocator. If this is intentional you may"
                         " suppress this messsage with -DPARLAY_ALLOC_ALLOW_LEAK\n";

@@ -110,7 +110,6 @@ struct alignas(128) Deque {
     return bot.load(std::memory_order_seq_cst) - top.load(std::memory_order_seq_cst);
   }
 
-  //May not be safe to be called concurrently.
   void clear() {
     while(pop_bottom() != nullptr) {}
   }

@@ -43,11 +43,12 @@ struct alignas(128) PrivateDeque {
   //  : N(N), anchor_drop(anchor_drop), num_pops(0), bot(0), qm(qm), top(0) {
   PrivateDeque()
     : N(5), anchor_drop(2), num_pops(0), bot(0), top(0) {
-    qm=new faa_dist_qm();
+    qm = new faa_dist_qm();
     deq = new continuous_array<V*>();
   }
 
   ~PrivateDeque() {
+    delete qm;
     delete deq;
   }
 
@@ -186,13 +187,16 @@ struct alignas(128) PrivateDeque {
   }
 
   size_t size() {
-    std::atomic_thread_fence(std::memory_order_seq_cst);
-    return bot.load(std::memory_order_seq_cst) - top.load(std::memory_order_seq_cst) - N;
+    return real_size() - N;
   }
 
-  //May not be safe to be called concurrently.
+  size_t real_size() {
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+    return bot.load(std::memory_order_seq_cst) - top.load(std::memory_order_seq_cst);
+  }
+
   void clear() {
-    while(pop_bottom() != nullptr) {}
+    while(real_size() != 0) {pop_bottom();}
   }
 };
 
