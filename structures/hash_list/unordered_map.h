@@ -9,6 +9,7 @@
 #include <optional>
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
+#include "../utils.h"
 
 template <typename K_,
           typename V_,
@@ -240,9 +241,10 @@ struct unordered_map {
   void print() {}
   static void reserve(size_t n) {}
   static void shuffle(size_t n) {}
-  static void stats() {}
+  static void print_stats() { link_pool.print_stats(); }
   long check() { return size();}
-  static void clear() {}
+  static void clear() { link_pool.clear(); }
+  static std::pair<size_t,size_t> stats() { return link_pool.stats(); }
 
 };
 

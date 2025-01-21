@@ -41,6 +41,7 @@ namespace tlf {
   // some functions for managing the memory pool
   using tlf_internal::pool_clear;
   using tlf_internal::pool_stats;
+  using tlf_internal::stats;
 
 } // tlf
 

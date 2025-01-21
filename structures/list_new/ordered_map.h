@@ -1,4 +1,5 @@
 #include <verlib/verlib.h>
+#include "../utils.h"
 
 template <typename K_,
           typename V_,
@@ -163,7 +164,8 @@ struct ordered_list {
   static void clear() { node_pool.clear();}
   static void reserve(size_t n) { node_pool.reserve(n);}
   static void shuffle(size_t n) { node_pool.shuffle(n);}
-  static void stats() { node_pool.stats();}
+  static void print_stats() { node_pool.print_stats();}
+  static std::pair<size_t,size_t> stats() { return node_pool.stats(); }
 
 };
 

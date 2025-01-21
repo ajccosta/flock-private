@@ -1,4 +1,5 @@
 #include <verlib/verlib.h>
+#include "../utils.h"
 
 
 template <typename K_,
@@ -221,7 +222,12 @@ struct ordered_map {
   static void clear() { tall_node_pool.clear(); short_node_pool.clear();}
   static void reserve(size_t n) { }
   static void shuffle(size_t n) { }
-  static void stats() { tall_node_pool.stats(); short_node_pool.stats();}
+  static void print_stats() { tall_node_pool.print_stats(); short_node_pool.print_stats();}
+  static std::pair<size_t,size_t> stats() {
+    auto p = tall_node_pool.stats();
+    p += short_node_pool.stats();
+    return p;
+  }
 
 };
 

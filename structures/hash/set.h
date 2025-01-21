@@ -1,5 +1,6 @@
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
+#include "../utils.h"
 #define HASH 1
 
 template <typename K,
@@ -146,6 +147,6 @@ struct Set {
   void clear() { node_pool.clear();}
   void reserve(size_t n) { node_pool.reserve(n);}
   void shuffle(size_t n) { node_pool.shuffle(n);}
-  void stats() { node_pool.stats();}
-
+  void print_stats() { node_pool.print_stats();}
+  std::pair<size_t,size_t> stats() { return node_pool.stats(); }
 };

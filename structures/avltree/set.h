@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <verlib/verlib.h>
+#include "../utils.h"
 
 // no parent pointers, serach to key, doesn't work likely because violations are getting rotated off search path
 // on read only workloads, it is faster than leaftree and natarajan but slower than bronson, probably because it is external.
@@ -425,9 +426,14 @@ struct Set {
     leaf_pool.shuffle(n);
   }
 
-  void stats() {
-    node_pool.stats();
-    leaf_pool.stats();
+  void print_stats() {
+    node_pool.print_stats();
+    leaf_pool.print_stats();
   }
   
+  static std::pair<size_t,size_t> stats() {
+    auto p = node_pool.stats();
+    p += leaf_pool.stats();
+    return p;
+  }
 };

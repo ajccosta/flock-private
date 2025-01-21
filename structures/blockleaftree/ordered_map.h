@@ -1,5 +1,6 @@
 #include <verlib/verlib.h>
 //#include "rebalance.h"
+#include "../utils.h"
 
 #ifdef BALANCED
 bool balanced = true;
@@ -338,9 +339,15 @@ struct ordered_map {
     leaf_pool.shuffle(n);
   }
 
-  static void stats() {
-    node_pool.stats();
-    leaf_pool.stats();
+  static void print_stats() {
+    node_pool.print_stats();
+    leaf_pool.print_stats();
+  }
+
+  static std::pair<size_t,size_t> stats() {
+    auto p = node_pool.stats();
+    p += leaf_pool.stats();
+    return p;
   }
 
 };

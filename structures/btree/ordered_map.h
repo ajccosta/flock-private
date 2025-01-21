@@ -1,5 +1,6 @@
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
+#include "../utils.h"
 
 // A top-down implementation of abtrees
 // Nodes are split or joined on the way down to ensure that each node
@@ -843,12 +844,17 @@ struct ordered_map {
     //leaf_pool.shuffle(n/8);
   }
 
-  static void stats() {
-    node_pool.stats();
-    leaf_pool.stats();
-    if (use_indirect) value_pool.stats();
+  static void print_stats() {
+    node_pool.print_stats();
+    leaf_pool.print_stats();
+    if (use_indirect) value_pool.print_stats();
   }
 
+  static std::pair<size_t,size_t> stats() {
+    auto p = node_pool.stats();
+    p += leaf_pool.stats();
+    return p;
+  }
 };
 
 template <typename K, typename V, typename C>

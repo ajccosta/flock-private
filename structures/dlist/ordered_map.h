@@ -1,4 +1,5 @@
 #include <verlib/verlib.h>
+#include "../utils.h"
 
 template <typename K_,
           typename V_,
@@ -184,6 +185,6 @@ struct ordered_map {
   static void clear() { flck::clear_pool<node>();}
   //static void reserve(size_t n) { node_pool.reserve(n);}
   static void shuffle(size_t n) {} // node_pool.shuffle(n);}
-  static void stats() { flck::pool_stats<node>();}
-
+  static void print_stats() { flck::pool_stats<node>();}
+  static std::pair<size_t,size_t> stats() { return flck::stats<node>(); }
 };

@@ -30,6 +30,7 @@
 
 #include <verlib/verlib.h>
 #include <parlay/primitives.h>
+#include "../utils.h"
 
 // string definition for integer types
 template <typename K>
@@ -750,12 +751,21 @@ struct ordered_map {
     big_leaf_pool.shuffle(n);
   }
 
-  static void stats() {
-    full_pool.stats();
-    indirect_pool.stats();
-    sparse_pool.stats();
-    small_leaf_pool.stats();
-    big_leaf_pool.stats();
+  static void print_stats() {
+    full_pool.print_stats();
+    indirect_pool.print_stats();
+    sparse_pool.print_stats();
+    small_leaf_pool.print_stats();
+    big_leaf_pool.print_stats();
+  }
+
+  static std::pair<size_t,size_t> stats() {
+    auto p = full_pool.stats();
+    p += indirect_pool.stats();
+    p += sparse_pool.stats();
+    p += small_leaf_pool.stats();
+    p += big_leaf_pool.stats();
+    return p;
   }
   
 };

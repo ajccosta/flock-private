@@ -164,7 +164,8 @@ struct memory_pool {
 
   void reserve(size_t n) { pool.reserve(n);}
   void clear() { pool.clear(); }
-  void stats() { pool.stats();}
+  void print_stats() { pool.print_stats(); }
+  std::pair<size_t,size_t> stats() { return pool.stats(); }
   void shuffle(size_t n) { pool.shuffle(n);}
   
   void acquire(T* p) { pool.acquire(p);}

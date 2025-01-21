@@ -368,7 +368,7 @@ public:
 #endif
   }
 
-  void stats() {
+  void print_stats() {
     // get_epoch().print_announce();
     // get_epoch().clear_announce();
     //std::cout << "epoch number: " << get_epoch().get_current() << std::endl;
@@ -378,6 +378,16 @@ public:
 #ifndef USE_MALLOC
     Allocator::print_stats();
 #endif
+  }
+
+  //If using parlay allocator, returns number of bytes used (currently alloc'ed and not freed)
+  //and number of bytes allocated (total number of bytes allocated by the allocator to fulfill
+  //allocation requests, i.e., does not count internal data-structure allocations).
+  std::pair<size_t,size_t> stats() {
+#ifndef USE_MALLOC
+    return Allocator::stats();
+#endif
+    return {0,0};
   }
 
   void shuffle(size_t n) {}

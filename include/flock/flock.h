@@ -163,6 +163,9 @@ std::vector<internal::lock> lock::locks{1ul << bucket_bits};
   inline void clear_pool() {get_pool<T>().clear();}
 
   template <typename T>
-  inline void pool_stats() {get_pool<T>().stats();}
+  inline void pool_stats() {get_pool<T>().print_stats();}
+
+  template <typename T>
+  inline std::pair<size_t,size_t> stats() {return get_pool<T>().stats();}
 
 } // namespace flck

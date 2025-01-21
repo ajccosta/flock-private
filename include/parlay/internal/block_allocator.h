@@ -260,6 +260,13 @@ struct block_allocator {
 	      << ", bytes: " << sz*allocated << "\n";
   }
 
+  std::pair<size_t,size_t> stats() {
+    size_t used = num_used_blocks();
+    size_t allocated = num_allocated_blocks();
+    size_t sz = get_block_size();
+    return {used*sz, allocated*sz};
+  }
+
   // Clears all memory ever allocated by this allocator. All allocated blocks
   // must be returned before calling this function.
   //

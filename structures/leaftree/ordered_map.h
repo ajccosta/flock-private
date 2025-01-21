@@ -1,5 +1,6 @@
 #include <verlib/verlib.h>
 #include <parlay/parallel.h>
+#include "../utils.h"
 
 template <typename K_,
 	  typename V_,
@@ -271,11 +272,16 @@ struct ordered_map {
     leaf_pool.shuffle(n);
   }
 
-  static void stats() {
-    internal_pool.stats();
-    leaf_pool.stats();
+  static void print_stats() {
+    internal_pool.print_stats();
+    leaf_pool.print_stats();
   }
   
+  static std::pair<size_t,size_t> stats() {
+    auto p = internal_pool.stats();
+    p += leaf_pool.stats();
+    return p;
+  }
 };
 
 template <typename K, typename V, typename C>

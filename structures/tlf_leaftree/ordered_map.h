@@ -1,5 +1,6 @@
 #include <transactions/tlf.h>
 #include <parlay/parallel.h>
+#include "../utils.h"
 
 // A concurrent tree with values stored at the leaves and no balancing
 // Uses optimistic locking.
@@ -248,10 +249,15 @@ public:
     //leaf_pool.shuffle(n);
   }
 
-  static void stats() {
+  static void print_stats() {
     tlf::pool_stats<internal>();
     tlf::pool_stats<leaf>();
   }
   
+  static std::pair<size_t,size_t> stats() {
+    auto p = tlf::stats<internal>();
+    p += tlf::stats<leaf>();
+    return p;
+  }
 };
 

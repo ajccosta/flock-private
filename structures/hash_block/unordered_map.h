@@ -13,6 +13,7 @@
 #include <optional>
 #include <parlay/primitives.h>
 #include <verlib/verlib.h>
+#include "../utils.h"
 
 template <typename K_,
 	  typename V_,
@@ -415,13 +416,23 @@ public:
     node_pool_31.clear();
     big_node_pool.clear();
   }
-  static void stats() {
-    node_pool_1.stats();
-    node_pool_3.stats();
-    node_pool_7.stats();
-    node_pool_31.stats();
-    big_node_pool.stats();
+  static void print_stats() {
+    node_pool_1.print_stats();
+    node_pool_3.print_stats();
+    node_pool_7.print_stats();
+    node_pool_31.print_stats();
+    big_node_pool.print_stats();
   }
+
+  static std::pair<size_t,size_t> stats() {
+    auto p = node_pool_1.stats();
+    p += node_pool_3.stats();
+    p += node_pool_7.stats();
+    p += node_pool_31.stats();
+    p += big_node_pool.stats();
+    return p;
+  }
+
   static void reserve(size_t n) {}
   static void shuffle(size_t n) {}
 

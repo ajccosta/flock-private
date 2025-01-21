@@ -9,7 +9,8 @@ namespace tlf_internal {
     flck::memory_pool<T> pool;
     void reserve(size_t n) { pool.reserve(n);}
     void shuffle(size_t n) { pool.shuffle(n);}
-    void stats() { pool.stats();}
+    void print_stats() { pool.print_stats();}
+    std::pair<size_t,size_t> stats() { return pool.stats();}
     void clear() { pool.clear();}
     void Delete(T* ptr) { pool.Delete(ptr); }
 
@@ -84,7 +85,10 @@ namespace tlf_internal {
   inline void pool_clear() {get_pool<T>().clear();}
 
   template <typename T>
-  inline void pool_stats() {get_pool<T>().stats();}
+  inline void pool_stats() {get_pool<T>().print_stats();}
+
+  template <typename T>
+  inline std::pair<size_t,size_t> stats() {return get_pool<T>().stats();}
 
 } // tlf_internal
 

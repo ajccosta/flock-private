@@ -33,6 +33,9 @@
 #include <parlay/parallel.h>
 #include <parlay/primitives.h>
 #include <parlay/random.h>
+#include <parlay/alloc.h>
+
+#define REPORT_BYTES
 
 struct statistics {
   long total;
@@ -480,6 +483,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #ifdef TransStats
 		  << "%aborts=" << percent_aborts << ","
 #endif
+#ifdef REPORT_BYTES
+                  //get the total number of bytes allocated
+                  << "bytes=" << SetType::stats().second << ","
+#endif
                   << num_ops / (duration * 1e6) << std::endl;
       } else {
         std::cout << std::setprecision(4)
@@ -492,6 +499,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
                   << "p=" << p << ","
                   << "rq_threads=" << range_query_threads << ","
                   << "z=" << zipfian_param << ","
+#ifdef REPORT_BYTES
+                  //get the total number of bytes allocated
+                  << "bytes=" << SetType::stats().second << ","
+#endif
                   << "rq_throughput=" << overall_stats.range_count / (duration * 1e6) << ","
                   << "update_throughput=" << overall_stats.update_count / (duration * 1e6) << std::endl;
       }
@@ -575,10 +586,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
     });
     }
     if (clear) SetType::clear();
-    if (stats) SetType::stats();
+    if (stats) SetType::print_stats();
   }
   SetType::clear();
-}
+} //run_mixed_operations
 
 template<typename SetType, typename K>
 void run_insert_find_remove(const parlay::sequence<K>& all,
@@ -625,7 +636,7 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
     if (stats) {
       //descriptor_pool.stats();
       //log_array_pool.stats();
-      SetType::stats();
+      SetType::print_stats();
     }
 
     auto search_seq = parlay::random_shuffle(all, parlay::random(1));
@@ -666,6 +677,6 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
   }
   if (stats) {
     if (clear) std::cout << "the following should be zero if no memory leak" << std::endl;
-    SetType::stats();
+    SetType::print_stats();
   }
 }
