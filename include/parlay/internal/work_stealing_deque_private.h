@@ -39,11 +39,9 @@ struct alignas(128) PrivateDeque {
   alignas(64) i_quiescent_manager *qm;
   alignas(64) std::atomic<uint64_t> top; //index of where thiefs are stealing
 
-  //Deque(uint64_t N, int64_t anchor_drop, i_quiescent_manager *qm)
-  //  : N(N), anchor_drop(anchor_drop), num_pops(0), bot(0), qm(qm), top(0) {
-  PrivateDeque()
-    : N(5), anchor_drop(2), num_pops(0), bot(0), top(0) {
-    qm = new faa_dist_qm();
+  PrivateDeque(uint64_t N, int64_t anchor_drop, i_quiescent_manager *qm)
+    : N(N), anchor_drop(anchor_drop), num_pops(0), bot(0), qm(qm), top(0) {
+
     deq = new continuous_array<V*>();
   }
 

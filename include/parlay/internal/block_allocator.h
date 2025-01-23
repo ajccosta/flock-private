@@ -129,7 +129,10 @@ struct block_allocator {
     size_t list_length_ = 0,
     size_t max_blocks_ = 0) :
 #ifdef DEQALLOC
-      my_deq(),
+      my_deq([]{
+        auto qm = new faa_dist_qm();
+        return PrivateDeque<block>(5, 2, qm);
+      }),
 #endif
       my_local_list(),                                                               
       my_rand([](parlay::thread_id_type tid) { return random(tid); }),               // Each block needs to be at least
