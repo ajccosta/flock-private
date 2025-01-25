@@ -187,7 +187,7 @@ struct ordered_map {
     return i;
   }
 
-  static void clear() { node_pool.clear();}
+  static bool clear() { return node_pool.clear();}
   static void reserve(size_t n) { node_pool.reserve(n);}
   static void shuffle(size_t n) { node_pool.shuffle(n);}
   static void print_stats() { node_pool.print_stats();}

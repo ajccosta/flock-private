@@ -181,7 +181,6 @@ void run_mixed_operations(parlay::sequence<K>& all,
       else return Find; });
 
   parlay::internal::timer t;
-  if (shuffle) SetType::shuffle(n);
 
   for (int i = 0; i < rounds+1; i++) {
     {
@@ -215,6 +214,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	  tr.remove(unique[i]);});
       }, 10, true);
     }
+
+    if (shuffle) SetType::shuffle(n);
     
     if (verbose)
       std::cout << "initial size = " << tr.check() << std::endl;
@@ -581,12 +582,15 @@ void run_mixed_operations(parlay::sequence<K>& all,
       // }
     }
     parlay::parallel_for(0, nn, [&] (size_t i) {
-      do_atomic([&] {
-	tr.remove(unique[i]);});
+      do_atomic([&] {tr.remove(unique[i]);});
     });
     }
-    if (clear) SetType::clear();
     if (stats) SetType::print_stats();
+    if (clear) {
+      bool cleared = SetType::clear();
+      if(!cleared)
+        std::cerr << "Some memory pools were not cleared!" << std::endl;
+    }
   }
   SetType::clear();
 } //run_mixed_operations

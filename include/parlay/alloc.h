@@ -286,6 +286,7 @@ public:
   static size_t num_used_bytes() { return num_used_blocks() * block_size(); }
   static void print_stats() { get_allocator().print_stats(); }
   static std::pair<size_t,size_t> stats() { return get_allocator().stats(); }
+  static bool clear() { return get_allocator().clear(); }
 };
 
 

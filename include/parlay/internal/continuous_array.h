@@ -11,7 +11,7 @@
 
 //TODO currently it is not known when it is safe to deallocate blocks, the user of this class is responsible for that.
 
-#define BLOCK_SIZE_LOG 14
+#define BLOCK_SIZE_LOG 3
 
 template<typename T>
 class alignas(64) continuous_array

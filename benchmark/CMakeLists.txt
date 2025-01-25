@@ -1,4 +1,4 @@
-set(BENCH_FILES "runtests.py")
+set(BENCH_FILES "runtests.py" "bench.py")
 
 #surppress warning
 if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")

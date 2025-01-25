@@ -153,6 +153,7 @@ struct block_allocator {
         std::stoll(list_bytes_env) :
         default_list_bytes;
       list_length = (list_bytes + block_size + 1) / block_size;
+      if(list_length == 1) list_length++; //Don't allow local pools with less than 2 blocks
   }
 
   // Allocate a new list of list_length elements
@@ -301,7 +302,6 @@ struct block_allocator {
         stack.clear();
       });
 #endif
-
       // throw away all allocated memory
       std::optional<std::byte*> x;
       while ((x = allocated_buffers.pop())) ::operator delete(*x, block_align);

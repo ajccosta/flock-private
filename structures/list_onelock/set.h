@@ -145,7 +145,7 @@ struct Set {
     return i;
   }
 
-  void clear() { node_pool.clear();}
+  bool clear() { return node_pool.clear();}
   void reserve(size_t n) { node_pool.reserve(n);}
   void shuffle(size_t n) { node_pool.shuffle(n);}
   void print_stats() { node_pool.print_stats();}

@@ -234,9 +234,20 @@ public:
     return cnt;
   }
   
-  static void clear() {
-    tlf::pool_clear<internal>();
-    tlf::pool_clear<leaf>();
+  static bool clear() {
+    bool all_cleared;
+    for(int i = 0; i < 2; i++) {
+      //First pass does the actual clearing.
+      //Second pass checks that everything was cleared.
+      //This is necessary because if a node has the same
+      //size as the epoch links, they will use the same
+      //allocator size class. Because links only get
+      //cleared after the first pass, we need to re-check.
+      all_cleared = true;
+      all_cleared &= tlf::pool_clear<internal>();
+      all_cleared &= tlf::pool_clear<leaf>();
+    }
+    return all_cleared;
   }
 
   static void reserve(size_t n) {
@@ -245,8 +256,8 @@ public:
   }
 
   static void shuffle(size_t n) {
-    //internal_pool.shuffle(n);
-    //leaf_pool.shuffle(n);
+    tlf::shuffle<internal>(n);
+    tlf::shuffle<leaf>(n);
   }
 
   static void print_stats() {

@@ -76,13 +76,15 @@ class bench_conf():
     out=re.sub(filter_out, "", out)
     #get throughputs for each run
     throughputs=[float(line.split(',')[-1]) for line in out.split('\n')]
-    return throughputs
+    memoryusage=[float(line.split(',')[-2].split('=')[1]) for line in out.split('\n')]
+    return throughputs, memoryusage
 
   def run(self):
-    throughputs=self.run_once()
+    throughputs,memoryusage=self.run_once()
     mean=statistics.mean(throughputs)
     stddev=statistics.stdev(throughputs)
-    return mean, stddev, throughputs
+    memoryusage_mean=statistics.mean(memoryusage)
+    return mean, stddev, throughputs, memoryusage_mean
 
 
 n_iters=20
@@ -92,19 +94,21 @@ directories=[\
 ]
 
 structures=[\
-  #"arttree_lck",\
-  #"arttree_lf",\
-  #"btree_lck",\
-  #"btree_lf",\
-  #"hash_block_lck",\
-  #"hash_block_lf",\
-  "skiplist_lck",\
-  "skiplist_lf",\
+  "arttree_lck",\
+  "arttree_lf",\
+  "btree_lck",\
+  "btree_lf",\
+  "hash_block_lck",\
+  "hash_block_lf",\
+  #"skiplist_lck",\
+  #"skiplist_lf",\
 ]
 
 allocators=["", "_deqalloc", "_distack"]
 
 benchmarks=[s+a for s in structures for a in allocators]
+
+time=5.0
 
 configs=[\
   #("-u 0 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
@@ -122,14 +126,12 @@ configs=[\
 
   #("-u 100 -upsert -n 10000000", 64, n_iters, 3.0, 64, 128),\
 
-  ("-u 100 -upsert", 64, n_iters, 3.0, 64, 2**18-64),\
-  ("-u 100 -upsert", 64, n_iters, 3.0, 64, 2**16-64),\
-  ("-u 100 -upsert", 64, n_iters, 3.0, 64, 2**14-64),\
-  ("-u 100 -upsert", 64, n_iters, 3.0, 64, 2**12-64),\
-  ("-u 100 -upsert", 64, n_iters, 3.0, 64, 2**10-64),\
-  ("-u 100 -upsert", 64, n_iters, 3.0, 64, 2**8-64),\
-  #("-u 100 -upsert", 64, n_iters, 3.0, 64, 2),\
-  #("-u 100 -upsert", 64, n_iters, 3.0, 64, 1),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**18-64),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**16-64),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**14-64),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**12-64),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**10-64),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**8-64),\
 ]
 
 bcs=[]
@@ -141,5 +143,6 @@ for dire in directories:
 
 for bc in bcs:
   print(bc)
-  mean, stddev, throughputs = bc.run()
-  print(mean, stddev, '\n')
+  mean, stddev, throughputs, memoryusage_mean = bc.run()
+  print(mean, stddev, memoryusage_mean, '\n')
+

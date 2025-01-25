@@ -42,6 +42,7 @@ namespace tlf {
   using tlf_internal::pool_clear;
   using tlf_internal::pool_stats;
   using tlf_internal::stats;
+  using tlf_internal::shuffle;
 
 } // tlf
 

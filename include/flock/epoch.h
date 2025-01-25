@@ -353,13 +353,21 @@ public:
   
   // clears all the lists 
   // to be used on termination
-  void clear() {
+  // returns wether allocator was cleared or not
+  bool clear() {
     get_epoch().update_epoch();
     for (int i=0; i < pools.size(); i++) {
       clear_list(pools[i].old);
       clear_list(pools[i].current);
       pools[i].old = pools[i].current = nullptr;
     }
+
+    return Allocator::clear()
+#ifndef USE_MALLOC
+    //epoch bag links ought to be cleared as well
+    & list_allocator::clear();
+#endif
+    ;
   }
 
   void reserve(size_t n) {
@@ -390,7 +398,12 @@ public:
     return {0,0};
   }
 
-  void shuffle(size_t n) {}
+  void shuffle(size_t n = 100000) {
+    n = std::max(n, 1000000ul);
+    auto ptrs = parlay::tabulate(n, [&] (size_t i) {return Allocator::alloc();});
+    ptrs = parlay::random_shuffle(ptrs);
+    parlay::parallel_for(0, n, [&] (size_t i) {Allocator::free(ptrs[i]);});
+  }
     
 };
 

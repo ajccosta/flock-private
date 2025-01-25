@@ -182,9 +182,9 @@ struct ordered_map {
     return i;
   }
 
-  static void clear() { flck::clear_pool<node>();}
+  static bool clear() { return flck::clear_pool<node>();}
   //static void reserve(size_t n) { node_pool.reserve(n);}
-  static void shuffle(size_t n) {} // node_pool.shuffle(n);}
+  static void shuffle(size_t n) { node_pool.shuffle(n); }
   static void print_stats() { flck::pool_stats<node>();}
   static std::pair<size_t,size_t> stats() { return flck::stats<node>(); }
 };

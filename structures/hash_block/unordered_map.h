@@ -409,13 +409,25 @@ public:
 
   long check() { return size();}
 
-  static void clear() {
-    node_pool_1.clear();
-    node_pool_3.clear();
-    node_pool_7.clear();
-    node_pool_31.clear();
-    big_node_pool.clear();
+  static bool clear() {
+    bool all_cleared;
+    for(int i = 0; i < 2; i++) {
+      //First pass does the actual clearing.
+      //Second pass checks that everything was cleared.
+      //This is necessary because if a node has the same
+      //size as the epoch links, they will use the same
+      //allocator size class. Because links only get
+      //cleared after the first pass, we need to re-check.
+      all_cleared = true;
+      all_cleared &= node_pool_1.clear();
+      all_cleared &= node_pool_3.clear();
+      all_cleared &= node_pool_7.clear();
+      all_cleared &= node_pool_31.clear();
+      all_cleared &= big_node_pool.clear();
+    }
+    return all_cleared;
   }
+
   static void print_stats() {
     node_pool_1.print_stats();
     node_pool_3.print_stats();
@@ -434,7 +446,14 @@ public:
   }
 
   static void reserve(size_t n) {}
-  static void shuffle(size_t n) {}
+
+  static void shuffle(size_t n) {
+    node_pool_1.shuffle(n);
+    node_pool_3.shuffle(n);
+    node_pool_7.shuffle(n);
+    node_pool_31.shuffle(n);
+    big_node_pool.shuffle(n);
+  }
 
 };
 

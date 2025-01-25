@@ -542,11 +542,22 @@ struct Set {
     return cnt;
   }
 
-  void clear() {
-    full_pool.clear();
-    indirect_pool.clear();
-    sparse_pool.clear();
-    leaf_pool.clear();
+  bool clear() {
+    bool all_cleared;
+    for(int i = 0; i < 2; i++) {
+      //First pass does the actual clearing.
+      //Second pass checks that everything was cleared.
+      //This is necessary because if a node has the same
+      //size as the epoch links, they will use the same
+      //allocator size class. Because links only get
+      //cleared after the first pass, we need to re-check.
+      all_cleared = true;
+      all_cleared &= full_pool.clear();
+      all_cleared &= indirect_pool.clear();
+      all_cleared &= sparse_pool.clear();
+      all_cleared &= leaf_pool.clear();
+    }
+    return all_cleared;
   }
 
   void reserve(size_t n) {}

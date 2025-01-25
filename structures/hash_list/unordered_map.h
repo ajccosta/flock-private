@@ -240,10 +240,10 @@ struct unordered_map {
 
   void print() {}
   static void reserve(size_t n) {}
-  static void shuffle(size_t n) {}
+  static void shuffle(size_t n) { link_pool.shuffle(n); }
   static void print_stats() { link_pool.print_stats(); }
   long check() { return size();}
-  static void clear() { link_pool.clear(); }
+  static bool clear() { return link_pool.clear(); }
   static std::pair<size_t,size_t> stats() { return link_pool.stats(); }
 
 };
