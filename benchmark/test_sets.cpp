@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
 [-verbose] : print some info
 [-stats] : print some memory statistics 
 [-clear] : clear the memory pool between rounds
+[-warmup] : perform random insertions and deletions before starting experiment
 [-no_check] : do not check correctness of answers
 [-rqthreads <num range query threads>] : number of dedicated range-query threads
 [-trans <ops-per-transaction>] : size of transaction in operations (0 means no transaction)

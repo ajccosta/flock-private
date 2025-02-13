@@ -53,11 +53,99 @@ a distributed (undefine DEQALLOC define DISTACK) stack-based pool\*/
 //#define DEQALLOC
 //#define DISTACK
 
+/*\ If you want the next run to acquire a trace of allocations. \*/
+#define TRACE
+
+#include <iostream>
+#include <fstream>
+#include "get_time.h"
+
 // IWYU pragma: no_include <array>
 // IWYU pragma: no_include <vector>
 
 namespace parlay {
 namespace internal {
+
+#if defined(TRACE)
+  typedef enum {ALLOC = 0, FREE = 1} ALLOC_T;
+
+  struct alloc_log_t {
+
+      struct alignas(uint64_t) metadata_t { //assumes sizeof(float) = 4
+        using sz_t = uint32_t;
+        using ts_t = float;
+
+        sz_t alloc_t_size; //[31:1]=size, [1:0]=alloc type
+        ts_t timestamp; //timestamp at which allocation was made
+
+        inline ALLOC_T get_alloc_type() {
+          return (ALLOC_T) (alloc_t_size & ((sz_t) 0x1));
+        }
+
+        inline sz_t get_alloc_size() {
+          return alloc_t_size >> 1;
+        }
+
+        inline ts_t get_ts() {
+          return timestamp;
+        }
+
+        metadata_t(sz_t alloc_sz, ALLOC_T at, ts_t ts):
+          alloc_t_size(((sz_t) alloc_sz << 1) | at), timestamp(ts) {}
+      };
+
+      std::vector<metadata_t> allocations;
+      std::string log_file_name = "alloc.log";
+      bool written = false; //Whether this log has been written to a file or not
+
+      parlay::internal::timer clock;
+      metadata_t::ts_t current_ts;
+      static const size_t take_time_step = 10;
+      size_t time_steps_taken = take_time_step;
+
+      void reset_file() {
+        //Delete file contents
+        std::ofstream f;
+        f.open(log_file_name, std::ofstream::trunc);
+        f.close();
+      }
+
+    public:
+      alloc_log_t() { reset_file(); }
+
+      alloc_log_t(std::string log_file_name): log_file_name(log_file_name) {
+        reset_file();
+      }
+
+      metadata_t::ts_t get_ts() {
+        if(time_steps_taken++ == take_time_step) {
+          current_ts = (metadata_t::ts_t) clock.total_time();
+          time_steps_taken = 0;
+        }
+        return current_ts;
+      }
+
+      void log_alloc(ALLOC_T at, size_t alloc_sz) {
+        metadata_t t = metadata_t(alloc_sz, at, get_ts());
+        allocations.push_back(t);
+      }
+
+      void write() {
+        //Whacky way to avoid writting more than once
+        if(written) return;
+        std::ofstream f;
+        f.open(log_file_name, std::ios::app | std::ios::binary | std::ios::out);
+        for_each(allocations.begin(), allocations.end(), [&] (metadata_t &t) {
+          f.write(reinterpret_cast<char*>(&t), sizeof(metadata_t));
+        });
+        f.close();
+        written = true;
+      }
+  };
+
+  ThreadSpecific<alloc_log_t> my_log;
+#endif
+
 
 struct block_allocator {
  private:
@@ -90,6 +178,9 @@ struct block_allocator {
 #else //defined(DISTACK)
   ThreadSpecific<hazptr_stack<block*>> dist_stack;
 #endif
+
+
+
   size_t max_steal_retries; // number of steal attempts
   //List that we are currently allocating from
   ThreadSpecific<local_list> my_local_list;
@@ -319,9 +410,17 @@ struct block_allocator {
                         " suppress this messsage with -DPARLAY_ALLOC_ALLOW_LEAK\n";
     }
 #endif
+#if defined(TRACE)
+    //Only need to write log once, it contains
+    //info from all allocator instances
+    my_log->write();
+#endif
   }
 
   void free(void* ptr) {
+#if defined(TRACE)
+    my_log->log_alloc(ALLOC_T::FREE, block_size);
+#endif
     num_frees++;
     if (my_local_list->sz == list_length+1) {
       //Record middle of the list
@@ -347,6 +446,9 @@ struct block_allocator {
   }
 
   inline void* alloc() {
+#if defined(TRACE)
+    my_log->log_alloc(ALLOC_T::ALLOC, block_size);
+#endif
     num_allocs++;
     if (my_local_list->sz == 0)  { //No blocks on the local list, get a new list
       auto new_list = get_list();

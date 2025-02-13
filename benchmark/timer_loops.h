@@ -162,6 +162,12 @@ void run_mixed_operations(parlay::sequence<K>& all,
   // clear the memory pool between rounds
   bool clear = P.getOption("-clear");
 
+  // warmup data-structure (perform random inserts and deletes)
+  int warmup_size = P.getOptionIntValue("-warmup", 0);
+  bool warmup = warmup_size != 0;
+
+  bool test_allocator = P.getOption("-test_allocator");
+
   enum op_type : char {Find, Insert, Remove, Range, MultiFind};
  
   // initially set to all finds
@@ -182,7 +188,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
   parlay::internal::timer t;
 
-  for (int i = 0; i < rounds+1; i++) {
+  for (int i = 1; i < rounds+1; i++) {
     {
     auto tr = SetType(buckets);
     long len;
@@ -220,11 +226,16 @@ void run_mixed_operations(parlay::sequence<K>& all,
     if (verbose)
       std::cout << "initial size = " << tr.check() << std::endl;
     
-    // insert and delete for a while
-    // parlay::parallel_for(0, 10*n, [&] (size_t i) {
-    //         auto k = unique[parlay::hash64(i + i) % nn];
-    //         if(i%2==0) tr.insert(k, default_value); 
-    //         else tr.remove(k); }, 10, true);
+    //insert and delete for a while
+    if(warmup) {
+      parlay::parallel_for(0, warmup_size, [&] (size_t i) {
+        auto k = unique[parlay::hash64(i + i) % nn];
+        if(i%2==0)
+          tr.insert(k, default_value); 
+        else
+          tr.remove(k);
+      }, 10, true);
+    }
 
     if (do_check) {
       initial_size = tr.check();
@@ -439,20 +450,63 @@ void run_mixed_operations(parlay::sequence<K>& all,
       }
     };
 
+    auto run_allocator_test = [&] (long start, long end, long proc_id) {
+      long cnt = 0;
+      long j = start;
+      long jj = start;
+      statistics local_stats;
+      std::vector<K>& range_keys = range_buffers[proc_id];
+      auto start_time = get_time();
+      auto start_op_time = start_time;
+
+      parlay::type_allocator<size_t> allocator;
+      std::vector<size_t*> allocated_vec;
+
+      while (true) {
+        if (check_end(cnt, local_stats, proc_id, start_time))
+          return;
+        cnt++;
+        auto rand = parlay::hash64(proc_id * cnt) % 2;
+        if(rand == 0) { //Alloc
+          allocated_vec.push_back(allocator.alloc());
+        } else { //Free
+          if(allocated_vec.empty()) {
+            continue;
+          }
+          allocator.free(allocated_vec.back());
+          allocated_vec.pop_back();
+        }
+        local_stats.total++;
+      }
+
+      //Free everything that was not freed
+      while(!allocated_vec.empty()) {
+        allocator.free(allocated_vec.back());
+        allocated_vec.pop_back();
+      }
+    };
+
     // loop across the processors
     parlay::parallel_for(0, p, [&] (size_t proc_id) {
-              long start = proc_id * mp;
+        long start = proc_id * mp;
         long end = (proc_id + 1) * mp;
-
-        if (trans_size > 0) 
+        if (test_allocator) {
+          run_allocator_test(start, end, proc_id);
+        } else if (trans_size > 0) 
           run_transactions(start,end,proc_id);
         else
           run_operations(start,end,proc_id);
     }, 1);
 
+
     double duration = t.stop();
     if (duration > 1.1 * trial_time)
       std::cout << "duration: " << duration << std::endl;
+
+    if (test_allocator && clear) {
+      parlay::type_allocator<size_t> allocator;
+      allocator.clear();
+    }
 
     statistics overall_stats = parlay::reduce(processor_stats, parlay::binary_op(adds, statistics()));
     
@@ -533,7 +587,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	  if (success_ratio != 1 && update_percent != 100)
 	    std::cout << "bad query success ratio, should be 1 is "
 		      << success_ratio << std::endl;
-	  if (update_success_ratio != 0 && total_updates != 0)
+	  if (update_success_ratio != 0 && total_updates != 0 && !warmup)
 	    std::cout << "bad upsert success ratio, should be 0 is "
 		      << update_success_ratio << std::endl;
 	} else {

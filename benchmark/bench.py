@@ -1,8 +1,6 @@
 #!/bin/python3
 
 import subprocess
-import sys
-import socket
 from datetime import date
 import multiprocessing
 import statistics
@@ -22,6 +20,7 @@ class bench_conf():
   list_bytes=None
   clear=None #whether to clear the allocator in each run
   shuffle=None #whether to shuffle memory in the allocator before run
+  warmup=None
 
   def __init__(self, benchmark,\
     extra_arguments="",\
@@ -31,7 +30,8 @@ class bench_conf():
     steal_retries=32,\
     list_bytes=(2**18-64),\
     clear=True,\
-    shuffle=True,\
+    shuffle=False,\
+    warmup=True,\
     ):
     #get fullpath of file
     self.benchmark=subprocess.getoutput("realpath " + benchmark)
@@ -43,17 +43,21 @@ class bench_conf():
     self.list_bytes=list_bytes
     self.clear=clear
     self.shuffle=shuffle
+    if(shuffle):
+      print("WARNING: shuffling is not recomended, it will likely pre-allocate too much memory.")
+    self.warmup=warmup
     
   def __str__(self):
-    return "Benchmark configuration "+\
-    "{benchmark="+str(self.benchmark)+\
-    ",num_threads="+str(self.num_threads)+\
-    ",num_rounds="+str(self.num_rounds)+\
-    ",time="+str(self.time)+\
-    ",extra_arguments="+self.extra_arguments+\
-    ",steal_retries="+str(self.steal_retries)+\
-    ",list_bytes="+str(self.list_bytes)+\
-    "}"
+    return self.build_cmd()
+    #return "Benchmark configuration "+\
+    #"{benchmark="+str(self.benchmark)+\
+    #",num_threads="+str(self.num_threads)+\
+    #",num_rounds="+str(self.num_rounds)+\
+    #",time="+str(self.time)+\
+    #",extra_arguments="+self.extra_arguments+\
+    #",steal_retries="+str(self.steal_retries)+\
+    #",list_bytes="+str(self.list_bytes)+\
+    #"}"
 
   def build_cmd(self):
     cmd=""
@@ -67,6 +71,7 @@ class bench_conf():
     cmd+="-p "+str(self.num_threads)+" "
     if self.clear: cmd+="-clear "
     if self.shuffle: cmd+="-shuffle "
+    if self.warmup: cmd+="-warmup "
     cmd+=self.extra_arguments
     return cmd
 
@@ -82,9 +87,10 @@ class bench_conf():
   def run(self):
     throughputs,memoryusage=self.run_once()
     mean=statistics.mean(throughputs)
-    stddev=statistics.stdev(throughputs)
+    stddev= statistics.stdev(throughputs) if self.num_rounds > 1 else 0
     memoryusage_mean=statistics.mean(memoryusage)
-    return mean, stddev, throughputs, memoryusage_mean
+    memoryusage_stddev= statistics.stdev(memoryusage) if self.num_rounds > 1 else 0
+    return mean, stddev, throughputs, memoryusage_mean, memoryusage_stddev
 
 
 n_iters=20
@@ -104,27 +110,15 @@ structures=[\
   #"skiplist_lf",\
 ]
 
-allocators=["", "_deqalloc", "_distack"]
+#allocators=["", "_deqalloc", "_distack"]
+allocators=["_deqalloc"]
 
 benchmarks=[s+a for s in structures for a in allocators]
 
-time=5.0
+time=5
 
 configs=[\
-  #("-u 0 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
-  #("-u 5 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
-  #("-u 20 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
-  #("-u 50 -upsert", 64, n_iters, 1.4, 64, 2**18-64),\
-
-  #("-u 100 -upsert -n 100", 64, n_iters, 1.0, 64, 2**18-64),\
-  #("-u 100 -upsert -n 1000", 64, n_iters, 1.0, 64, 2**18-64),\
-  #("-u 100 -upsert -n 10000", 64, n_iters, 1.0, 64, 2**18-64),\
-  #("-u 100 -upsert -n 100000", 64, n_iters, 1.0, 64, 2**18-64),\
-  #("-u 100 -upsert -n 100000", 64, n_iters, 1.0, 64, 2**18-64),\
-  #("-u 100 -upsert -n 1000000", 64, n_iters, 1.0, 64, 2**18-64),\
   #("-u 100 -upsert -n 10000000", 64, n_iters, 1.0, 64, 2**18-64),\
-
-  #("-u 100 -upsert -n 10000000", 64, n_iters, 3.0, 64, 128),\
 
   ("-u 100 -upsert", 64, n_iters, time, 64, 2**18-64),\
   ("-u 100 -upsert", 64, n_iters, time, 64, 2**16-64),\
@@ -143,6 +137,6 @@ for dire in directories:
 
 for bc in bcs:
   print(bc)
-  mean, stddev, throughputs, memoryusage_mean = bc.run()
-  print(mean, stddev, memoryusage_mean, '\n')
+  mean, stddev, throughputs, memoryusage_mean, memoryusage_stddev = bc.run()
+  print(mean, stddev, memoryusage_mean, memoryusage_stddev ,'\n')
 
