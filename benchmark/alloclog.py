@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import struct
 import statistics
 
+read_size = 8
 
 def is_alloc(t:bytes)->bool:
     return not (int.from_bytes(t, sys.byteorder) & 0b1)
@@ -30,6 +31,9 @@ def insert_alloc_entry(trace:dict, t:bytes):
     return ia, size, ts
 
 def bundle_allocations(chunk_step:float, xs, ys):
+    if len(xs) == 0:
+        return [], []
+
     curr_ts = 0
     xs_acc = []
     xs_avg = []
@@ -43,43 +47,76 @@ def bundle_allocations(chunk_step:float, xs, ys):
     return xs_avg, [ys[0]]*len(xs_avg)
 
 
-f = open("alloc.log", 'r+b')
-read_size=8
-chunk_step=0.0001 #how much to bundle allocations together (in seconds)
+def build_allocation_timeline_graph(file_name):
+    trace = load_file(insert_alloc_entry, file_name, read_size)
 
-total, nalloc, nfree = (0, 0, 0)
+    use_range=True
+    alpha=1
+    chunk_step=0.0010 #how much to bundle allocations together (in seconds)
 
-trace = {}
-while True:
-    d = f.read(read_size)
-    if not d:
-        break
-    insert_alloc_entry(trace, d)
+    if use_range:
+        range_start=0.6 #ignore beginning of execution
+        range_end=1.1
+        fig=plt.figure()
+        ax=fig.add_subplot(111)
+        ax.set_xlim(xmin=range_start, xmax=range_end)
 
-f.close()
-
-
-alpha=1
-
-range_start=0.2 #ignore beginning of execution
-execution_time=0.1
-error=0.05#%
-
-fig=plt.figure()
-ax=fig.add_subplot(111)
-ax.set_xlim(xmin=range_start, xmax=range_start+(execution_time*(1+error)))
-
-
-
-for k in sorted(trace.keys()):
-    xallocs,xfrees,yallocs,yfrees = trace[k]
+    for k in sorted(trace.keys()):
+        xallocs,xfrees,yallocs,yfrees = trace[k]
+        new_xallocs, new_yallocs = bundle_allocations(chunk_step, xallocs, yallocs)
+        new_xfrees, new_yfrees = bundle_allocations(chunk_step, xfrees, yfrees)
+        plt.plot(new_xallocs, new_yallocs, '|', color="blue", alpha=alpha, markersize=4)
+        plt.plot(new_xfrees, new_yfrees, '|', color="red", alpha=alpha, markersize=4)
     
-    new_xallocs, new_yallocs = bundle_allocations(chunk_step, xallocs, yallocs)
-    new_xfrees, new_yfrees = bundle_allocations(chunk_step, xfrees, yfrees)
-    plt.plot(new_xallocs, new_yallocs, '|', color="blue", alpha=alpha, markersize=4)
-    plt.plot(new_xfrees, new_yfrees, '|', color="red", alpha=alpha, markersize=4)
+    plt.savefig('allocation_timeline.png')
 
-    #plt.plot(xallocs,yallocs, '|', color="blue", alpha=alpha, markersize=4)
-    #plt.plot(xfrees,yfrees, '|', color="red", alpha=alpha, markersize=4)
 
-plt.savefig('foo.png')
+def insert_alloc_time(trace:dict, t:bytes):
+    alloc_t_size = t[0:4]
+    ts = get_ts(t[4:])
+    ia = is_alloc(alloc_t_size)
+    size = get_size(alloc_t_size)
+
+    if "memused" not in trace:
+        trace["memused"] = 0
+    memused = trace["memused"]
+
+    if ts not in trace:
+        trace[ts] = memused
+
+    if(ia):
+        memused += size
+    else:
+        memused -= size
+    trace[ts] = memused
+    trace["memused"] = memused
+
+
+def build_memoryusage_timeline_graph(file_name):
+    trace = load_file(insert_alloc_time, file_name, read_size)
+    del trace["memused"]
+    xs=trace.keys()
+    ys=[]
+    for k in trace.keys():
+        ys.append(trace[k])
+
+    plt.plot(xs, ys)
+    plt.savefig('memoryusage_timeline.png')
+
+#loads file, processes each entry by callinf <process_f>
+def load_file(process_f, file_name, read_size):
+    f = open(file_name, 'r+b')
+    #read trace file
+    trace = {}
+    while True:
+        d = f.read(read_size)
+        if not d:
+            break
+        process_f(trace, d)
+    f.close()
+    return trace
+
+file_name = sys.argv[1] if len(sys.argv) > 0 else "alloc.log"
+
+build_allocation_timeline_graph(file_name)
+#build_memoryusage_timeline_graph(file_name)

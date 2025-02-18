@@ -67,54 +67,97 @@ namespace parlay {
 namespace internal {
 
 #if defined(TRACE)
-  typedef enum {ALLOC = 0, FREE = 1} ALLOC_T;
 
   struct alloc_log_t {
+    typedef enum {ALLOC = 0, FREE = 1} ALLOC_T;
 
       struct alignas(uint64_t) metadata_t { //assumes sizeof(float) = 4
-        using sz_t = uint32_t;
-        using ts_t = float;
+          using sz_t = uint32_t;
+          using ts_t = float;
+          static constexpr size_t metadata_t_sz = sizeof(sz_t) + sizeof(ts_t);
 
-        sz_t alloc_t_size; //[31:1]=size, [1:0]=alloc type
-        ts_t timestamp; //timestamp at which allocation was made
+          sz_t alloc_t_size; //[31:1]=size, [1:0]=alloc type
+          ts_t timestamp; //timestamp at which allocation was made
 
-        inline ALLOC_T get_alloc_type() {
-          return (ALLOC_T) (alloc_t_size & ((sz_t) 0x1));
-        }
+          static inline sz_t alloc_t_size_repr(sz_t alloc_sz, ALLOC_T at) {
+            return ((sz_t) alloc_sz << 1) | at;
+          }
 
-        inline sz_t get_alloc_size() {
-          return alloc_t_size >> 1;
-        }
+          metadata_t() {}
 
-        inline ts_t get_ts() {
-          return timestamp;
-        }
+        public:
+          inline ALLOC_T get_alloc_type() {
+            return (ALLOC_T) (alloc_t_size & ((sz_t) 0x1));
+          }
 
-        metadata_t(sz_t alloc_sz, ALLOC_T at, ts_t ts):
-          alloc_t_size(((sz_t) alloc_sz << 1) | at), timestamp(ts) {}
+          inline sz_t get_alloc_size() {
+            return alloc_t_size >> 1;
+          }
+
+          inline ts_t get_ts() {
+            return timestamp;
+          }
+
+          metadata_t(sz_t alloc_sz, ALLOC_T at, ts_t ts):
+            alloc_t_size(alloc_t_size_repr(alloc_sz, at)),
+            timestamp(ts) {}
+
+          metadata_t& operator=(char buf[metadata_t_sz]) {
+              memcpy(this, buf, metadata_t_sz);
+              return *this;
+          }
       };
 
+    private:
       std::vector<metadata_t> allocations;
+      std::set<metadata_t::sz_t> size_classes;
       std::string log_file_name = "alloc.log";
-      bool written = false; //Whether this log has been written to a file or not
 
       parlay::internal::timer clock;
       metadata_t::ts_t current_ts;
-      static const size_t take_time_step = 10;
+      static const size_t take_time_step = 100;
       size_t time_steps_taken = take_time_step;
 
+      parlay::thread_id_type tid;
+
+      bool tracing; //Whether we are producing a trace or replaying a trace
+
+      std::string get_file_name() { return 't' + std::to_string(tid) + '_' + log_file_name; }
+
       void reset_file() {
-        //Delete file contents
-        std::ofstream f;
-        f.open(log_file_name, std::ofstream::trunc);
+        //Delete file
+        std::remove(get_file_name().c_str());
+      }
+
+      //Load trace from file
+      //Loads set with size classes will
+      void load_trace() {
+        std::ifstream f;
+        f.open(get_file_name(), std::ios::in | std::ios::binary);
+        metadata_t t;
+        while(f.good()) {
+          //Probably unsafe, but should work fine
+          f.read(reinterpret_cast<char*>(&t), sizeof(metadata_t));
+          allocations.push_back(t);
+          size_classes.insert(t.get_alloc_size());
+        }
+        allocations.pop_back(); //Last read contains garbage
         f.close();
       }
 
     public:
-      alloc_log_t() { reset_file(); }
+      alloc_log_t() = delete;
 
-      alloc_log_t(std::string log_file_name): log_file_name(log_file_name) {
-        reset_file();
+      alloc_log_t(parlay::thread_id_type tid): tid(tid) {
+        //Don't initialize traces that will not be used
+        if(tid >= parlay::num_workers()) return;
+
+        tracing = std::getenv("PARLAY_REPLAY") == nullptr;
+        if(tracing) { //Trace
+          reset_file();
+        } else { //Replay
+          load_trace();
+        }
       }
 
       metadata_t::ts_t get_ts() {
@@ -126,24 +169,27 @@ namespace internal {
       }
 
       void log_alloc(ALLOC_T at, size_t alloc_sz) {
+        if(!tracing) return;
         metadata_t t = metadata_t(alloc_sz, at, get_ts());
         allocations.push_back(t);
       }
 
       void write() {
-        //Whacky way to avoid writting more than once
-        if(written) return;
+        if(!tracing) return;
         std::ofstream f;
-        f.open(log_file_name, std::ios::app | std::ios::binary | std::ios::out);
+        f.open(get_file_name(), std::ios::app | std::ios::binary | std::ios::out);
         for_each(allocations.begin(), allocations.end(), [&] (metadata_t &t) {
           f.write(reinterpret_cast<char*>(&t), sizeof(metadata_t));
         });
         f.close();
-        written = true;
       }
+
+      auto begin() const { return allocations.begin(); }
+      auto end() const { return allocations.end(); }
+      std::set<metadata_t::sz_t> get_size_classes() const { return size_classes; }
   };
 
-  ThreadSpecific<alloc_log_t> my_log;
+  ThreadSpecific<alloc_log_t> my_log([](parlay::thread_id_type tid) { return alloc_log_t(tid); });
 #endif
 
 
@@ -411,15 +457,16 @@ struct block_allocator {
     }
 #endif
 #if defined(TRACE)
-    //Only need to write log once, it contains
-    //info from all allocator instances
-    my_log->write();
+    //Write acquired traces to a file
+    my_log.for_each([](auto&& log) {
+      log.write();
+    });
 #endif
   }
 
   void free(void* ptr) {
 #if defined(TRACE)
-    my_log->log_alloc(ALLOC_T::FREE, block_size);
+    my_log->log_alloc(alloc_log_t::ALLOC_T::FREE, block_size);
 #endif
     num_frees++;
     if (my_local_list->sz == list_length+1) {
@@ -447,7 +494,7 @@ struct block_allocator {
 
   inline void* alloc() {
 #if defined(TRACE)
-    my_log->log_alloc(ALLOC_T::ALLOC, block_size);
+    my_log->log_alloc(alloc_log_t::ALLOC_T::ALLOC, block_size);
 #endif
     num_allocs++;
     if (my_local_list->sz == 0)  { //No blocks on the local list, get a new list

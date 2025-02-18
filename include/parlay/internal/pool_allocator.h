@@ -161,6 +161,18 @@ struct pool_allocator {
     }
   }
 
+  block_allocator& get_block_allocator(size_t n) {
+    if (n > max_small) {
+#if !defined(NDEBUG)
+      std::cerr << "Size too large. Allocations of size " << max_small
+      << " or larger are defferred to a different allocator" << std::endl;
+#endif
+    }
+    size_t bucket = 0;
+    while (n > sizes[bucket]) bucket++;
+    return small_allocators[bucket];
+  }
+
   // allocate, touch, and free to make sure space for small blocks is paged in
   [[deprecated]] void reserve(size_t) { }
 

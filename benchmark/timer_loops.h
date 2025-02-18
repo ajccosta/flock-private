@@ -186,7 +186,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
       else if (h < 20*(update_percent + range_percent)) return Range;
       else return Find; });
 
-  parlay::internal::timer t;
+  parlay::internal::timer t("Benchmark run_mixed_operations");
 
   for (int i = 1; i < rounds+1; i++) {
     {
@@ -451,39 +451,119 @@ void run_mixed_operations(parlay::sequence<K>& all,
     };
 
     auto run_allocator_test = [&] (long start, long end, long proc_id) {
-      long cnt = 0;
-      long j = start;
-      long jj = start;
       statistics local_stats;
-      std::vector<K>& range_keys = range_buffers[proc_id];
       auto start_time = get_time();
       auto start_op_time = start_time;
 
-      parlay::type_allocator<size_t> allocator;
-      std::vector<size_t*> allocated_vec;
+      using trace_t = parlay::internal::alloc_log_t;
+      using entry_t = trace_t::metadata_t;
 
-      while (true) {
-        if (check_end(cnt, local_stats, proc_id, start_time))
-          return;
-        cnt++;
-        auto rand = parlay::hash64(proc_id * cnt) % 2;
-        if(rand == 0) { //Alloc
-          allocated_vec.push_back(allocator.alloc());
-        } else { //Free
-          if(allocated_vec.empty()) {
-            continue;
+      parlay::ThreadSpecific<trace_t>& trace = parlay::internal::my_log;
+
+      std::set<entry_t::sz_t> size_classes_set = trace->get_size_classes();
+      std::vector<size_t> size_classes(size_classes_set.begin(), size_classes_set.end());
+      parlay::internal::pool_allocator pl_allctr = parlay::internal::pool_allocator(size_classes);
+
+      //Store freelist (elements that will be freed in the future) stack
+      // block_allocator correspondent to a size class
+      std::vector<std::pair<
+        std::unique_ptr<std::stack<void*>>,
+        parlay::internal::block_allocator&>> allocator_freelist;
+      size_t n_sz_classes = size_classes.size();
+
+      for (const auto& sc : trace->get_size_classes()) {
+        parlay::internal::block_allocator& blck_allctr = pl_allctr.get_block_allocator(sc);
+        std::unique_ptr<std::stack<void*>> freelist_p =
+          std::unique_ptr<std::stack<void*>>(new std::stack<void*>);
+        allocator_freelist.push_back({std::move(freelist_p), blck_allctr});
+      }
+
+      bool replaying = std::getenv("PARLAY_REPLAY") != nullptr;
+      if(!replaying) {
+        std::cerr << "Not performing replay. "
+        << "Please set PARLAY_REPLAY environment variable" << std::endl;
+        exit(-1);
+      }
+
+      for_each(trace->begin(), trace->end(),
+        [&](entry_t t) {
+          entry_t::ts_t ts = t.get_ts();
+          entry_t::sz_t sz = t.get_alloc_size();
+          trace_t::ALLOC_T alloc_t = t.get_alloc_type();
+
+          size_t sz_i = 0;
+          while(size_classes[sz_i] < sz) {sz_i++;} //Find size class index
+
+          std::pair<std::unique_ptr<std::stack<void*>>,
+          parlay::internal::block_allocator&>& tup = allocator_freelist[sz_i];
+          std::unique_ptr<std::stack<void*>>& freelist = tup.first;
+          parlay::internal::block_allocator& allocator = tup.second;
+
+          if(alloc_t == trace_t::ALLOC_T::ALLOC) { //allocation
+            void *p = allocator.alloc();
+            freelist->push(p);
+          } else { //free
+
+            if(!freelist->empty()) {
+              allocator.free(freelist->top());
+              freelist->pop();
+            } else { //No element of this size class to free
+              //We approximate frees by freeing a node from the non-empty size
+              //  class with the closest size
+              //Assumes there is at least 2 or more size classes
+              int32_t sz_i_2_l = sz_i - 1;
+              size_t sz_2_l = std::numeric_limits<size_t>::max();
+              size_t dist_l;
+              size_t sz_i_2_r = sz_i + 1;
+              size_t sz_2_r = std::numeric_limits<size_t>::max();
+              size_t dist_r;
+              goto skip;
+go_left:
+              sz_i_2_l--;
+              goto skip;
+go_right:
+              sz_i_2_r++;
+skip:
+              if(sz_i_2_l >= 0) {
+                sz_2_l = size_classes[sz_i_2_l];
+              } else {
+                sz_i_2_l = 0;
+              }
+              if(sz_i_2_r < n_sz_classes) {
+                sz_2_r = size_classes[sz_i_2_r];
+              } else {
+                sz_i_2_r = n_sz_classes - 1;
+              }
+              if(sz_i_2_l != 0 || sz_i_2_r != n_sz_classes - 1) {
+                dist_l = sz > sz_2_l ? sz - sz_2_l : sz_2_l - sz;
+                dist_r = sz > sz_2_r ? sz - sz_2_r : sz_2_r - sz;
+                bool left_or_right = dist_l <= dist_r;
+                std::unique_ptr<std::stack<void*>>& freelist2 =
+                  left_or_right ? 
+                  allocator_freelist[sz_i_2_l].first :
+                  allocator_freelist[sz_i_2_r].first;
+
+                if(freelist2->empty()) {
+                  if(left_or_right && sz_i_2_l != 0)
+                    goto go_left;
+                  else
+                    goto go_right;
+                }
+                //Not empty!
+                parlay::internal::block_allocator& allocator2 =
+                  left_or_right ? 
+                  allocator_freelist[sz_i_2_l].second :
+                  allocator_freelist[sz_i_2_r].second;
+                allocator2.free(freelist2->top());
+                freelist2->pop();
+              } //else { Nothing to free! }
+            }
           }
-          allocator.free(allocated_vec.back());
-          allocated_vec.pop_back();
-        }
-        local_stats.total++;
-      }
 
-      //Free everything that was not freed
-      while(!allocated_vec.empty()) {
-        allocator.free(allocated_vec.back());
-        allocated_vec.pop_back();
-      }
+          local_stats.total++;
+      });
+
+      processor_stats[proc_id] = local_stats;
     };
 
     // loop across the processors
