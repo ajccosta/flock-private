@@ -47,12 +47,11 @@ def bundle_allocations(chunk_step:float, xs, ys):
     return xs_avg, [ys[0]]*len(xs_avg)
 
 
-def build_allocation_timeline_graph(file_name):
+def build_allocation_timeline_graph(file_name, chunk_step=0.0010, use_range=False):
     trace = load_file(insert_alloc_entry, file_name, read_size)
 
-    use_range=True
     alpha=1
-    chunk_step=0.0010 #how much to bundle allocations together (in seconds)
+     #how much to bundle allocations together (in seconds)
 
     if use_range:
         range_start=0.6 #ignore beginning of execution
@@ -68,7 +67,8 @@ def build_allocation_timeline_graph(file_name):
         plt.plot(new_xallocs, new_yallocs, '|', color="blue", alpha=alpha, markersize=4)
         plt.plot(new_xfrees, new_yfrees, '|', color="red", alpha=alpha, markersize=4)
     
-    plt.savefig('allocation_timeline.png')
+    plt.savefig(file_name.split('.')[0] + '_allocation_timeline.png')
+    plt.clf()
 
 
 def insert_alloc_time(trace:dict, t:bytes):
@@ -94,14 +94,17 @@ def insert_alloc_time(trace:dict, t:bytes):
 
 def build_memoryusage_timeline_graph(file_name):
     trace = load_file(insert_alloc_time, file_name, read_size)
-    del trace["memused"]
+    if "memused" in trace:
+        del trace["memused"]
     xs=trace.keys()
     ys=[]
     for k in trace.keys():
         ys.append(trace[k])
 
     plt.plot(xs, ys)
-    plt.savefig('memoryusage_timeline.png')
+    plt.savefig(file_name.split('.')[0] + '_memoryusage_timeline.png')
+    plt.clf()
+
 
 #loads file, processes each entry by callinf <process_f>
 def load_file(process_f, file_name, read_size):
@@ -118,5 +121,5 @@ def load_file(process_f, file_name, read_size):
 
 file_name = sys.argv[1] if len(sys.argv) > 0 else "alloc.log"
 
-build_allocation_timeline_graph(file_name)
-#build_memoryusage_timeline_graph(file_name)
+build_allocation_timeline_graph(file_name, chunk_step=0.001)
+build_memoryusage_timeline_graph(file_name)

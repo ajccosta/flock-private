@@ -37,6 +37,8 @@
 
 #define REPORT_BYTES
 
+#define noop
+
 struct statistics {
   long total;
   long added_count; // inserted - deleted
@@ -51,10 +53,16 @@ struct statistics {
   long within_latency;
   long transactions;
   long aborts;
+  long num_allocs;
+  long num_frees;
+  long num_approx_frees;
+  long num_failed_frees;
   statistics() :
     total(0), added_count(0), range_count(0), range_sum(0), mfind_count(0), retry_count(0), 
     update_count(0), update_success_count(0),
-    query_count(0), query_total_value(0), within_latency(0), transactions(0), aborts(0) {}
+    query_count(0), query_total_value(0), within_latency(0), transactions(0), aborts(0),
+    num_allocs(0), num_frees(0), num_approx_frees(0), num_failed_frees(0)
+    {}
 };
 
 // for adding across processors
@@ -73,6 +81,10 @@ statistics adds(statistics s1, statistics s2) {
   r.within_latency = s1.within_latency + s2.within_latency;
   r.transactions = s1.transactions + s2.transactions;
   r.aborts = s1.aborts + s2.aborts;
+  r.num_allocs = s1.num_allocs + s2.num_allocs;
+  r.num_frees = s1.num_frees + s2.num_frees;
+  r.num_approx_frees = s1.num_approx_frees + s2.num_approx_frees;
+  r.num_failed_frees = s1.num_failed_frees + s2.num_failed_frees;
   return r;
 }    
 
@@ -188,8 +200,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
   parlay::internal::timer t("Benchmark run_mixed_operations");
 
-  for (int i = 1; i < rounds+1; i++) {
-    {
+  for (int i = 0; i < rounds+1; i++) {
+    { //forced scope
     auto tr = SetType(buckets);
     long len;
     if (do_check) {
@@ -451,6 +463,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
     };
 
     auto run_allocator_test = [&] (long start, long end, long proc_id) {
+#ifndef TRACE
+      std::cerr << "TRACE not defined!" << std::endl;
+      exit(-1);
+#else
       statistics local_stats;
       auto start_time = get_time();
       auto start_op_time = start_time;
@@ -502,70 +518,91 @@ void run_mixed_operations(parlay::sequence<K>& all,
           if(alloc_t == trace_t::ALLOC_T::ALLOC) { //allocation
             void *p = allocator.alloc();
             freelist->push(p);
+            local_stats.num_allocs++;
           } else { //free
 
             if(!freelist->empty()) {
               allocator.free(freelist->top());
               freelist->pop();
+              local_stats.num_frees++;
             } else { //No element of this size class to free
               //We approximate frees by freeing a node from the non-empty size
               //  class with the closest size
               //Assumes there is at least 2 or more size classes
+              int32_t invalid = std::numeric_limits<int32_t>::max();
+              int32_t chosen_index = invalid;
               int32_t sz_i_2_l = sz_i - 1;
-              size_t sz_2_l = std::numeric_limits<size_t>::max();
-              size_t dist_l;
-              size_t sz_i_2_r = sz_i + 1;
-              size_t sz_2_r = std::numeric_limits<size_t>::max();
-              size_t dist_r;
-              goto skip;
-go_left:
+              int32_t sz_2_l, dist_l;
+              int32_t sz_i_2_r = sz_i + 1;
+              int32_t sz_2_r, dist_r;
+repeat:
               sz_i_2_l--;
-              goto skip;
-go_right:
               sz_i_2_r++;
-skip:
-              if(sz_i_2_l >= 0) {
+              if(sz_i_2_l >= 0 && sz_i_2_l < n_sz_classes) {
                 sz_2_l = size_classes[sz_i_2_l];
               } else {
-                sz_i_2_l = 0;
+                sz_i_2_l = invalid;
               }
               if(sz_i_2_r < n_sz_classes) {
                 sz_2_r = size_classes[sz_i_2_r];
               } else {
-                sz_i_2_r = n_sz_classes - 1;
+                sz_i_2_r = invalid;
               }
-              if(sz_i_2_l != 0 || sz_i_2_r != n_sz_classes - 1) {
-                dist_l = sz > sz_2_l ? sz - sz_2_l : sz_2_l - sz;
-                dist_r = sz > sz_2_r ? sz - sz_2_r : sz_2_r - sz;
+              if(sz_i_2_l != invalid && sz_i_2_r != invalid) {
+                //Both valid, check which is closest
+                dist_l = sz - sz_2_l;
+                dist_r = sz_2_r - sz;
                 bool left_or_right = dist_l <= dist_r;
-                std::unique_ptr<std::stack<void*>>& freelist2 =
-                  left_or_right ? 
+                std::unique_ptr<std::stack<void*>>& freelist2 = left_or_right ? 
                   allocator_freelist[sz_i_2_l].first :
                   allocator_freelist[sz_i_2_r].first;
 
                 if(freelist2->empty()) {
-                  if(left_or_right && sz_i_2_l != 0)
-                    goto go_left;
-                  else
-                    goto go_right;
+                  //Check other
+                  left_or_right = !left_or_right;
+                  std::unique_ptr<std::stack<void*>>& freelist3 = left_or_right ? 
+                    allocator_freelist[sz_i_2_l].first :
+                    allocator_freelist[sz_i_2_r].first;
+                  if(freelist3->empty())
+                    goto repeat;
                 }
                 //Not empty!
-                parlay::internal::block_allocator& allocator2 =
-                  left_or_right ? 
-                  allocator_freelist[sz_i_2_l].second :
-                  allocator_freelist[sz_i_2_r].second;
-                allocator2.free(freelist2->top());
-                freelist2->pop();
-              } //else { Nothing to free! }
+                chosen_index = left_or_right ? sz_i_2_l : sz_i_2_r;
+
+              } else if(sz_i_2_l != invalid) {
+                //right is invalid
+                std::unique_ptr<std::stack<void*>>& freelist2 = allocator_freelist[sz_i_2_l].first;
+                if(freelist2->empty())
+                  goto repeat;
+                chosen_index = sz_i_2_l;
+
+              } else if(sz_i_2_r != invalid) {
+                //left is invalid
+                std::unique_ptr<std::stack<void*>>& freelist2 = allocator_freelist[sz_i_2_r].first;
+                if(freelist2->empty())
+                  goto repeat;
+                chosen_index = sz_i_2_r;
+
+              } else { //Nothing to free 
+                local_stats.num_failed_frees++;
+                return; //equivalent to continue; in for_each
+              }
+              assert(chosen_index != invalid);
+              auto& tup_chosen = allocator_freelist[chosen_index];
+              std::unique_ptr<std::stack<void*>>& freelist_chosen = tup_chosen.first;
+              parlay::internal::block_allocator& allocator_chosen = tup_chosen.second;
+              allocator_chosen.free(freelist_chosen->top());
+              freelist_chosen->pop();
+              local_stats.num_approx_frees++;
             }
           }
-
           local_stats.total++;
       });
-
       processor_stats[proc_id] = local_stats;
+#endif
     };
 
+    parlay::internal::start_tracing();
     // loop across the processors
     parlay::parallel_for(0, p, [&] (size_t proc_id) {
         long start = proc_id * mp;
@@ -577,6 +614,7 @@ skip:
         else
           run_operations(start,end,proc_id);
     }, 1);
+    parlay::internal::stop_tracing();
 
 
     double duration = t.stop();
@@ -718,8 +756,17 @@ skip:
     parlay::parallel_for(0, nn, [&] (size_t i) {
       do_atomic([&] {tr.remove(unique[i]);});
     });
+    if (stats) {
+      SetType::print_stats();
+      if(test_allocator) {
+        std::cout
+        << "#allocs: " << overall_stats.num_allocs << std::endl
+        << "#frees: " << overall_stats.num_frees << std::endl
+        << "#approx frees: " << overall_stats.num_approx_frees << std::endl
+        << "#failed frees: " << overall_stats.num_failed_frees << std::endl;
+      }
     }
-    if (stats) SetType::print_stats();
+    } //end of forced scope
     if (clear) {
       bool cleared = SetType::clear();
       if(!cleared)

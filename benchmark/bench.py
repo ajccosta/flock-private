@@ -18,6 +18,7 @@ class bench_conf():
   extra_arguments=None
   steal_retries=None
   list_bytes=None
+  replay=None #whether we are doing trace replay
   clear=None #whether to clear the allocator in each run
   shuffle=None #whether to shuffle memory in the allocator before run
   warmup=None
@@ -29,9 +30,10 @@ class bench_conf():
     time=0.4,\
     steal_retries=32,\
     list_bytes=(2**18-64),\
+    replay=False,\
     clear=True,\
     shuffle=False,\
-    warmup=True,\
+    warmup=False,\
     ):
     #get fullpath of file
     self.benchmark=subprocess.getoutput("realpath " + benchmark)
@@ -41,6 +43,7 @@ class bench_conf():
     self.extra_arguments=extra_arguments
     self.steal_retries=steal_retries
     self.list_bytes=list_bytes
+    self.replay=replay
     self.clear=clear
     self.shuffle=shuffle
     if(shuffle):
@@ -64,6 +67,7 @@ class bench_conf():
     cmd+="PARLAY_NUM_THREADS="+str(self.num_threads)+" "
     cmd+="PARLAY_STEAL_RETRIES="+str(self.steal_retries)+" "
     cmd+="PARLAY_LIST_BYTES="+str(self.list_bytes)+" "
+    if self.replay: cmd+="PARLAY_REPLAY=1 "
     cmd+="numactl -i all "
     cmd+=self.benchmark+" "
     cmd+="-t "+str(self.time)+" "
@@ -72,6 +76,7 @@ class bench_conf():
     if self.clear: cmd+="-clear "
     if self.shuffle: cmd+="-shuffle "
     if self.warmup: cmd+="-warmup "
+    if self.replay: cmd+="-test_allocator "
     cmd+=self.extra_arguments
     return cmd
 
@@ -93,7 +98,7 @@ class bench_conf():
     return mean, stddev, throughputs, memoryusage_mean, memoryusage_stddev
 
 
-n_iters=20
+n_iters=5
 
 directories=[\
   "$HOME/flock-private/build/benchmark/transactions/",\
@@ -110,22 +115,27 @@ structures=[\
   #"skiplist_lf",\
 ]
 
-#allocators=["", "_deqalloc", "_distack"]
-allocators=["_deqalloc"]
+allocators=["", "_deqalloc", "_distack"]
 
 benchmarks=[s+a for s in structures for a in allocators]
 
 time=5
 
 configs=[\
-  #("-u 100 -upsert -n 10000000", 64, n_iters, 1.0, 64, 2**18-64),\
+  #For trace replaying
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**18-64, True),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**16-64, True),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**14-64, True),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**12-64, True),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**10-64, True),\
+  ("-u 100 -upsert", 64, n_iters, time, 64, 2**8-64 , True),\
 
-  ("-u 100 -upsert", 64, n_iters, time, 64, 2**18-64),\
-  ("-u 100 -upsert", 64, n_iters, time, 64, 2**16-64),\
-  ("-u 100 -upsert", 64, n_iters, time, 64, 2**14-64),\
-  ("-u 100 -upsert", 64, n_iters, time, 64, 2**12-64),\
-  ("-u 100 -upsert", 64, n_iters, time, 64, 2**10-64),\
-  ("-u 100 -upsert", 64, n_iters, time, 64, 2**8-64),\
+  #("-u 100 -upsert", 64, n_iters, time, 64, 2**18-64),\
+  #("-u 100 -upsert", 64, n_iters, time, 64, 2**16-64),\
+  #("-u 100 -upsert", 64, n_iters, time, 64, 2**14-64),\
+  #("-u 100 -upsert", 64, n_iters, time, 64, 2**12-64),\
+  #("-u 100 -upsert", 64, n_iters, time, 64, 2**10-64),\
+  #("-u 100 -upsert", 64, n_iters, time, 64, 2**8-64),\
 ]
 
 bcs=[]
