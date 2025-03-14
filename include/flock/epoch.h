@@ -362,12 +362,12 @@ public:
       pools[i].old = pools[i].current = nullptr;
     }
 
-    return Allocator::clear()
 #ifndef USE_MALLOC
     //epoch bag links ought to be cleared as well
-    & list_allocator::clear();
+    return Allocator::clear() & list_allocator::clear();
+#else
+    return true;
 #endif
-    ;
   }
 
   void reserve(size_t n) {
@@ -400,9 +400,9 @@ public:
 
   void shuffle(size_t n = 100000) {
     n = std::max(n, 1000000ul);
-    auto ptrs = parlay::tabulate(n, [&] (size_t i) {return Allocator::alloc();});
+    auto ptrs = parlay::tabulate(n, [&] (size_t i) {return allocate_node();});
     ptrs = parlay::random_shuffle(ptrs);
-    parlay::parallel_for(0, n, [&] (size_t i) {Allocator::free(ptrs[i]);});
+    parlay::parallel_for(0, n, [&] (size_t i) {free_node(ptrs[i]);});
   }
     
 };
