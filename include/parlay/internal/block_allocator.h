@@ -135,7 +135,7 @@ struct block_allocator {
     size_t max_blocks_ = 0) :
 #ifdef DEQALLOC
       my_deq([]{
-        auto qm = new faa_dist_qm();
+        auto qm = new faa_qm();
         return PrivateDeque<block>(5, 2, qm);
       }),
 #endif
