@@ -13,19 +13,18 @@ from datetime import datetime
 #Mesh segfaults but seems to run fine until the end
 filter_out="\nduration: [0-9]+(?:.[0-9]*)?|\nsegfault.*\nAborted"
 
-#TODO remove this
-base_directory=subprocess.getoutput("realpath " + "$HOME/flock-private/")+"/"
+base_directory=subprocess.getoutput("realpath "+re.sub(os.path.basename(__file__), "", os.path.realpath(__file__))+"/..")+"/"
 bin_directory="build/benchmark/transactions/"
 docker_bin_directory=".build_mstat/benchmark/transactions/"
 
 allocator_pairs = { \
   #allocator_name: (lib, command suffix)
-  "jemalloc": ("libjemalloc.so", "_malloc"), \
-  "mimalloc": ("libmimalloc.so", "_malloc"), \
-  "mesh":     ("libmesh.so",     "_malloc"), \
-  "parlay":   ("libjemalloc.so", ""), \
-  "deqalloc": ("libjemalloc.so", "_deqalloc"), \
-  "distack":  ("libjemalloc.so", "_distack"), \
+  "jemalloc": ("/usr/local/lib/libjemalloc.so", "_malloc"), \
+  "mimalloc": ("/usr/local/lib/libmimalloc.so", "_malloc"), \
+  "mesh":     ("/usr/local/lib/libmesh.so",     "_malloc"), \
+  "parlay":   ("/usr/local/lib/libjemalloc.so", ""), \
+  "deqalloc": ("/usr/local/lib/libjemalloc.so", "_deqalloc"), \
+  "distack":  ("/usr/local/lib/libjemalloc.so", "_distack"), \
 }
 
 
@@ -130,17 +129,16 @@ class bench_conf():
 
   def mstat_build_cmd(self):
     cmd="mstat "
-    cmd+="-o /home/ubuntu/traces/"+self.allocator+"_"+self.benchmark+"-"+datetime.today().strftime('%d%m%y-%H%M%S')+".memusage "
+    cmd+=f"-o /home/ubuntu/traces/{self.allocator}_{self.benchmark}-{datetime.today().strftime('%d%m%y-%H%M%S')}.memusage "
     cmd+="-freq 120 "
-    cmd+="-env PARLAY_NUM_THREADS="+str(self.num_threads)+" "
-    cmd+="-env PARLAY_STEAL_RETRIES="+str(self.steal_retries)+" "
-    cmd+="-env PARLAY_LIST_BYTES="+str(self.list_bytes)+" "
-    #LD_PRELOAD does not work without real path for some reason
-    cmd+="-env LD_PRELOAD=$(whereis "+self.allocator_lib+"| cut -d' ' -f2) "
-    cmd+="/home/ubuntu/"+docker_bin_directory+self.benchmark+self.allocator_suffix+" "
-    cmd+="-t "+str(self.time)+" "
-    cmd+="-r "+str(self.num_rounds)+" "
-    cmd+="-p "+str(self.num_threads)+" "
+    cmd+=f"-env PARLAY_NUM_THREADS={self.num_threads} "
+    cmd+=f"-env PARLAY_STEAL_RETRIES={self.steal_retries} "
+    cmd+=f"-env PARLAY_LIST_BYTES={self.list_bytes} "
+    cmd+=f"-env LD_PRELOAD={self.allocator_lib} "
+    cmd+=f"/home/ubuntu/{docker_bin_directory}{self.benchmark}{self.allocator_suffix} "
+    cmd+=f"-t {self.time} "
+    cmd+=f"-r {self.num_rounds} "
+    cmd+=f"-p {self.num_threads} "
     if self.clear: cmd+="-clear "
     cmd+=self.extra_arguments
     return cmd
@@ -177,7 +175,7 @@ class bench_conf():
 
   def mstat_run(self):
     container_id=self.mstat_prepare()
-    subprocess.getoutput("docker exec " + container_id + " " + self.mstat_build_cmd())
+    subprocess.getoutput(f"docker exec {container_id} {self.mstat_build_cmd()}")
     return
 
 
@@ -205,7 +203,7 @@ configs=[\
   #("-u 100 -upsert", 64, n_iters, time, 64, 2**12-64),\
   #("-u 100 -upsert", 64, n_iters, time, 64, 2**10-64),\
   #("-u 100 -upsert", 64, n_iters, time, 64, 2**8-64),\
-  ("-u 100 -upsert", 64, n_iters, time, 64, 2**8-64),\
+  ("-u 100 -upsert -n 10000000", 64, n_iters, time, 64, 2**8-64),\
 ]
 
 bcs=[]
