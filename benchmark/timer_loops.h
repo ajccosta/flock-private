@@ -180,6 +180,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
   bool test_allocator = P.getOption("-test_allocator");
 
+  //Whether or not to skip the warmup round
+  bool skip_warmup_round = P.getOption("-no_warmup_round");
+
   enum op_type : char {Find, Insert, Remove, Range, MultiFind};
  
   // initially set to all finds
@@ -200,7 +203,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
   parlay::internal::timer t("Benchmark run_mixed_operations");
 
-  for (int i = 0; i < rounds+1; i++) {
+  for (int i = skip_warmup_round ? 1 : 0; i < rounds+1; i++) {
     { //forced scope
     auto tr = SetType(buckets);
     long len;

@@ -1,13 +1,21 @@
 #!/bin/python3
 
 import subprocess
-from datetime import date
 import multiprocessing
 import statistics
 import re
 import os
+import sys
 from datetime import datetime
 
+if len(sys.argv) < 2 or \
+  ("-perf" not in sys.argv and "-mem" not in sys.argv):
+  print(f"""\
+Usage: python3 bench.py [-perf|-mem]
+  -perf: run performance benchmarks
+  -mem: run memory tracing benchmarks
+  Specifying both -perf and -mem will run both benchmark types\
+        """)
 
 #regex to filter out of results
 #Mesh segfaults but seems to run fine until the end
@@ -15,16 +23,21 @@ filter_out="\nduration: [0-9]+(?:.[0-9]*)?|\nsegfault.*\nAborted"
 
 base_directory=subprocess.getoutput("realpath "+re.sub(os.path.basename(__file__), "", os.path.realpath(__file__))+"/..")+"/"
 bin_directory="build/benchmark/transactions/"
+
+docker_base_directory="/home/ubuntu"
 docker_bin_directory=".build_mstat/benchmark/transactions/"
 
 allocator_pairs = { \
   #allocator_name: (lib, command suffix)
-  "jemalloc": ("/usr/local/lib/libjemalloc.so", "_malloc"), \
-  "mimalloc": ("/usr/local/lib/libmimalloc.so", "_malloc"), \
-  "mesh":     ("/usr/local/lib/libmesh.so",     "_malloc"), \
-  "parlay":   ("/usr/local/lib/libjemalloc.so", ""), \
-  "deqalloc": ("/usr/local/lib/libjemalloc.so", "_deqalloc"), \
-  "distack":  ("/usr/local/lib/libjemalloc.so", "_distack"), \
+  "jemalloc":           ("/usr/local/lib/libjemalloc.so",   "_malloc"), \
+  "mimalloc":           ("/usr/local/lib/libmimalloc.so",   "_malloc"), \
+  "mesh":               ("/usr/local/lib/libmesh.so",       "_malloc"), \
+  "parlay":             ("/usr/local/lib/libjemalloc.so",   ""), \
+  "distack":            ("/usr/local/lib/libjemalloc.so",   "_distack"), \
+  "deqalloc":           ("/usr/local/lib/libjemalloc.so",   "_deqalloc"), \
+  "deqalloc-jemalloc":  ("/usr/local/lib/libjemalloc.so",   "_deqalloc"), \
+  "deqalloc-mimalloc":  ("/usr/local/lib/libmimalloc.so",   "_deqalloc"), \
+  "deqalloc-mesh":      ("/usr/local/lib/libmesh.so",       "_deqalloc"), \
 }
 
 
@@ -33,7 +46,6 @@ class bench_conf():
   allocator_suffix=None
   allocator_lib=None
   benchmark=None
-  benchmark_path=None
   num_threads=None
   num_rounds=None
   time=None
@@ -63,8 +75,6 @@ class bench_conf():
     self.allocator_suffix=allocator_pairs[allocator][1]
     self.allocator_lib=allocator_pairs[allocator][0]
     self.benchmark=benchmark
-    self.benchmark_path=\
-      subprocess.getoutput("realpath "+base_directory+bin_directory+benchmark+self.allocator_suffix)
     self.num_threads=num_threads
     self.num_rounds=num_rounds
     self.time=time
@@ -91,14 +101,17 @@ class bench_conf():
     #"}"
 
   def build_cmd(self):
+    #environment variables to be passed to docker
+    env=""
+    env+="--env PARLAY_NUM_THREADS="+str(self.num_threads)+" "
+    env+="--env PARLAY_STEAL_RETRIES="+str(self.steal_retries)+" "
+    env+="--env PARLAY_LIST_BYTES="+str(self.list_bytes)+" "
+    if self.replay: env+="--env PARLAY_REPLAY=1 "
+    env+="--env LD_PRELOAD="+self.allocator_lib+" "
+    #actuall command
     cmd=""
-    cmd+="PARLAY_NUM_THREADS="+str(self.num_threads)+" "
-    cmd+="PARLAY_STEAL_RETRIES="+str(self.steal_retries)+" "
-    cmd+="PARLAY_LIST_BYTES="+str(self.list_bytes)+" "
-    if self.replay: cmd+="PARLAY_REPLAY=1 "
-    cmd+="LD_PRELOAD="+self.allocator_lib+" "
     cmd+="numactl -i all "
-    cmd+=self.benchmark_path+" "
+    cmd+=f"/home/ubuntu/{docker_bin_directory}{self.benchmark}{self.allocator_suffix} "
     cmd+="-t "+str(self.time)+" "
     cmd+="-r "+str(self.num_rounds)+" "
     cmd+="-p "+str(self.num_threads)+" "
@@ -107,11 +120,13 @@ class bench_conf():
     if self.warmup: cmd+="-warmup "
     if self.replay: cmd+="-test_allocator "
     cmd+=self.extra_arguments
-    return cmd
+    return cmd, env
 
   #runs num_rounds times
   def run_once(self):
-    out=subprocess.getoutput(self.build_cmd())
+    container_id=self.docker_prepare()
+    cmd, env = self.build_cmd()
+    out=subprocess.getoutput(f"docker exec {env} {container_id} {cmd}")
     out=re.sub(filter_out, "", out)
     #get throughputs for each run
     throughputs=[float(line.split(',')[-1]) for line in out.split('\n')]
@@ -126,7 +141,6 @@ class bench_conf():
     memoryusage_stddev= statistics.stdev(memoryusage) if self.num_rounds > 1 else 0
     return mean, stddev, throughputs, memoryusage_mean, memoryusage_stddev
 
-
   def mstat_build_cmd(self):
     cmd="mstat "
     cmd+=f"-o /home/ubuntu/traces/{self.allocator}_{self.benchmark}-{datetime.today().strftime('%d%m%y-%H%M%S')}.memusage "
@@ -135,12 +149,14 @@ class bench_conf():
     cmd+=f"-env PARLAY_STEAL_RETRIES={self.steal_retries} "
     cmd+=f"-env PARLAY_LIST_BYTES={self.list_bytes} "
     cmd+=f"-env LD_PRELOAD={self.allocator_lib} "
+    #cmd+=f"-env MALLOC_CONF=\"tcache_ncached_max:1-8388608:1,tcache_max:1\" "
     cmd+=f"/home/ubuntu/{docker_bin_directory}{self.benchmark}{self.allocator_suffix} "
     cmd+=f"-t {self.time} "
     cmd+=f"-r {self.num_rounds} "
     cmd+=f"-p {self.num_threads} "
     if self.clear: cmd+="-clear "
-    cmd+=self.extra_arguments
+    cmd+=self.extra_arguments+" "
+    cmd+="-no_warmup_round "
     return cmd
 
   def docker_compile(self, container_id):
@@ -148,10 +164,10 @@ class bench_conf():
     if not os.path.isdir(base_directory + ".build_mstat") or \
       len(os.listdir(base_directory + ".build_mstat")) == 0:
       dkr_compile=f"""
-        cd {base_directory};
+        cd {docker_base_directory};
         mkdir -p .build_mstat;
         cd .build_mstat;
-        cmake ..;
+        cmake .. -DDOWNLOAD_PARLAY=True;
         make -j;
       """
       subprocess.getoutput("docker exec " + container_id + dkr_compile)
@@ -167,34 +183,35 @@ class bench_conf():
     container_id=subprocess.getoutput(dkr_start)
     return container_id
 
-  def mstat_prepare(self):
+  def docker_prepare(self):
     self.docker_killall()
     container_id=self.docker_start_container()
     self.docker_compile(container_id)
     return container_id
 
   def mstat_run(self):
-    container_id=self.mstat_prepare()
+    container_id=self.docker_prepare()
     subprocess.getoutput(f"docker exec {container_id} {self.mstat_build_cmd()}")
     return
 
 
-n_iters=1
-time=30
-repetitions=25
+n_iters=3
+time=15
+repetitions=10
 
 benchmarks=[\
   "arttree_lck",\
   #"arttree_lf",\
-  "btree_lck",\
+  #"btree_lck",\
   #"btree_lf",\
   "hash_block_lck",\
   #"hash_block_lf",\
-  "skiplist_lck",\
+  #"skiplist_lck",\
   #"skiplist_lf",\
 ]
 
-allocators=["jemalloc", "mimalloc", "mesh", "parlay", "deqalloc", "distack"]
+#allocators=["jemalloc", "mimalloc", "mesh", "parlay", "deqalloc", "distack"]
+allocators=["jemalloc", "mimalloc", "mesh", "deqalloc-jemalloc", "deqalloc-mimalloc", "deqalloc-mesh"]
 
 configs=[\
   #("-u 100 -upsert", 64, n_iters, time, 64, 2**18-64),\
@@ -214,13 +231,16 @@ for bench in benchmarks:
       bcs.append(bench_conf(alloc, bench, *conf))
 
 for bc in bcs:
-  for i in range(repetitions):
-    #print(bc.build_cmd())
-    #mean, stddev, throughputs, memoryusage_mean, memoryusage_stddev = bc.run()
-    #print(mean, stddev, memoryusage_mean, memoryusage_stddev ,'\n')
+  if "-perf" in sys.argv:
+    print(bc.build_cmd())
+    mean, stddev, throughputs, memoryusage_mean, memoryusage_stddev = bc.run()
+    print(mean, stddev, memoryusage_mean, memoryusage_stddev ,'\n')
 
-    print(bc.mstat_build_cmd())
-    bc.mstat_run()
+  if "-mem" in sys.argv:
+    for i in range(repetitions):
+      print(bc.mstat_build_cmd())
+      bc.mstat_run()
+
 
 
 #TODO add MALLOC_CONF automatically

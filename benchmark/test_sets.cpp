@@ -34,6 +34,7 @@ int main(int argc, char* argv[]) {
 [-rqthreads <num range query threads>] : number of dedicated range-query threads
 [-trans <ops-per-transaction>] : size of transaction in operations (0 means no transaction)
 [-latency <latency-cutoff-in-usecs>] : measure latency instead of throughput
+[-no_warmup_round] : do not perform warmup round (the first round is usually ignored)
 )");
 
 #ifdef HASH
