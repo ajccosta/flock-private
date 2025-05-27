@@ -26,7 +26,7 @@ message(STATUS "CMAKE_INSTALL_PREFIX:           ${CMAKE_INSTALL_PREFIX}" )
 
 set(FLOCK_INCLUDE_DIR "${FLOCK_SOURCE_DIR}/include")
 
-if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
         if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
                 #To be able to use dwcas on non-x86 archs
                 #https://large-scale-oltp-team.github.io/foedus_code/group__ARMV8.html
@@ -90,15 +90,15 @@ else()
   endif()
 endif()
 
-# Link against jemalloc
-find_library(JEMALLOC_LIB jemalloc)
-if(NOT JEMALLOC_LIB)
-  message(FATAL_ERROR "Could not find jemalloc.")
-else()
-  message("-- Found jemalloc: ${JEMALLOC_LIB}")
-  target_link_libraries(flock INTERFACE optimized ${JEMALLOC_LIB})
-  target_link_libraries(verlib INTERFACE optimized ${JEMALLOC_LIB})    
-endif()
+## Link against jemalloc
+#find_library(JEMALLOC_LIB jemalloc)
+#if(NOT JEMALLOC_LIB)
+#  message(FATAL_ERROR "Could not find jemalloc.")
+#else()
+#  message("-- Found jemalloc: ${JEMALLOC_LIB}")
+#  target_link_libraries(flock INTERFACE optimized ${JEMALLOC_LIB})
+#  target_link_libraries(verlib INTERFACE optimized ${JEMALLOC_LIB})    
+#endif()
 
 # -------------------------------------------------------------------
 #                       Benchmarks
