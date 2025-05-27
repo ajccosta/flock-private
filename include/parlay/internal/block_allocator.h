@@ -36,16 +36,16 @@
 #include <sys/mman.h>
 #endif
 
-#include <jemalloc/jemalloc.h>
-size_t jemalloc_get_allocated() {
-    size_t epoch = 1;
-    size_t sz, allocated;
-    sz = sizeof(size_t);
-    mallctl("thread.tcache.flush", NULL, NULL, NULL, 0);
-    mallctl("epoch", NULL, NULL, &epoch, sizeof(epoch));
-    mallctl("stats.allocated", &allocated, &sz, NULL, 0);
-    return allocated;
-}
+//#include <jemalloc/jemalloc.h>
+//size_t jemalloc_get_allocated() {
+//    size_t epoch = 1;
+//    size_t sz, allocated;
+//    sz = sizeof(size_t);
+//    mallctl("thread.tcache.flush", NULL, NULL, NULL, 0);
+//    mallctl("epoch", NULL, NULL, &epoch, sizeof(epoch));
+//    mallctl("stats.allocated", &allocated, &sz, NULL, 0);
+//    return allocated;
+//}
 
 /*\ Whether to use a deque-based (define DEQALLOC undefine DISTACK),
 stack-based (undefine DEQALLOC undefine DISTACK) global pool or to use
@@ -265,7 +265,7 @@ struct block_allocator {
         << ", total frees: " << num_frees.sum()
         << ", global pool accesses: " << num_global_pool_accesses.sum()
 	      << ", block size: " << sz
-	      << ", jemalloc: " << jemalloc_get_allocated()
+	      //<< ", jemalloc: " << jemalloc_get_allocated()
 	      << ", bytes: " << sz*allocated << "\n";
   }
 
