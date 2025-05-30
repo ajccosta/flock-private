@@ -19,7 +19,7 @@ Usage: python3 bench.py [-perf|-mem]
 
 #regex to filter out of results
 #Mesh segfaults but seems to run fine until the end
-filter_out="\nduration: [0-9]+(?:.[0-9]*)?|\nsegfault.*\nAborted"
+filter_out="\n*duration: [0-9]+(?:.[0-9]*)?\n|\n*segfault.*\nAborted|\n*Segmentation.*"
 
 base_directory=subprocess.getoutput("realpath "+re.sub(os.path.basename(__file__), "", os.path.realpath(__file__))+"/..")+"/"
 bin_directory="build/benchmark/transactions/"
@@ -28,22 +28,36 @@ docker_base_directory="/home/ubuntu"
 docker_bin_directory=".build_mstat/benchmark/transactions/"
 
 allocator_pairs = { \
-  #allocator_name: (lib, command suffix)
-  "jemalloc":           ("/usr/local/lib/libjemalloc.so",   "_malloc"), \
-  "mimalloc":           ("/usr/local/lib/libmimalloc.so",   "_malloc"), \
-  "mesh":               ("/usr/local/lib/libmesh.so",       "_malloc"), \
-  "parlay":             ("/usr/local/lib/libjemalloc.so",   ""), \
-  "distack":            ("/usr/local/lib/libjemalloc.so",   "_distack"), \
-  "deqalloc":           ("/usr/local/lib/libjemalloc.so",   "_deqalloc"), \
-  "deqalloc-jemalloc":  ("/usr/local/lib/libjemalloc.so",   "_deqalloc"), \
-  "deqalloc-mimalloc":  ("/usr/local/lib/libmimalloc.so",   "_deqalloc"), \
-  "deqalloc-mesh":      ("/usr/local/lib/libmesh.so",       "_deqalloc"), \
+  #allocator_name: shared lib relative path
+  "jemalloc":           "lib/libjemalloc.so", \
+  "mimalloc":           "lib/libmimalloc.so", \
+  "mesh":               "lib/libmesh.so",     \
+  "hoard":              "lib/libhoard.so",    \
+  "deqalloc":           "lib/libdeqalloc.so"
 }
 
+def detectCPUs():
+    """
+     Detects the number of CPUs on a system. Cribbed from pp.
+     """
+    # Linux, Unix and MacOS:
+    if hasattr(os, "sysconf"):
+       if "SC_NPROCESSORS_ONLN" in os.sysconf_names :
+           # Linux & Unix:
+           ncpus = os.sysconf("SC_NPROCESSORS_ONLN")
+           if isinstance(ncpus, int) and ncpus > 0:
+               return ncpus
+       else: # OSX:
+           return int(os.popen2("sysctl -n hw.ncpu")[1].read())
+    # Windows:
+    if os.environ.has_key("NUMBER_OF_PROCESSORS"):
+           ncpus = int(os.environ["NUMBER_OF_PROCESSORS"]);
+           if ncpus > 0:
+               return ncpus
+    return 1 # Default
 
 class bench_conf():
   allocator=None
-  allocator_suffix=None
   allocator_lib=None
   benchmark=None
   num_threads=None
@@ -72,8 +86,7 @@ class bench_conf():
     ):
     #get fullpath of file
     self.allocator=allocator
-    self.allocator_suffix=allocator_pairs[allocator][1]
-    self.allocator_lib=allocator_pairs[allocator][0]
+    self.allocator_lib=allocator_pairs[allocator]
     self.benchmark=benchmark
     self.num_threads=num_threads
     self.num_rounds=num_rounds
@@ -89,36 +102,23 @@ class bench_conf():
     self.warmup=warmup
     
   def __str__(self):
-    return self.build_cmd()
-    #return "Benchmark configuration "+\
-    #"{benchmark="+str(self.benchmark)+\
-    #",num_threads="+str(self.num_threads)+\
-    #",num_rounds="+str(self.num_rounds)+\
-    #",time="+str(self.time)+\
-    #",extra_arguments="+self.extra_arguments+\
-    #",steal_retries="+str(self.steal_retries)+\
-    #",list_bytes="+str(self.list_bytes)+\
-    #"}"
+    cmd, env = self.build_cmd()
+    return env + cmd
 
   def build_cmd(self):
-    #environment variables to be passed to docker
+    #environment variables
     env=""
-    env+="--env PARLAY_NUM_THREADS="+str(self.num_threads)+" "
-    env+="--env PARLAY_STEAL_RETRIES="+str(self.steal_retries)+" "
-    env+="--env PARLAY_LIST_BYTES="+str(self.list_bytes)+" "
-    if self.replay: env+="--env PARLAY_REPLAY=1 "
-    env+="--env LD_PRELOAD="+self.allocator_lib+" "
-    #actuall command
+    env+="PARLAY_NUM_THREADS="+str(self.num_threads)+" "
+    env+="PARLAY_LIST_BYTES="+str(self.list_bytes)+" "
+    env+="LD_PRELOAD="+self.allocator_lib+" "
+    #actual command
     cmd=""
-    cmd+="numactl -i all "
-    cmd+=f"/home/ubuntu/{docker_bin_directory}{self.benchmark}{self.allocator_suffix} "
+    #cmd+="numactl -i all "
+    cmd+=f"{base_directory}{bin_directory}{self.benchmark} "
     cmd+="-t "+str(self.time)+" "
     cmd+="-r "+str(self.num_rounds)+" "
     cmd+="-p "+str(self.num_threads)+" "
     if self.clear: cmd+="-clear "
-    if self.shuffle: cmd+="-shuffle "
-    if self.warmup: cmd+="-warmup "
-    if self.replay: cmd+="-test_allocator "
     cmd+=self.extra_arguments
     return cmd, env
 
@@ -126,20 +126,20 @@ class bench_conf():
   def run_once(self):
     container_id=self.docker_prepare()
     cmd, env = self.build_cmd()
-    out=subprocess.getoutput(f"docker exec {env} {container_id} {cmd}")
+    out=subprocess.getoutput(f"{env} {cmd}")
     out=re.sub(filter_out, "", out)
     #get throughputs for each run
     throughputs=[float(line.split(',')[-1]) for line in out.split('\n')]
-    memoryusage=[float(line.split(',')[-2].split('=')[1]) for line in out.split('\n')]
-    return throughputs, memoryusage
+    return throughputs
 
   def run(self):
-    throughputs,memoryusage=self.run_once()
+    throughputs=self.run_once()
     mean=statistics.mean(throughputs)
-    stddev= statistics.stdev(throughputs) if self.num_rounds > 1 else 0
-    memoryusage_mean=statistics.mean(memoryusage)
-    memoryusage_stddev= statistics.stdev(memoryusage) if self.num_rounds > 1 else 0
-    return mean, stddev, throughputs, memoryusage_mean, memoryusage_stddev
+    if len(throughputs) > 1:
+      stddev = statistics.stdev(throughputs)
+    else:
+      stddev = 0
+    return mean, stddev, throughputs
 
   def mstat_build_cmd(self):
     cmd="mstat "
@@ -150,7 +150,7 @@ class bench_conf():
     cmd+=f"-env PARLAY_LIST_BYTES={self.list_bytes} "
     cmd+=f"-env LD_PRELOAD={self.allocator_lib} "
     #cmd+=f"-env MALLOC_CONF=\"tcache_ncached_max:1-8388608:1,tcache_max:1\" "
-    cmd+=f"/home/ubuntu/{docker_bin_directory}{self.benchmark}{self.allocator_suffix} "
+    cmd+=f"/home/ubuntu/{docker_bin_directory}{self.benchmark} "
     cmd+=f"-t {self.time} "
     cmd+=f"-r {self.num_rounds} "
     cmd+=f"-p {self.num_threads} "
@@ -195,46 +195,72 @@ class bench_conf():
     return
 
 
-n_iters=3
-time=15
+n_iters=5
+time=25
+
 repetitions=10
 
 benchmarks=[\
   "arttree_lck",\
   #"arttree_lf",\
-  #"btree_lck",\
+  "btree_lck",\
   #"btree_lf",\
   "hash_block_lck",\
   #"hash_block_lf",\
-  #"skiplist_lck",\
+  "skiplist_lck",\
   #"skiplist_lf",\
 ]
 
-#allocators=["jemalloc", "mimalloc", "mesh", "parlay", "deqalloc", "distack"]
-allocators=["jemalloc", "mimalloc", "mesh", "deqalloc-jemalloc", "deqalloc-mimalloc", "deqalloc-mesh"]
+allocators=["jemalloc", "mimalloc", "mesh", "hoard", "deqalloc"]
+
+ncpus = detectCPUs()
 
 configs=[\
-  #("-u 100 -upsert", 64, n_iters, time, 64, 2**18-64),\
-  #("-u 100 -upsert", 64, n_iters, time, 64, 2**16-64),\
-  #("-u 100 -upsert", 64, n_iters, time, 64, 2**14-64),\
-  #("-u 100 -upsert", 64, n_iters, time, 64, 2**12-64),\
-  #("-u 100 -upsert", 64, n_iters, time, 64, 2**10-64),\
-  #("-u 100 -upsert", 64, n_iters, time, 64, 2**8-64),\
-  ("-u 100 -upsert -n 10000000", 64, n_iters, time, 64, 2**8-64),\
+  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**18-64),\
+  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**16-64),\
+  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**14-64),\
+  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**12-64),\
+  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**10-64),\
+  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**8-64),\
+
+  #Change write %
+  ("-u 100 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 90 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 80 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 70 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 60 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 50 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 40 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 30 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 20 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 10 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("-u 0 -upsert", ncpus, n_iters, time, 64, 2**18),\
+
+  #Change number of threads
+  ("-u 100 -upsert", 1, n_iters, time, 64, 2**18),\
+  ("-u 100 -upsert", 2, n_iters, time, 64, 2**18),\
+  ("-u 100 -upsert", 4, n_iters, time, 64, 2**18),\
+  ("-u 100 -upsert", 8, n_iters, time, 64, 2**18),\
+  ("-u 100 -upsert", 18, n_iters, time, 64, 2**18),\
+  ("-u 100 -upsert", 36, n_iters, time, 64, 2**18),\
+  ("-u 100 -upsert", 72, n_iters, time, 64, 2**18),\
+  ("-u 100 -upsert", 144, n_iters, time, 64, 2**18),\
+
+  #("-u 100 -upsert -n 10000000", ncpus, n_iters, time, 64, 2**8-64),\
 ]
 
 bcs=[]
 
-for bench in benchmarks:
-  for alloc in allocators:
+for alloc in allocators:
+  for bench in benchmarks:
     for conf in configs:
       bcs.append(bench_conf(alloc, bench, *conf))
 
 for bc in bcs:
   if "-perf" in sys.argv:
-    print(bc.build_cmd())
-    mean, stddev, throughputs, memoryusage_mean, memoryusage_stddev = bc.run()
-    print(mean, stddev, memoryusage_mean, memoryusage_stddev ,'\n')
+    print(bc)
+    mean, stddev, throughputs = bc.run()
+    print(mean, stddev, '\n')
 
   if "-mem" in sys.argv:
     for i in range(repetitions):
