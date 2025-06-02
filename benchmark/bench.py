@@ -33,7 +33,8 @@ allocator_pairs = { \
   "mimalloc":           "lib/libmimalloc.so", \
   "mesh":               "lib/libmesh.so",     \
   "hoard":              "lib/libhoard.so",    \
-  "deqalloc":           "lib/libdeqalloc.so"
+  "deqalloc":           "lib/libdeqalloc.so", \
+  "scalloc":            "lib/libscalloc.so",  \
 }
 
 def detectCPUs():
@@ -211,7 +212,7 @@ benchmarks=[\
   #"skiplist_lf",\
 ]
 
-allocators=["jemalloc", "mimalloc", "mesh", "hoard", "deqalloc"]
+allocators=["jemalloc", "mimalloc", "mesh", "hoard", "deqalloc", "scalloc"]
 
 ncpus = detectCPUs()
 

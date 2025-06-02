@@ -52,4 +52,12 @@ popd
 popd
 cp $(readlink -f deqalloc/examples/deqalloc/build/libdeqalloc.so) libdeqalloc.so
 
+git clone https://github.com/ajccosta/scalloc.git
+pushd scalloc
+./tools/make_deps.sh
+./tools/gyp --depth=. scalloc.gyp
+BUILDTYPE=Release make
+popd
+cp $(readlink -f scalloc/out/Release/lib.target/libscalloc.so) libscalloc.so
+
 popd
