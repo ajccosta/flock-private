@@ -25,7 +25,6 @@ base_directory=subprocess.getoutput("realpath "+re.sub(os.path.basename(__file__
 bin_directory="build/benchmark/transactions/"
 
 docker_base_directory="/home/ubuntu"
-docker_bin_directory=".build_mstat/benchmark/transactions/"
 
 allocator_pairs = { \
   #allocator_name: shared lib relative path
@@ -58,6 +57,7 @@ def detectCPUs():
     return 1 # Default
 
 class bench_conf():
+  bench_type=None
   allocator=None
   allocator_lib=None
   benchmark=None
@@ -69,11 +69,12 @@ class bench_conf():
   list_bytes=None
   replay=None #whether we are doing trace replay
   clear=None #whether to clear the allocator in each run
-  shuffle=None #whether to shuffle memory in the allocator before run
   warmup=None
+  timestamp=None
   def __init__(self,\
     allocator,\
     benchmark,\
+    bench_type,\
     extra_arguments="",\
     num_threads=multiprocessing.cpu_count(),\
     num_rounds=10,\
@@ -82,10 +83,10 @@ class bench_conf():
     list_bytes=(2**18-64),\
     replay=False,\
     clear=True,\
-    shuffle=False,\
-    warmup=False,\
+    warmup=True,\
     ):
     #get fullpath of file
+    self.bench_type=bench_type
     self.allocator=allocator
     self.allocator_lib=allocator_pairs[allocator]
     self.benchmark=benchmark
@@ -97,14 +98,23 @@ class bench_conf():
     self.list_bytes=list_bytes
     self.replay=replay
     self.clear=clear
-    self.shuffle=shuffle
-    if(shuffle):
-      print("WARNING: shuffling is not recomended, it will likely pre-allocate too much memory.")
     self.warmup=warmup
+
+  def get_timestamp(self):
+    if self.timestamp == None:
+      self.timestamp = datetime.today().strftime('%d%m%y-%H%M%S')
+    return self.timestamp
     
   def __str__(self):
-    cmd, env = self.build_cmd()
-    return env + cmd
+    if self.bench_type == "perf":
+      cmd, env = self.build_cmd()
+      return env + cmd
+    elif self.bench_type == "mem":
+      file_path=f"/benchmark/traces/{self.allocator}/{self.benchmark}/{self.get_timestamp()}.memusage"
+      cmd=self.mstat_build_cmd(file_path)
+      return cmd
+    else:
+      return "error"
 
   def build_cmd(self):
     #environment variables
@@ -120,12 +130,12 @@ class bench_conf():
     cmd+="-r "+str(self.num_rounds)+" "
     cmd+="-p "+str(self.num_threads)+" "
     if self.clear: cmd+="-clear "
+    if not self.warmup: cmd+="-no_warmup_round "
     cmd+=self.extra_arguments
     return cmd, env
 
   #runs num_rounds times
   def run_once(self):
-    container_id=self.docker_prepare()
     cmd, env = self.build_cmd()
     out=subprocess.getoutput(f"{env} {cmd}")
     out=re.sub(filter_out, "", out)
@@ -142,16 +152,18 @@ class bench_conf():
       stddev = 0
     return mean, stddev, throughputs
 
-  def mstat_build_cmd(self):
+
+  #mstat docker functions
+
+  def mstat_build_cmd(self, file_path):
     cmd="mstat "
-    cmd+=f"-o /home/ubuntu/traces/{self.allocator}_{self.benchmark}-{datetime.today().strftime('%d%m%y-%H%M%S')}.memusage "
+    cmd+=f"-o {docker_base_directory}/{file_path} "
     cmd+="-freq 120 "
     cmd+=f"-env PARLAY_NUM_THREADS={self.num_threads} "
-    cmd+=f"-env PARLAY_STEAL_RETRIES={self.steal_retries} "
     cmd+=f"-env PARLAY_LIST_BYTES={self.list_bytes} "
-    cmd+=f"-env LD_PRELOAD={self.allocator_lib} "
+    cmd+=f"-env LD_PRELOAD={docker_base_directory}/benchmark/{self.allocator_lib} "
     #cmd+=f"-env MALLOC_CONF=\"tcache_ncached_max:1-8388608:1,tcache_max:1\" "
-    cmd+=f"/home/ubuntu/{docker_bin_directory}{self.benchmark} "
+    cmd+=f"{docker_base_directory}/{bin_directory}{self.benchmark} "
     cmd+=f"-t {self.time} "
     cmd+=f"-r {self.num_rounds} "
     cmd+=f"-p {self.num_threads} "
@@ -160,26 +172,15 @@ class bench_conf():
     cmd+="-no_warmup_round "
     return cmd
 
-  def docker_compile(self, container_id):
-    #compile through docker if not yet compiled
-    if not os.path.isdir(base_directory + ".build_mstat") or \
-      len(os.listdir(base_directory + ".build_mstat")) == 0:
-      dkr_compile=f"""
-        cd {docker_base_directory};
-        mkdir -p .build_mstat;
-        cd .build_mstat;
-        cmake .. -DDOWNLOAD_PARLAY=True;
-        make -j;
-      """
-      subprocess.getoutput("docker exec " + container_id + dkr_compile)
-
   def docker_killall(self):
     #kill running docker containers
     subprocess.getoutput("docker kill " + subprocess.getoutput("docker ps -aq"))
 
   def docker_start_container(self):
+    user_id=subprocess.getoutput("id -u")
+    group_id=subprocess.getoutput("id -g")
     dkr_start=f"""
-      docker run -dit --privileged -v {base_directory}:/home/ubuntu -w /home/ubuntu --rm ajcostafct/mstat /bin/bash;
+      docker run -u {user_id}:{group_id} -dit --privileged -v {base_directory}:{docker_base_directory} -w {docker_base_directory} --rm ajcostafct/mstat /bin/bash;
     """
     container_id=subprocess.getoutput(dkr_start)
     return container_id
@@ -187,19 +188,33 @@ class bench_conf():
   def docker_prepare(self):
     self.docker_killall()
     container_id=self.docker_start_container()
-    self.docker_compile(container_id)
     return container_id
 
   def mstat_run(self):
     container_id=self.docker_prepare()
-    subprocess.getoutput(f"docker exec {container_id} {self.mstat_build_cmd()}")
-    return
+    #create dir if it does not exist
+    subprocess.getoutput(f"mkdir -p {base_directory}/benchmark/traces/{self.allocator}/{self.benchmark}")
+
+    file_path=f"/benchmark/traces/{self.allocator}/{self.benchmark}/{self.get_timestamp()}.memusage"
+    cmd=self.mstat_build_cmd(file_path)
+
+    #run mstat
+    subprocess.getoutput(f"docker exec {container_id} {cmd}")
+
+    #write command to output file
+    with open(f"{base_directory}/{file_path}", "a+") as f:
+      f.write("\n")
+      f.write(cmd)
+      f.write("\n")
 
 
+#number of iterations and time for performance benchmarks
 n_iters=5
 time=25
 
-repetitions=10
+#number of iterations and time for memory usage benchmarks
+mem_n_iters=10
+mem_time=25
 
 benchmarks=[\
   "arttree_lck",\
@@ -212,61 +227,64 @@ benchmarks=[\
   #"skiplist_lf",\
 ]
 
-allocators=["jemalloc", "mimalloc", "mesh", "hoard", "deqalloc", "scalloc"]
+#allocators=["jemalloc", "mimalloc", "mesh", "hoard", "deqalloc"]
+allocators=["hoard", "deqalloc"]
+#allocators=["jemalloc", "mimalloc", "mesh", "hoard", "deqalloc", "scalloc"]
 
 ncpus = detectCPUs()
 
-configs=[\
-  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**18-64),\
-  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**16-64),\
-  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**14-64),\
-  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**12-64),\
-  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**10-64),\
-  #("-u 100 -upsert", ncpus, n_iters, time, 64, 2**8-64),\
+#configurations for performance benchmark
+perf_configs=[\
+  ("perf", "-u 100 -upsert", ncpus, n_iters, time, 64, 2**18),\
 
   #Change write %
-  ("-u 100 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 90 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 80 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 70 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 60 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 50 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 40 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 30 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 20 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 10 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("-u 0 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 90 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 80 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 70 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 60 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 50 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 40 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 30 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 20 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 10 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 0 -upsert", ncpus, n_iters, time, 64, 2**18),\
 
   #Change number of threads
-  ("-u 100 -upsert", 1, n_iters, time, 64, 2**18),\
-  ("-u 100 -upsert", 2, n_iters, time, 64, 2**18),\
-  ("-u 100 -upsert", 4, n_iters, time, 64, 2**18),\
-  ("-u 100 -upsert", 8, n_iters, time, 64, 2**18),\
-  ("-u 100 -upsert", 18, n_iters, time, 64, 2**18),\
-  ("-u 100 -upsert", 36, n_iters, time, 64, 2**18),\
-  ("-u 100 -upsert", 72, n_iters, time, 64, 2**18),\
-  ("-u 100 -upsert", 144, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -upsert", ncpus / 64, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -upsert", ncpus / 32, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -upsert", ncpus / 16, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -upsert", ncpus / 8, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -upsert", ncpus / 4, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -upsert", ncpus / 2, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -upsert", ncpus / 1, n_iters, time, 64, 2**18),\
 
   #("-u 100 -upsert -n 10000000", ncpus, n_iters, time, 64, 2**8-64),\
 ]
 
-bcs=[]
+#configurations for memory benchmark
+mem_configs=[\
+  ("mem", "-u 100 -upsert", ncpus, mem_n_iters, mem_time, 64, 2**18),\
+]
 
-for alloc in allocators:
-  for bench in benchmarks:
-    for conf in configs:
-      bcs.append(bench_conf(alloc, bench, *conf))
 
-for bc in bcs:
-  if "-perf" in sys.argv:
-    print(bc)
-    mean, stddev, throughputs = bc.run()
-    print(mean, stddev, '\n')
+if "-perf" in sys.argv:
+  for alloc in allocators:
+    for bench in benchmarks:
+      for conf in perf_configs:
+        bc = bench_conf(alloc, bench, *conf)
+        print(bc)
+        mean, stddev, throughputs = bc.run()
+        print(mean, stddev, '\n')
 
-  if "-mem" in sys.argv:
-    for i in range(repetitions):
-      print(bc.mstat_build_cmd())
-      bc.mstat_run()
+if "-mem" in sys.argv:
+  for alloc in allocators:
+    for bench in benchmarks:
+      for conf in mem_configs:
+        for i in range(mem_n_iters):
+          bc = bench_conf(alloc, bench, *conf)
+          print(bc)
+          bc.mstat_run()
 
 
 
