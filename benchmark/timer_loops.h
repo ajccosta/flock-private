@@ -35,6 +35,8 @@
 #include <parlay/random.h>
 #include <parlay/alloc.h>
 
+#include "memory_usage.h"
+
 #define REPORT_BYTES
 
 #define noop
@@ -631,7 +633,7 @@ repeat:
 
     statistics overall_stats = parlay::reduce(processor_stats, parlay::binary_op(adds, statistics()));
     
-    if (i != 0) { // don't report zeroth round -- warmup
+    if (i != 0 || skip_warmup_round) { // don't report zeroth round -- warmup
       if (finish && (duration < trial_time/4))
         std::cout << "warning out of samples, finished in "
                   << duration << " seconds" << std::endl;
@@ -661,7 +663,8 @@ repeat:
 #endif
 #ifdef REPORT_BYTES
                   //get the total number of bytes allocated
-                  << "bytes=" << SetType::stats().second << ","
+                  //<< "bytes=" << getMemoryUsageBytes() << ","
+                  << "bytes=" << getMemoryUsageBytes()/(1024*1024) << "MiB,"
 #endif
                   << num_ops / (duration * 1e6) << std::endl;
       } else {
@@ -677,7 +680,8 @@ repeat:
                   << "z=" << zipfian_param << ","
 #ifdef REPORT_BYTES
                   //get the total number of bytes allocated
-                  << "bytes=" << SetType::stats().second << ","
+                  << "bytes=" << getMemoryUsageBytes() << ","
+                  << "bytes=" << getMemoryUsageBytes()/(1024*1024) << "MiB,"
 #endif
                   << "rq_throughput=" << overall_stats.range_count / (duration * 1e6) << ","
                   << "update_throughput=" << overall_stats.update_count / (duration * 1e6) << std::endl;

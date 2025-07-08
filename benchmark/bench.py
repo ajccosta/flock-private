@@ -140,7 +140,11 @@ class bench_conf():
     out=subprocess.getoutput(f"{env} {cmd}")
     out=re.sub(filter_out, "", out)
     #get throughputs for each run
-    throughputs=[float(line.split(',')[-1]) for line in out.split('\n')]
+    try:
+      throughputs=[float(line.split(',')[-1]) for line in out.split('\n')]
+    except Exception as e:
+      #error, but continue running
+      throughputs=[-1]
     return throughputs
 
   def run(self):
@@ -235,8 +239,6 @@ ncpus = detectCPUs()
 
 #configurations for performance benchmark
 perf_configs=[\
-  ("perf", "-u 100 -upsert", ncpus, n_iters, time, 64, 2**18),\
-
   #Change write %
   ("perf", "-u 100 -upsert", ncpus, n_iters, time, 64, 2**18),\
   ("perf", "-u 90 -upsert", ncpus, n_iters, time, 64, 2**18),\
@@ -259,7 +261,7 @@ perf_configs=[\
   ("perf", "-u 100 -upsert", ncpus / 2, n_iters, time, 64, 2**18),\
   ("perf", "-u 100 -upsert", ncpus / 1, n_iters, time, 64, 2**18),\
 
-  #("-u 100 -upsert -n 10000000", ncpus, n_iters, time, 64, 2**8-64),\
+  ("perf", "-u 100 -upsert -n 100000000", ncpus - 1, n_iters, time, 64, 2**18),\
 ]
 
 #configurations for memory benchmark
@@ -269,24 +271,24 @@ mem_configs=[\
 
 
 if "-perf" in sys.argv:
-  for alloc in allocators:
-    for bench in benchmarks:
-      for conf in perf_configs:
+  for bench in benchmarks:
+    for conf in perf_configs:
+      for alloc in allocators:
         bc = bench_conf(alloc, bench, *conf)
         print(bc)
         mean, stddev, throughputs = bc.run()
         print(mean, stddev, '\n')
 
 if "-mem" in sys.argv:
-  for alloc in allocators:
-    for bench in benchmarks:
-      for conf in mem_configs:
+  for bench in benchmarks:
+    for conf in mem_configs:
+      for alloc in allocators:
         for i in range(mem_n_iters):
           bc = bench_conf(alloc, bench, *conf)
           print(bc)
           bc.mstat_run()
 
-
+print("FINISHED!")
 
 #TODO add MALLOC_CONF automatically
 #n=4096; PARLAY_LIST_BYTES=$((1<<22)) MALLOC_CONF="tcache_ncached_max:1-8388608:$n,tcache_max:$n" LD_PRELOAD=~/.lib/libjemalloc.so numactl -i all ./benchmark/transactions/hash_block_lck_malloc -r 10 -p 64 -upsert -u 100 -clear -t 15

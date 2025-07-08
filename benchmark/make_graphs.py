@@ -65,6 +65,9 @@ for graph in graph_d:
             #plt.plot(trc[:, 0], trc[:, 1])
             arrays.append(trc)
         #calculate average of all arrays
+        if(len(arrays) == 0):
+            print("Warning! All of", alloc + "'s", bench, "traces empty. Ignoring it.")
+            continue
         mi=min(arr[:,1].size for arr in arrays)
         #truncate each array to be of size mi
         num_samples=len(arrays)
