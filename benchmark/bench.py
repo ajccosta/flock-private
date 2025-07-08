@@ -19,7 +19,7 @@ Usage: python3 bench.py [-perf|-mem]
 
 #regex to filter out of results
 #Mesh segfaults but seems to run fine until the end
-filter_out="\n*duration: [0-9]+(?:.[0-9]*)?\n|\n*segfault.*\nAborted|\n*Segmentation.*"
+filter_out="\n*duration: [0-9]+(?:.[0-9]*)?\n|\n*segfault.*\nAborted|\n*Segmentation.*|Some.*cleared!\n|\nSome.*cleared!"
 
 base_directory=subprocess.getoutput("realpath "+re.sub(os.path.basename(__file__), "", os.path.realpath(__file__))+"/..")+"/"
 bin_directory="build/benchmark/transactions/"
@@ -141,20 +141,26 @@ class bench_conf():
     out=re.sub(filter_out, "", out)
     #get throughputs for each run
     try:
+      #throughput in million ops per second
       throughputs=[float(line.split(',')[-1]) for line in out.split('\n')]
+      #memory in mebibytes
+      memory=[float(re.sub(r'\D', '', line.split(',')[-2])) for line in out.split('\n')]
     except Exception as e:
+      print(e)
       #error, but continue running
       throughputs=[-1]
-    return throughputs
+      memory=[-1]
+    return throughputs, memory
 
   def run(self):
-    throughputs=self.run_once()
-    mean=statistics.mean(throughputs)
+    throughputs,memory=self.run_once()
+    throughput_mean=statistics.mean(throughputs)
+    memory_mean=statistics.mean(memory)
     if len(throughputs) > 1:
       stddev = statistics.stdev(throughputs)
     else:
       stddev = 0
-    return mean, stddev, throughputs
+    return throughput_mean, memory_mean, stddev, throughputs, memory
 
 
   #mstat docker functions
@@ -214,7 +220,7 @@ class bench_conf():
 
 #number of iterations and time for performance benchmarks
 n_iters=5
-time=25
+time=10
 
 #number of iterations and time for memory usage benchmarks
 mem_n_iters=10
@@ -222,51 +228,53 @@ mem_time=25
 
 benchmarks=[\
   "arttree_lck",\
-  #"arttree_lf",\
   "btree_lck",\
-  #"btree_lf",\
   "hash_block_lck",\
-  #"hash_block_lf",\
   "skiplist_lck",\
+  #"arttree_lf",\
+  #"btree_lf",\
+  #"hash_block_lf",\
   #"skiplist_lf",\
 ]
 
-#allocators=["jemalloc", "mimalloc", "mesh", "hoard", "deqalloc"]
-allocators=["hoard", "deqalloc"]
-#allocators=["jemalloc", "mimalloc", "mesh", "hoard", "deqalloc", "scalloc"]
+allocators=["deqalloc", "mimalloc", "hoard", "jemalloc", "mesh", "scalloc"]
 
 ncpus = detectCPUs()
 
 #configurations for performance benchmark
 perf_configs=[\
   #Change write %
-  ("perf", "-u 100 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 90 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 80 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 70 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 60 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 50 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 40 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 30 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 20 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 10 -upsert", ncpus, n_iters, time, 64, 2**18),\
-  ("perf", "-u 0 -upsert", ncpus, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 90", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 80", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 70", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 60", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 50", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 40", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 30", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 20", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 10", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 0", ncpus - 1, n_iters, time, 64, 2**18),\
 
   #Change number of threads
-  ("perf", "-u 100 -upsert", ncpus / 64, n_iters, time, 64, 2**18),\
-  ("perf", "-u 100 -upsert", ncpus / 32, n_iters, time, 64, 2**18),\
-  ("perf", "-u 100 -upsert", ncpus / 16, n_iters, time, 64, 2**18),\
-  ("perf", "-u 100 -upsert", ncpus / 8, n_iters, time, 64, 2**18),\
-  ("perf", "-u 100 -upsert", ncpus / 4, n_iters, time, 64, 2**18),\
-  ("perf", "-u 100 -upsert", ncpus / 2, n_iters, time, 64, 2**18),\
-  ("perf", "-u 100 -upsert", ncpus / 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100", ncpus / 64, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100", ncpus / 32, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100", ncpus / 16, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100", ncpus / 8, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100", ncpus / 4, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100", ncpus / 2, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100", ncpus / 1, n_iters, time, 64, 2**18),\
 
-  ("perf", "-u 100 -upsert -n 100000000", ncpus - 1, n_iters, time, 64, 2**18),\
+  #increase n
+  ("perf", "-u 100 -n 1000000", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -n 10000000", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -n 100000000", ncpus - 1, n_iters, time, 64, 2**18),\
+  ("perf", "-u 100 -n 500000000", ncpus - 1, n_iters, time, 64, 2**18),\
 ]
 
 #configurations for memory benchmark
 mem_configs=[\
-  ("mem", "-u 100 -upsert", ncpus, mem_n_iters, mem_time, 64, 2**18),\
+  ("mem", "-u 100 ", ncpus, mem_n_iters, mem_time, 64, 2**18),\
 ]
 
 
@@ -276,8 +284,8 @@ if "-perf" in sys.argv:
       for alloc in allocators:
         bc = bench_conf(alloc, bench, *conf)
         print(bc)
-        mean, stddev, throughputs = bc.run()
-        print(mean, stddev, '\n')
+        throughput_mean, memory_mean, stddev, throughputs, memory = bc.run()
+        print(throughput_mean, memory_mean, stddev, throughputs, memory, '\n')
 
 if "-mem" in sys.argv:
   for bench in benchmarks:
