@@ -35,6 +35,12 @@ int main(int argc, char* argv[]) {
 [-trans <ops-per-transaction>] : size of transaction in operations (0 means no transaction)
 [-latency <latency-cutoff-in-usecs>] : measure latency instead of throughput
 [-no_warmup_round] : do not perform warmup round (the first round is usually ignored)
+[-thread-perc "...;..."] : fine-grained thread update percentages
+    E.g., -thread-perc "80,20;40,60;0,100" will have a 1/3 of threads do 80% followed by 20% inserts;
+      another 1/3 will do 40% inserts for half the time, then 60%;
+      and the final 1/3 will switch between doing only removes and doing only inserts
+[-prefill] : how many elements to prefill the data structure with, default = n/2
+[-nscale] : how many unique keys will exist relative to -n (#unique keys = -n * -nscale), default = 2
 )");
 
 #ifdef HASH

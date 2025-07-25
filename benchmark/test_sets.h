@@ -110,9 +110,10 @@ void test_sets(size_t default_size, commandLine P) {
   }
 #endif
 
-  // number of distinct keys (keys will be selected among 2n distinct keys)
-  long n = P.getOptionIntValue("-n", default_size);
-  long nn = (fixed_time && !use_upsert) ? 2*n : n;
+  // number of distinct keys (keys will be selected among n distinct keys)
+  uint64_t n = P.getOptionLongValue("-n", default_size);
+  uint64_t nscale = P.getOptionIntValue("-nscale", 2);
+  uint64_t nn = (fixed_time && !use_upsert) ? nscale*n : n;
 
   // verbose
   bool verbose = P.getOption("-verbose");
@@ -197,7 +198,7 @@ void test_sets(size_t default_size, commandLine P) {
     // generate 2*n unique numbers in random order
       if (use_sparse) {
         max_key = ~0ul;
-        auto x = parlay::delayed_tabulate(1.2*nn,[&] (size_t i) {
+        auto x = parlay::delayed_tabulate(2*nn,[&] (size_t i) {
                   return (key_type) parlay::hash64(i);}); // generate 64-bit keys
         auto xx = parlay::remove_duplicates(x);
         auto y = parlay::random_shuffle(xx);
@@ -227,8 +228,9 @@ void test_sets(size_t default_size, commandLine P) {
       Zipfian z(nn, zipfian_param);
       b = parlay::tabulate(m, [&] (int i) { return a[z(i)]; });
       a = parlay::random_shuffle(a);
-    } else
-      b = parlay::tabulate(m, [&] (int i) {return a[parlay::hash64(i) % nn]; });
+    } else {
+      b = parlay::tabulate(m, [=] (int i) {return a[parlay::hash64(i) % nn]; });
+    }
 
     if (fixed_time) {
       run_mixed_operations<SetType>(b, a, zipfian_param, max_key, use_upsert, P);

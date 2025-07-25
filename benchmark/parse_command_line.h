@@ -26,6 +26,11 @@
 #include <fstream>
 #include <string>
 #include <cstring>
+#include <vector>
+#include <sstream>
+#include <stdexcept>
+#include <optional>
+#include <utility>
 
 struct commandLine {
   int argc;
@@ -94,12 +99,16 @@ struct commandLine {
   }
 
   int getOptionIntValue(std::string option, int defaultValue) {
-    for (int i = 1; i < argc-1; i++)
+    for (int i = 1; i < argc-1; i++) {
       if ((std::string) argv[i] == option) {
-	int r = atoi(argv[i+1]);
-	if (r < 0) badArgument();
-	return r;
+	      int r = atoi(argv[i+1]);
+	      if (r < 0)
+          badArgument();
+        if(getOptionLongValue(option, defaultValue) != r)
+          std::cerr<<"getOptionIntValue() and getOptionLongValue() results differ, likely overflow."<<std::endl;
+	      return r;
       }
+    }
     return defaultValue;
   }
 
@@ -114,6 +123,43 @@ struct commandLine {
       }
     return defaultValue;
   }
+
+  std::optional<std::tuple<std::vector<std::vector<int>>,std::size_t,std::size_t>>
+  parseMatrix(const std::string& input,char row_delim = ';',char col_delim = ',') {
+      std::vector<std::vector<int>> matrix;
+      std::stringstream rows_ss(input);
+      std::string row;
+      std::size_t expected_cols = 0;
+      bool first_row = true;
+      while (std::getline(rows_ss, row, row_delim)) {
+        if (row.empty())
+          return std::nullopt;
+        std::vector<int> cols;
+        std::stringstream cols_ss(row);
+        std::string cell;
+        while (std::getline(cols_ss, cell, col_delim)) {
+          try {
+          cols.push_back(std::stoi(cell));
+          } catch (...) {
+            return std::nullopt;  // non‐integer token
+          }
+        }
+        if (cols.empty())
+          return std::nullopt;
+        if (first_row) {
+          expected_cols = cols.size();
+          first_row = false;
+        }
+        else if (cols.size() != expected_cols) {
+          return std::nullopt;      // inconsistent column count
+        }
+        matrix.push_back(std::move(cols));
+      }
+      if (matrix.empty())
+        return std::nullopt;
+      return {{std::move(matrix), matrix.size(), expected_cols}};
+  }
+
 
 };
 

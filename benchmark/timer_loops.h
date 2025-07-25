@@ -122,9 +122,11 @@ void run_mixed_operations(parlay::sequence<K>& all,
 			  K max_key,
 			  bool use_upsert,
                           commandLine P) {
-  int m = all.size();
-  int nn = unique.size();
-  int n = use_upsert ? nn : nn/2;
+  int64_t m = all.size();
+  int64_t nn = unique.size();
+  int64_t nscale = P.getOptionIntValue("-nscale", 2);
+  int64_t prefill = P.getOptionIntValue("-prefill", nn/nscale);
+  int64_t n = use_upsert ? nn/2 : nn;
 
   int p = P.getOptionIntValue("-p", parlay::num_workers());  
 
@@ -185,23 +187,73 @@ void run_mixed_operations(parlay::sequence<K>& all,
   //Whether or not to skip the warmup round
   bool skip_warmup_round = P.getOption("-no_warmup_round");
 
+  const char* thread_perc_c = P.getOptionValue("-thread-perc");
+  bool use_thread_perc = false;
+  std::vector<std::vector<int>> thread_perc_vec;
+  size_t ncols = 0, nrows = 0;
+  if(thread_perc_c) {
+    use_thread_perc = true;
+    std::string thread_perc(thread_perc_c);
+    std::optional<std::tuple<std::vector<std::vector<int>>,std::size_t,std::size_t>> mo = P.parseMatrix(thread_perc);
+    if(!mo) {
+      std::cerr << "Thread percentage matrix is malformed." << std::endl;
+      std::exit(-1);
+    }
+    auto [mat, n_rows, n_cols] = *std::move(mo);
+    //globally scoped vars
+    thread_perc_vec = std::move(mat);
+    ncols = n_cols; //per-thread type, how many segments exist
+    nrows = n_rows; //how many thread types exist
+    for (auto& row : mat)
+      for (int x : row)
+        if(x < 0 || x > 100) {
+          std::cerr << "Thread percentage values should [0, 100]." << std::endl;
+          std::exit(-1);
+        }
+  }
+
   enum op_type : char {Find, Insert, Remove, Range, MultiFind};
- 
-  // initially set to all finds
+
   float update_per = update_percent;
-  parlay::sequence<op_type> op_types(m, Find);
   if (multifind) {
     float update_frac = update_per / 100.0;
     update_per = 100.0 * range_size * update_frac / (1 + (range_size - 1) * update_frac);
   }
 
-  op_types = parlay::tabulate(m, [&] (size_t i) -> op_type {
+  parlay::sequence<op_type> op_types;
+  size_t indexing_sum;
+  if(use_thread_perc) {
+    op_types = parlay::tabulate(m * nrows, [&] (size_t i) -> op_type {
       auto h = parlay::hash64(m+i)%2000;
-      if (h < 10*update_per) return Insert; 
+      if(h < 20*update_per) {
+        //insert tendency
+        //  100 means do only inserts
+        //  0 means do only deletes
+        size_t workload_segment = i / m; //which segment of the workload this op is on
+        size_t thread_rr = (i / (m / ncols)) % ncols; //thread round robin assignment
+        size_t ins_tendency = thread_perc_vec[workload_segment][thread_rr] * ((20*update_per)/100);
+        if(h < ins_tendency) return Insert;
+        else return Remove;
+      } else {
+        return Find;
+      }
+    });
+  } else {
+    nrows = 1;
+    op_types = parlay::tabulate(m, [&] (size_t i) -> op_type {
+      auto h = parlay::hash64(m+i)%2000;
+      if (h < 10*update_per) return Insert;
       else if (h < 20*update_per) return Remove;
       else if (multifind) return MultiFind;
       else if (h < 20*(update_percent + range_percent)) return Range;
-      else return Find; });
+      else return Find;
+    });
+  }
+
+  auto get_operation = [&] (size_t i, size_t proc_id) -> op_type {
+    size_t thread_rr_offset = m * (proc_id % nrows);
+    return op_types[i + thread_rr_offset];
+  };
 
   parlay::internal::timer t("Benchmark run_mixed_operations");
 
@@ -223,20 +275,16 @@ void run_mixed_operations(parlay::sequence<K>& all,
     V default_value;
     default_value[0] = 3;
 
-    // insert n distinct elements
-    parlay::parallel_for(0, nn, [&] (size_t i) {
-                                   //std::cout << unique[i] << std::endl;
-      do_atomic([&] {
-	tr.insert(unique[i], default_value);});
-    }, 10, true);
+    // insert <prefill> distinct elements
+    parlay::parallel_for(0, prefill, [&] (size_t i) {
+      do_atomic([&] { tr.insert(unique[i], default_value);});
+    }, 1, true);
 
-    if (!use_upsert) {
-      parlay::parallel_for(0, n, [&] (size_t i) {
-				   //std::cout << unique[i] << std::endl;
-	do_atomic([&] {
-	  tr.remove(unique[i]);});
-      }, 10, true);
-    }
+    //if (!use_upsert) {
+    //  parlay::parallel_for(0, n, [&] (size_t i) {
+    //    do_atomic([&] {tr.remove(unique[i]);});
+    //  }, 10, true);
+    //}
 
     if (shuffle) SetType::shuffle(n);
     
@@ -260,9 +308,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
     size_t mp = m/p;
     // set some number of threads to only do range queries
-    parlay::parallel_for(0, range_query_threads, [&] (size_t i) {
-        for(int j = i*mp; j < (i+1)*mp; j++) op_types[j] = Range;
-      }, 1);
+    //TODO fix range queries
+    //parlay::parallel_for(0, range_query_threads, [&] (size_t i) {
+    //    for(int j = i*mp; j < (i+1)*mp; j++) get_operation(j) = Range;
+    //  }, 1);
     
     parlay::sequence<statistics> processor_stats(p);
 
@@ -327,7 +376,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
           int loc_found = 0;
           int loc_update_success = 0;
           for (int k=0; k < trans_size; k++) {
-            if (op_types[jj+k] == Find) {
+            if (get_operation(jj+k, proc_id) == Find) {
               loc_queries += 1;
               auto val = tr.find_locked(all[j+k]);
               if (val.has_value()) loc_found += val.value()[0];
@@ -335,9 +384,9 @@ void run_mixed_operations(parlay::sequence<K>& all,
 	    } else if (use_upsert) {
 	      if (tr.upsert_(all[j+k], default_value)) {loc_added++; loc_update_success++;}
 #endif
-            } else if (op_types[jj+k] == Insert) {
+            } else if (get_operation(jj+k, proc_id) == Insert) {
               if (tr.insert(all[j+k], default_value)) {loc_added++; loc_update_success++;}
-            } else if (op_types[jj+k] == Remove) {
+            } else if (get_operation(jj+k, proc_id) == Remove) {
               if (tr.remove(all[j+k])) {loc_added--; loc_update_success++;}
             }
           }
@@ -381,7 +430,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #ifdef Latency
         if (latency > 0) start_op_time = get_time();
 #endif
-        if (op_types[jj] == Find) {
+        if (get_operation(jj, proc_id) == Find) {
           local_stats.query_count++;
           auto val = do_ro_atomic([&] {return tr.find(all[j]);});
           if (val.has_value()) {
@@ -395,14 +444,14 @@ void run_mixed_operations(parlay::sequence<K>& all,
             local_stats.update_success_count++;
           }
 #endif
-        } else if (op_types[jj] == Insert) {
+        } else if (get_operation(jj, proc_id) == Insert) {
           local_stats.update_count++;
 	  if (do_atomic([&] {return tr.insert(all[j], default_value);})) {
             local_stats.added_count++;
             local_stats.update_success_count++;
           }
         }
-        else if (op_types[jj] == Remove) {
+        else if (get_operation(jj, proc_id) == Remove) {
           local_stats.update_count++;
           if (do_atomic([&] {return tr.remove(all[j]);})) {
             local_stats.added_count--;
@@ -411,7 +460,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
         }
 
 #ifdef Range_Search
-        else if (op_types[jj] == Range) {
+        else if (get_operation(jj, proc_id) == Range) {
           K end = ((all[j] > max_key - range_gap)
                    ? max_key : all[j] + range_gap);
           local_stats.range_count++;
@@ -663,8 +712,8 @@ repeat:
 #endif
 #ifdef REPORT_BYTES
                   //get the total number of bytes allocated
-                  //<< "bytes=" << getMemoryUsageBytes() << ","
-                  << "bytes=" << getMemoryUsageBytes()/(1024*1024) << "MiB,"
+                  //<< "mem=" << getMemoryUsageBytes() << ","
+                  << "mem=" << getMemoryUsageBytes()/(1024*1024) << "MiB,"
 #endif
                   << num_ops / (duration * 1e6) << std::endl;
       } else {
@@ -680,8 +729,8 @@ repeat:
                   << "z=" << zipfian_param << ","
 #ifdef REPORT_BYTES
                   //get the total number of bytes allocated
-                  << "bytes=" << getMemoryUsageBytes() << ","
-                  << "bytes=" << getMemoryUsageBytes()/(1024*1024) << "MiB,"
+                  << "mem=" << getMemoryUsageBytes() << ","
+                  << "mem=" << getMemoryUsageBytes()/(1024*1024) << "MiB,"
 #endif
                   << "rq_throughput=" << overall_stats.range_count / (duration * 1e6) << ","
                   << "update_throughput=" << overall_stats.update_count / (duration * 1e6) << std::endl;
