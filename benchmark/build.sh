@@ -43,7 +43,7 @@ rm -rf Hoard
 #compile deqalloc
 git clone https://github.com/ajccosta/deqalloc
 pushd deqalloc/examples/deqalloc
-git checkout tweaking
+git checkout master
 mkdir -p build
 pushd build
 cmake ..
