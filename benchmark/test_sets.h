@@ -194,15 +194,22 @@ void test_sets(size_t default_size, commandLine P) {
     parlay::sequence<key_type> b;
     key_type max_key = 0;
 
+    if(verbose)
+      std::cout << "generating keys" << std::endl;
+
     if (filename.size() == 0) {
     // generate 2*n unique numbers in random order
       if (use_sparse) {
         max_key = ~0ul;
-        auto x = parlay::delayed_tabulate(2*nn,[&] (size_t i) {
-                  return (key_type) parlay::hash64(i);}); // generate 64-bit keys
+        if(verbose) std::cout << "delayed tabulate" << std::endl;
+        // generate 64-bit keys
+        auto x = parlay::delayed_tabulate(1.2*nn,[&] (size_t i) { return (key_type) parlay::hash64(i);}); 
+        if(verbose) std::cout << "remove duplicates" << std::endl;
         auto xx = parlay::remove_duplicates(x);
+        if(verbose) std::cout << "random shuffle" << std::endl;
         auto y = parlay::random_shuffle(xx);
         // don't use zero since it breaks setbench code
+        if(verbose) std::cout << "tabulate" << std::endl;
         a = parlay::tabulate(nn, [&] (size_t i) {return std::min(max_key-1,y[i])+1;}); 
       } else {
         max_key = nn;
@@ -223,6 +230,9 @@ void test_sets(size_t default_size, commandLine P) {
     }
 
     long m = P.getOptionIntValue("-m", fixed_time ? 10 * n + 1000 * p : n);
+
+    if(verbose)
+      std::cout << "generating distribution" << std::endl;
 
     if (use_zipfian) { 
       Zipfian z(nn, zipfian_param);

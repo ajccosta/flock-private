@@ -87,7 +87,8 @@ struct pool_allocator {
       alloc_size += (alignment - (alloc_size % alignment));
     }
 
-    void* a = ::operator new(alloc_size, std::align_val_t{alignment});
+    //void* a = ::operator new(alloc_size, std::align_val_t{alignment});
+    void* a = ::operator new(alloc_size);
 #ifdef UseHugepages
     madvise(a, alloc_size, MADV_HUGEPAGE);
 #endif
@@ -99,7 +100,8 @@ struct pool_allocator {
   void deallocate_large(void* ptr, size_t n) {
     large_used -= n;
     if (n > max_size) {
-      ::operator delete(ptr, std::align_val_t{max_alignment});
+      //::operator delete(ptr, std::align_val_t{max_alignment});
+      ::operator delete(ptr);
       large_allocated -= n;
     } else {
       size_t bucket = num_small;

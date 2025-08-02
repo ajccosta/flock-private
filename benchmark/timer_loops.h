@@ -160,7 +160,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #endif
 
   // number of hash buckets for hash tables
-  int buckets = P.getOptionIntValue("-bu", n);
+  long buckets = P.getOptionLongValue("-bu", n);
 
   // shuffles the memory pool to break sharing of cache lines
   // by neighboring list/tree nodes
@@ -259,6 +259,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
   for (int i = skip_warmup_round ? 1 : 0; i < rounds+1; i++) {
     { //forced scope
+    if (verbose)
+      std::cout << "creating " << buckets << " buckets" << std::endl;
     auto tr = SetType(buckets);
     long len;
     if (do_check) {
@@ -275,10 +277,15 @@ void run_mixed_operations(parlay::sequence<K>& all,
     V default_value;
     default_value[0] = 3;
 
+    if (verbose)
+      std::cout << "prefilling to " << prefill << std::endl;
+
     // insert <prefill> distinct elements
     parlay::parallel_for(0, prefill, [&] (size_t i) {
-      do_atomic([&] { tr.insert(unique[i], default_value);});
-    }, 1, true);
+      do_atomic([&] {
+        tr.insert(unique[i], default_value);
+      });
+    }, 10, true);
 
     //if (!use_upsert) {
     //  parlay::parallel_for(0, n, [&] (size_t i) {
@@ -839,7 +846,7 @@ void run_insert_find_remove(const parlay::sequence<K>& all,
   long m = all.size();
   bool clear = P.getOption("-clear");
   int rounds = P.getOptionIntValue("-r", 1);
-  int buckets = P.getOptionIntValue("-bu", unique_count);
+  long buckets = P.getOptionLongValue("-bu", unique_count);
   bool verbose = P.getOption("-verbose");
   bool do_check = ! P.getOption("-no_check");
   bool stats = P.getOption("-stats");
