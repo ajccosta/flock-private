@@ -485,7 +485,7 @@ public:
     size_t nrf_l = non_remote_frees_link.sum();
     size_t rf_l = remote_frees_link.sum();
     return {rf+rf_l, nrf+nrf_l}; //{remote frees, non-remote frees}
-#elif defined(USE_MALLOC)
+#elif !defined(USE_MALLOC)
     return Allocator::stats();
 #endif
     return {0,0};
