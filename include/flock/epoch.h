@@ -4,6 +4,7 @@
 
 #include "parlay/alloc.h"
 #include "parlay/primitives.h"
+#include "parlay/thread_specific.h"
 
 #ifndef PARLAY_EPOCH_H_
 #define PARLAY_EPOCH_H_
@@ -16,6 +17,9 @@
 
 // Can use malloc instead of parlay::type_allocator
 //#define USE_MALLOC 1
+
+//Whether to check the amount of remote frees performed (requires -stats flag)
+//#define CHECK_REMOTE_FREES
 
 // If defined allows with_epoch to be nested (only outermost will set the epoch).
 // Incurs slight overhead due to extra test, but allows wrapping a with_epoch
@@ -159,7 +163,28 @@ struct Link {
   inline void undo_Retire(bool* x) { *x = true;}
   inline void undo_Allocate(bool* x) { *x = false;}
 
-#ifdef USE_MALLOC
+#ifdef CHECK_REMOTE_FREES
+  using tid_t = uint8_t;
+  parlay::ThreadSpecific<size_t> non_remote_frees_link;
+  parlay::ThreadSpecific<size_t> remote_frees_link;
+
+  Link* allocate_link() {
+    void* raw = malloc(sizeof(Link) + sizeof(tid_t));
+    Link* l = static_cast<Link*>(raw);
+    tid_t* tid_addr = reinterpret_cast<tid_t*>(reinterpret_cast<char*>(l) + sizeof(Link));
+    *tid_addr = static_cast<tid_t>(parlay::my_thread_id());
+    return l;
+  }
+
+  void free_link(Link* l) {
+    tid_t* tid_addr = reinterpret_cast<tid_t*>(reinterpret_cast<char*>(l) + sizeof(Link));
+    tid_t tid = *tid_addr;
+    if(*tid_addr != (tid_t)parlay::my_thread_id()) remote_frees_link++;
+    else non_remote_frees_link++;
+    free(l);
+  }
+
+#elif defined(USE_MALLOC)
   inline Link* allocate_link() {return (Link*) malloc(sizeof(Link));}
   inline void free_link(Link* x) {return free(x);}
 #else
@@ -269,13 +294,37 @@ private:
   using nodeT = xT;
 #endif
 
-#ifdef USE_MALLOC
+#ifdef CHECK_REMOTE_FREES
+  parlay::ThreadSpecific<size_t> non_remote_frees;
+  parlay::ThreadSpecific<size_t> remote_frees;
+
+  nodeT* allocate_node() {
+    void* raw = malloc(sizeof(nodeT) + sizeof(tid_t));
+    nodeT* n = static_cast<nodeT*>(raw);
+    auto tid_addr = reinterpret_cast<tid_t*>(reinterpret_cast<char*>(n) + sizeof(nodeT));
+    *tid_addr = static_cast<tid_t>(parlay::my_thread_id());
+    return n;
+  }
+
+  void free_node(nodeT* n) {
+    tid_t* tid_addr = reinterpret_cast<tid_t*>(reinterpret_cast<char*>(n) + sizeof(nodeT));
+    tid_t tid = *tid_addr;
+    if(*tid_addr != (tid_t)parlay::my_thread_id()) remote_frees++;
+    else non_remote_frees++;
+    free(n);
+  }
+
+#elif defined(USE_MALLOC)
+
   nodeT* allocate_node() {return (nodeT*) malloc(sizeof(nodeT));}
   void free_node(nodeT* x) {return free(x);}
+
 #else
+
   using Allocator = parlay::type_allocator<nodeT>;
   nodeT* allocate_node() { return Allocator::alloc();}
   void free_node(nodeT* x) { return Allocator::free(x);}
+
 #endif
   
 public:
@@ -386,13 +435,29 @@ public:
 #ifndef USE_MALLOC
     Allocator::print_stats();
 #endif
+#ifdef CHECK_REMOTE_FREES
+      size_t nrf = non_remote_frees.sum();
+      size_t rf = remote_frees.sum();
+      size_t nrf_l = non_remote_frees_link.sum();
+      size_t rf_l = remote_frees_link.sum();
+      std::cout<<"Total remote frees: "<<100*((double)rf+rf_l)/((double)(nrf+rf+nrf_l+rf_l))<<"% ("<<((double)rf+rf_l)<<"/"<<((double)(nrf+rf+nrf_l+rf_l))<<"), "
+               <<"Node remote frees: "<<100*((double)rf)/((double)(nrf+rf))<<"% ("<<((double)rf)<<"/"<<((double)(nrf+rf))<<"), "
+               <<"Link remote frees: "<<100*((double)rf_l)/((double)(nrf_l+rf_l))<<"% ("<<((double)rf_l)<<"/"<<((double)(nrf_l+rf_l))<<")"
+        <<std::endl;
+#endif
   }
 
   //If using parlay allocator, returns number of bytes used (currently alloc'ed and not freed)
   //and number of bytes allocated (total number of bytes allocated by the allocator to fulfill
   //allocation requests, i.e., does not count internal data-structure allocations).
   std::pair<size_t,size_t> stats() {
-#ifndef USE_MALLOC
+#ifdef CHECK_REMOTE_FREES
+    size_t nrf = non_remote_frees.sum();
+    size_t rf = remote_frees.sum();
+    size_t nrf_l = non_remote_frees_link.sum();
+    size_t rf_l = remote_frees_link.sum();
+    return {rf+rf_l, nrf+nrf_l}; //{remote frees, non-remote frees}
+#elif defined(USE_MALLOC)
     return Allocator::stats();
 #endif
     return {0,0};

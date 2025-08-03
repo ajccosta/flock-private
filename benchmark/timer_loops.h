@@ -828,6 +828,10 @@ repeat:
         << "#approx frees: " << overall_stats.num_approx_frees << std::endl
         << "#failed frees: " << overall_stats.num_failed_frees << std::endl;
       }
+#ifdef CHECK_REMOTE_FREES
+      auto [rf, nrf] = SetType::stats();
+      std::cout<<"Global total remote frees: "<<100*((double)rf)/((double)(rf+nrf))<<"% ("<<((double)rf)<<"/"<<((double)(nrf+rf))<<")"<<std::endl;
+#endif
     }
     } //end of forced scope
     if (clear) {
