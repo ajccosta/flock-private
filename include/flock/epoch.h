@@ -19,7 +19,7 @@
 //#define USE_MALLOC 1
 
 //Whether to check the amount of remote frees performed (requires -stats flag)
-//#define CHECK_REMOTE_FREES
+#define CHECK_REMOTE_FREES
 //Whether to internally pool remote frees, never giving them back to the allocator
 //#define PREVENT_REMOTE_FREES
 

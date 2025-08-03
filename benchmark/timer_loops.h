@@ -41,6 +41,8 @@
 
 #define noop
 
+#define REMOTE_FREE_MANIPULATION
+
 struct statistics {
   long total;
   long added_count; // inserted - deleted
@@ -186,6 +188,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
   //Whether or not to skip the warmup round
   bool skip_warmup_round = P.getOption("-no_warmup_round");
+
+  long remote_free_perc = P.getOptionLongValue("-remote-free-perc", 0);
 
   const char* thread_perc_c = P.getOptionValue("-thread-perc");
   bool use_thread_perc = false;
@@ -383,18 +387,19 @@ void run_mixed_operations(parlay::sequence<K>& all,
           int loc_found = 0;
           int loc_update_success = 0;
           for (int k=0; k < trans_size; k++) {
+            auto key = all[j+k];
             if (get_operation(jj+k, proc_id) == Find) {
               loc_queries += 1;
-              auto val = tr.find_locked(all[j+k]);
+              auto val = tr.find_locked(key);
               if (val.has_value()) loc_found += val.value()[0];
 #ifdef UPSERT
 	    } else if (use_upsert) {
-	      if (tr.upsert_(all[j+k], default_value)) {loc_added++; loc_update_success++;}
+	      if (tr.upsert_(key, default_value)) {loc_added++; loc_update_success++;}
 #endif
             } else if (get_operation(jj+k, proc_id) == Insert) {
-              if (tr.insert(all[j+k], default_value)) {loc_added++; loc_update_success++;}
+              if (tr.insert(key, default_value)) {loc_added++; loc_update_success++;}
             } else if (get_operation(jj+k, proc_id) == Remove) {
-              if (tr.remove(all[j+k])) {loc_added--; loc_update_success++;}
+              if (tr.remove(key)) {loc_added--; loc_update_success++;}
             }
           }
           return std::optional{std::tuple{loc_added, loc_queries, loc_found, loc_update_success}};});
@@ -431,8 +436,20 @@ void run_mixed_operations(parlay::sequence<K>& all,
       auto start_time = get_time();
       auto start_op_time = start_time;
 
+#ifdef REMOTE_FREE_MANIPULATION
+      size_t q = nn / p; // base size of each block
+      size_t r = nn % p; // how many blocks get one extra element
+      size_t offset = proc_id * q + std::min(proc_id, (long)r);
+      size_t len = q + (proc_id < r ? 1 : 0); 
+#endif
+
       while (true) {
         if (check_end(cnt, local_stats, proc_id, start_time)) return;
+
+
+#ifndef REMOTE_FREE_MANIPULATION
+        auto key = all[j];
+#endif
 
 #ifdef Latency
         if (latency > 0) start_op_time = get_time();
@@ -452,15 +469,38 @@ void run_mixed_operations(parlay::sequence<K>& all,
           }
 #endif
         } else if (get_operation(jj, proc_id) == Insert) {
+#ifdef REMOTE_FREE_MANIPULATION
+          K key;
+          //Never do a "remote operation" on inserts
+          int index = offset + (j % len);
+          key = unique[index];
+#endif
           local_stats.update_count++;
-	  if (do_atomic([&] {return tr.insert(all[j], default_value);})) {
+	  if (do_atomic([&] {return tr.insert(key, default_value);})) {
             local_stats.added_count++;
             local_stats.update_success_count++;
           }
         }
         else if (get_operation(jj, proc_id) == Remove) {
+#ifdef REMOTE_FREE_MANIPULATION
+          auto h = parlay::hash64(j)%2000;
+          K key;
+          if (h < 20*remote_free_perc) {
+            //Do a "remote delete"
+            //offset for other thread
+            size_t other_proc_id = parlay::hash64(j) % p;
+            size_t other_offset = other_proc_id * q + std::min(other_proc_id, r);
+            size_t other_len = q + (other_proc_id < r ? 1 : 0); 
+            int index = other_offset + (j % other_len);
+            key = unique[index];
+          } else {
+            //Do a "local delete"
+            int index = offset + (j % len);
+            key = unique[index];
+          }
+#endif
           local_stats.update_count++;
-          if (do_atomic([&] {return tr.remove(all[j]);})) {
+          if (do_atomic([&] {return tr.remove(key);})) {
             local_stats.added_count--;
             local_stats.update_success_count++;
           }
@@ -468,8 +508,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
 #ifdef Range_Search
         else if (get_operation(jj, proc_id) == Range) {
-          K end = ((all[j] > max_key - range_gap)
-                   ? max_key : all[j] + range_gap);
+          K end = ((key > max_key - range_gap)
+                   ? max_key : key + range_gap);
           local_stats.range_count++;
           bool use_speculative = true; //(range_size < 2048);
           local_stats.range_sum += verlib::with_snapshot([&] {
@@ -478,7 +518,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
               assert(cnt < range_keys.size());
               range_keys[cnt++] = k;
             };
-            tr.range_(addf, all[j], end);
+            tr.range_(addf, key, end);
 #ifdef LazyStamp
             if (verlib::aborted) {local_stats.retry_count++;}
 #endif
