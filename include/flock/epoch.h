@@ -20,6 +20,8 @@
 
 //Whether to check the amount of remote frees performed (requires -stats flag)
 //#define CHECK_REMOTE_FREES
+//Whether to internally pool remote frees, never giving them back to the allocator
+//#define PREVENT_REMOTE_FREES
 
 // If defined allows with_epoch to be nested (only outermost will set the epoch).
 // Incurs slight overhead due to extra test, but allows wrapping a with_epoch
@@ -205,6 +207,9 @@ private:
 
   // each thread keeps one of these
   struct alignas(256) old_current {
+#if defined (CHECK_REMOTE_FREES) && defined(PREVENT_REMOTE_FREES)
+    void* mem_pool;  // linked list of freed items (avoids sending back to allocator)
+#endif
     Link* old;  // linked list of retired items from previous epoch
     Link* current; // linked list of retired items from current epoch
     long epoch; // epoch on last retire, updated on a retire
@@ -299,18 +304,41 @@ private:
   parlay::ThreadSpecific<size_t> remote_frees;
 
   nodeT* allocate_node() {
-    void* raw = malloc(sizeof(nodeT) + sizeof(tid_t));
-    nodeT* n = static_cast<nodeT*>(raw);
-    auto tid_addr = reinterpret_cast<tid_t*>(reinterpret_cast<char*>(n) + sizeof(nodeT));
-    *tid_addr = static_cast<tid_t>(parlay::my_thread_id());
-    return n;
+#ifdef PREVENT_REMOTE_FREES
+    void* raw_ = nullptr;
+    auto i = worker_id();
+    raw_ = (void*) pools[i].mem_pool;
+    if(raw_ == nullptr) {
+#endif
+      void* raw = malloc(sizeof(nodeT) + sizeof(tid_t));
+      nodeT* n = static_cast<nodeT*>(raw);
+      auto tid_addr = reinterpret_cast<tid_t*>(reinterpret_cast<char*>(n) + sizeof(nodeT));
+      *tid_addr = static_cast<tid_t>(parlay::my_thread_id());
+      return n;
+#ifdef PREVENT_REMOTE_FREES
+    } else {
+      nodeT* ptr = (nodeT*) raw_;
+      pools[i].mem_pool = (void*) *((nodeT**) ptr);
+      return ptr;
+    }
+#endif
   }
 
   void free_node(nodeT* n) {
     tid_t* tid_addr = reinterpret_cast<tid_t*>(reinterpret_cast<char*>(n) + sizeof(nodeT));
     tid_t tid = *tid_addr;
-    if(*tid_addr != (tid_t)parlay::my_thread_id()) remote_frees++;
-    else non_remote_frees++;
+    if(*tid_addr != (tid_t)parlay::my_thread_id()) {
+      remote_frees++;
+#ifdef PREVENT_REMOTE_FREES
+      //Don't give back to allocator, keep remote free in our pool
+      auto i = worker_id();
+      *((nodeT**) n) = (nodeT*) pools[i].mem_pool;
+      pools[i].mem_pool = (void*) n;
+      return;
+#endif
+    } else {
+      non_remote_frees++;
+    }
     free(n);
   }
 
