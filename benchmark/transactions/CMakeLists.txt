@@ -12,11 +12,17 @@ set(FLOCK_BENCH "btree" "hash_block" "arttree" "skiplist")
 set(YCSB_COMMON_DEFS "HashLock")
 #set(TPCC_COMMON_DEFS "NoShortcut;LargeLog") 
 
+find_library(DEQALLOC_LIB deqalloc PATHS ${CMAKE_LIBRARY_PATH})
+if(NOT DEQALLOC_LIB)
+  message(FATAL_ERROR "Could not find deqalloc.")
+endif()
+
 function(add_benchmark NAME STRUCT_NAME DEFS)
   add_executable(${NAME} ${SOURCES})
   target_compile_definitions(${NAME} PRIVATE ${YCSB_COMMON_DEFS})
   target_compile_definitions(${NAME} PRIVATE ${DEFS})
   target_link_libraries(${NAME} PRIVATE verlib)
+  target_link_libraries(${NAME} PRIVATE ${DEQALLOC_LIB})
   target_include_directories(${NAME} PRIVATE ${STRUCT_NAME})
 endfunction()
 

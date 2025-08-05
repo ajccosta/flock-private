@@ -17,6 +17,10 @@
 // Can use malloc instead of parlay::type_allocator
 //#define USE_MALLOC 1
 
+#ifdef USE_MALLOC
+extern "C" void freesz(void* ptr, size_t sz);
+#endif
+
 // If defined allows with_epoch to be nested (only outermost will set the epoch).
 // Incurs slight overhead due to extra test, but allows wrapping a with_epoch
 // around multiple operations which each do a with_epoch.
@@ -161,7 +165,8 @@ struct Link {
 
 #ifdef USE_MALLOC
   inline Link* allocate_link() {return (Link*) malloc(sizeof(Link));}
-  inline void free_link(Link* x) {return free(x);}
+  //inline void free_link(Link* x) {return free(x);}
+  inline void free_link(Link* x) {return freesz(x, sizeof(Link));}
 #else
   using list_allocator = typename parlay::type_allocator<Link>;
   inline Link* allocate_link() {return list_allocator::alloc();}
@@ -271,7 +276,9 @@ private:
 
 #ifdef USE_MALLOC
   nodeT* allocate_node() {return (nodeT*) malloc(sizeof(nodeT));}
-  void free_node(nodeT* x) {return free(x);}
+  //void free_node(nodeT* x) {return free(x);}
+  void free_node(nodeT* x) {return freesz(x, sizeof(nodeT));}
+
 #else
   using Allocator = parlay::type_allocator<nodeT>;
   nodeT* allocate_node() { return Allocator::alloc();}
