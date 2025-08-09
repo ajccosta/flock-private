@@ -117,6 +117,7 @@ template <typename F>
 auto do_ro_atomic(const F& f) { return f();}
 #endif			   
 
+
 template<typename SetType, typename K>
 void run_mixed_operations(parlay::sequence<K>& all,
                           const parlay::sequence<K>& unique,
@@ -175,7 +176,11 @@ void run_mixed_operations(parlay::sequence<K>& all,
   bool do_check = ! P.getOption("-no_check");
 
   // print memory usage statistics
-  bool stats = P.getOption("-stats");
+  bool stats_arg = P.getOption("-stats");
+  bool stats = 0;
+  if(stats_arg) {
+    stats = P.getOptionIntValue("-stats", 1);
+  }
 
   // clear the memory pool between rounds
   bool clear = P.getOption("-clear");
@@ -441,6 +446,10 @@ void run_mixed_operations(parlay::sequence<K>& all,
       size_t r = nn % p; // how many blocks get one extra element
       size_t offset = proc_id * q + std::min(proc_id, (long)r);
       size_t len = q + (proc_id < r ? 1 : 0); 
+      //do deletes on proc_id+1
+      size_t other_proc_id = (proc_id + 1) % p;
+      size_t offset_other = other_proc_id * q + std::min(other_proc_id, r);
+      size_t len_other = q + (other_proc_id < r ? 1 : 0);
 #endif
 
       while (true) {
@@ -485,19 +494,16 @@ void run_mixed_operations(parlay::sequence<K>& all,
 #ifdef REMOTE_FREE_MANIPULATION
           auto h = parlay::hash64(j)%2000;
           K key;
+          int index;
           if (h < 20*remote_free_perc) {
             //Do a "remote delete"
             //offset for other thread
-            size_t other_proc_id = parlay::hash64(j) % p;
-            size_t other_offset = other_proc_id * q + std::min(other_proc_id, r);
-            size_t other_len = q + (other_proc_id < r ? 1 : 0); 
-            int index = other_offset + (j % other_len);
-            key = unique[index];
+            index = offset_other + (j % len_other);
           } else {
             //Do a "local delete"
-            int index = offset + (j % len);
-            key = unique[index];
+            index = offset + (j % len);
           }
+          key = unique[index];
 #endif
           local_stats.update_count++;
           if (do_atomic([&] {return tr.remove(key);})) {
@@ -508,8 +514,8 @@ void run_mixed_operations(parlay::sequence<K>& all,
 
 #ifdef Range_Search
         else if (get_operation(jj, proc_id) == Range) {
-          K end = ((key > max_key - range_gap)
-                   ? max_key : key + range_gap);
+          K end = ((all[j] > max_key - range_gap)
+                   ? max_key : all[j] + range_gap);
           local_stats.range_count++;
           bool use_speculative = true; //(range_size < 2048);
           local_stats.range_sum += verlib::with_snapshot([&] {
@@ -518,7 +524,7 @@ void run_mixed_operations(parlay::sequence<K>& all,
               assert(cnt < range_keys.size());
               range_keys[cnt++] = k;
             };
-            tr.range_(addf, key, end);
+            tr.range_(addf, all[j], end);
 #ifdef LazyStamp
             if (verlib::aborted) {local_stats.retry_count++;}
 #endif
@@ -860,7 +866,8 @@ repeat:
       do_atomic([&] {tr.remove(unique[i]);});
     });
     if (stats) {
-      SetType::print_stats();
+      if(stats == 2)
+        SetType::print_stats();
       if(test_allocator) {
         std::cout
         << "#allocs: " << overall_stats.num_allocs << std::endl

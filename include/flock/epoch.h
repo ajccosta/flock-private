@@ -468,6 +468,9 @@ public:
       size_t rf = remote_frees.sum();
       size_t nrf_l = non_remote_frees_link.sum();
       size_t rf_l = remote_frees_link.sum();
+#ifdef PREVENT_REMOTE_FREES
+      std::cout<<"(\"remote frees\" are actually \"would be remote frees\")"<<std::endl;
+#endif
       std::cout<<"Total remote frees: "<<100*((double)rf+rf_l)/((double)(nrf+rf+nrf_l+rf_l))<<"% ("<<((double)rf+rf_l)<<"/"<<((double)(nrf+rf+nrf_l+rf_l))<<"), "
                <<"Node remote frees: "<<100*((double)rf)/((double)(nrf+rf))<<"% ("<<((double)rf)<<"/"<<((double)(nrf+rf))<<"), "
                <<"Link remote frees: "<<100*((double)rf_l)/((double)(nrf_l+rf_l))<<"% ("<<((double)rf_l)<<"/"<<((double)(nrf_l+rf_l))<<")"

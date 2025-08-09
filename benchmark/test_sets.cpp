@@ -42,6 +42,8 @@ int main(int argc, char* argv[]) {
 [-prefill] : how many elements to prefill the data structure with, default = n/2
 [-nscale] : how many unique keys will exist relative to -n (#unique keys = -n * -nscale), default = 2
 [-remote-free-perc] : how many remote frees will to occur (approximately)
+    Requires compilation with CHECK_REMOTE_FREES and REMOTE_FREE_MANIPULATION
+    With -stats, or -stats 2 additionall information is printed
 )");
 
 #ifdef HASH
