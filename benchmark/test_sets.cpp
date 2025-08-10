@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
       and the final 1/3 will switch between doing only removes and doing only inserts
 [-prefill] : how many elements to prefill the data structure with, default = n/2
 [-nscale] : how many unique keys will exist relative to -n (#unique keys = -n * -nscale), default = 2
+[-pin] : pin threads (off by default)
 )");
 
 #ifdef HASH

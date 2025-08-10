@@ -90,6 +90,22 @@ void test_persistence_concurrent() {
 // #endif
 }
 
+
+#include <thread>
+#include <pthread.h>
+#include <sched.h>
+
+void pin_std_thread(int cpu) {
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(cpu, &cpuset);
+    int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    if (rc) {
+      std::cerr << "Could not pin thread" << std::endl;
+      exit(-1);
+    }
+}
+
 template <typename SetType>
 void test_sets(size_t default_size, commandLine P) {
 
@@ -155,6 +171,18 @@ void test_sets(size_t default_size, commandLine P) {
   using V = typename SetType::V;
   V default_value;
   default_value[0] = 123;
+
+  bool pin_threads = P.getOption("-pin"); //default is false
+  if(pin_threads) {
+    //pin threads
+    std::atomic<size_t> threads_pinned {0};
+    parlay::parallel_for(0, p, [&] (size_t _i) {
+      pin_std_thread(parlay::my_thread_id());
+      threads_pinned.fetch_add(1);
+      //spin to prevent stealing from other threads
+      while(threads_pinned < p) {std::this_thread::yield();};
+    }, 1);
+  }
 
   if (init_test) {  // trivial test inserting 4 elements and deleting one
     std::cout << "running sanity checks" << std::endl;
