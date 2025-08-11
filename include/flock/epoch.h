@@ -4,6 +4,7 @@
 
 #include "parlay/alloc.h"
 #include "parlay/primitives.h"
+#include "parlay/thread_specific.h"
 
 #ifndef PARLAY_EPOCH_H_
 #define PARLAY_EPOCH_H_
@@ -270,7 +271,12 @@ private:
 #endif
 
 #ifdef USE_MALLOC
-  nodeT* allocate_node() {return (nodeT*) malloc(sizeof(nodeT));}
+  parlay::ThreadSpecific<std::vector<void*>> l;
+  nodeT* allocate_node() {
+    void* p = malloc(sizeof(nodeT));
+    l->push_back(p);
+    return (nodeT*) p;
+  }
   void free_node(nodeT* x) {return free(x);}
 #else
   using Allocator = parlay::type_allocator<nodeT>;
@@ -386,6 +392,10 @@ public:
 #ifndef USE_MALLOC
     Allocator::print_stats();
 #endif
+    l.for_each([&](auto&& vec) {
+      for(const void* p : vec)
+        std::cout << p << std::endl;
+    });
   }
 
   //If using parlay allocator, returns number of bytes used (currently alloc'ed and not freed)
