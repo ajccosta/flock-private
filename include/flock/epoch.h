@@ -159,14 +159,6 @@ struct Link {
   inline void undo_Retire(bool* x) { *x = true;}
   inline void undo_Allocate(bool* x) { *x = false;}
 
-#ifdef USE_MALLOC
-  inline Link* allocate_link() {return (Link*) malloc(sizeof(Link));}
-  inline void free_link(Link* x) {return free(x);}
-#else
-  using list_allocator = typename parlay::type_allocator<Link>;
-  inline Link* allocate_link() {return list_allocator::alloc();}
-  inline void free_link(Link* x) {return list_allocator::free(x);}
-#endif
   
   using namespace std::chrono;
 
@@ -180,6 +172,7 @@ private:
 
   // each thread keeps one of these
   struct alignas(256) old_current {
+    void* mem_pool;
     Link* old;  // linked list of retired items from previous epoch
     Link* current; // linked list of retired items from current epoch
     long epoch; // epoch on last retire, updated on a retire
@@ -198,6 +191,33 @@ private:
 
   std::vector<old_current> pools;
   int workers;
+
+#ifdef USE_MALLOC
+  inline Link* allocate_link() {
+    void* raw_ = nullptr;
+    auto i = worker_id();
+    raw_ = (void*) pools[i].mem_pool;
+    if(raw_ == nullptr) {
+      Link* l = (Link*) malloc(sizeof(Link));
+      return l;
+    }
+    Link* ptr = (Link*) raw_;
+    pools[i].mem_pool = (void*) *((Link**) ptr);
+    return ptr;
+  }
+
+  inline void free_link(Link* n) {
+    auto i = worker_id();
+    *((Link**) n) = (Link*) pools[i].mem_pool;
+    pools[i].mem_pool = (void*) n;
+    return;
+  }
+
+#else
+  using list_allocator = typename parlay::type_allocator<Link>;
+  inline Link* allocate_link() {return list_allocator::alloc();}
+  inline void free_link(Link* x) {return list_allocator::free(x);}
+#endif
 
   bool* add_to_current_list(void* p) {
     auto i = worker_id();
