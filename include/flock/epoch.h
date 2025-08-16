@@ -173,12 +173,16 @@ private:
   // each thread keeps one of these
   struct alignas(256) old_current {
     void* mem_pool;
-    Link* old;  // linked list of retired items from previous epoch
-    Link* current; // linked list of retired items from current epoch
+    Link* old = nullptr;  // linked list of retired items from previous epoch
+    Link* old_last = nullptr;
+    Link* current = nullptr; // linked list of retired items from current epoch
+    Link* current_last = nullptr;
+    Link* freeable = nullptr; // linked list of items that can be freed
+    Link* freeable_last = nullptr;
     long epoch; // epoch on last retire, updated on a retire
     long count; // number of retires so far, reset on updating the epoch
     sys_time time; // time of last epoch update
-    old_current() : old(nullptr), current(nullptr), epoch(0) {}
+    old_current() : epoch(0) {}
   };
 
   // only used for debugging (i.e. EpochMemCheck=1).
@@ -228,7 +232,29 @@ private:
     lnk->value = p;
     lnk->skip = false;
     pid.current = lnk;
+    if(pid.current_last == nullptr)
+      pid.current_last = lnk;
+    clear_n(1);
     return &(lnk->skip);
+  }
+
+  old_current& get_my_pool() {
+    return pools[worker_id()];
+  }
+
+  //frees up to n nodes
+  void clear_n(int n) {
+    Link* ptr = get_my_pool().freeable;
+    Link* ptr_last = get_my_pool().freeable_last;
+    while (ptr != nullptr && n-- > 0) {
+      Link* tmp = ptr;
+      ptr = ptr->next;
+      if (!tmp->skip) Delete((T*) tmp->value);
+      free_link(tmp);
+      if(tmp == ptr_last) //popped everything, clear last
+        get_my_pool().freeable_last = nullptr;
+    }
+    get_my_pool().freeable = ptr;
   }
 
   // destructs and frees a linked list of objects 
@@ -264,21 +290,42 @@ private:
     return sum;
   }
 
+  // Transfer all nodes from giv..giv_last to rec..rec_last.
+  // After the call, giv and giv_last are set to nullptr.
+  void transfer_list(Link*& giv, Link*& giv_last, Link*& rec, Link*& rec_last) {
+    // nothing to move
+    if (giv == nullptr) {
+      giv_last = nullptr;
+      return;
+    }
+    // rec is empty -> take giv
+    if (rec == nullptr) {
+      // both rec and rec_last should be null (consistency)
+      assert(rec_last == nullptr);
+      rec = giv;
+      rec_last = giv_last;
+    } else {
+      // rec not empty: append giv to the tail and update tail
+      assert(rec_last != nullptr);
+      rec_last->next = giv;
+      rec_last = giv_last;
+    }
+    // leave giv empty
+    giv = nullptr;
+    giv_last = nullptr;
+  }
+
+
   void advance_epoch(int i, old_current& pid) {
     epoch_s& epoch = get_epoch();
     if (pid.epoch + 1 < epoch.get_current()) {
-      clear_list(pid.old);
-      pid.old = pid.current;
-      pid.current = nullptr;
+      transfer_list(pid.old, pid.old_last, pid.freeable, pid.freeable_last);
+      transfer_list(pid.current, pid.current_last, pid.old, pid.old_last);
       pid.epoch = epoch.get_current();
     }
     // a heuristic
-    auto now = system_clock::now();
-    if (++pid.count == update_threshold  ||
-        duration_cast<milliseconds>(now - pid.time).count() >
-        milliseconds_between_epoch_updates * (1 + ((float) i)/workers)) {
+    if (++pid.count == update_threshold) {
       pid.count = 0;
-      pid.time = now;
       epoch.update_epoch();
     }
   }
@@ -379,7 +426,9 @@ public:
     for (int i=0; i < pools.size(); i++) {
       clear_list(pools[i].old);
       clear_list(pools[i].current);
-      pools[i].old = pools[i].current = nullptr;
+      clear_list(pools[i].freeable);
+      pools[i].old = pools[i].current = pools[i].freeable = nullptr;
+      pools[i].old_last = pools[i].current_last = pools[i].freeable_last = nullptr;
     }
 
 #ifndef USE_MALLOC
@@ -397,12 +446,6 @@ public:
   }
 
   void print_stats() {
-    // get_epoch().print_announce();
-    // get_epoch().clear_announce();
-    //std::cout << "epoch number: " << get_epoch().get_current() << std::endl;
-    //for (int i=0; i < pools.size(); i++) {
-    //  std::cout << "pool[" << i << "] = " << size_of(pools[i].old) << ", " << size_of(pools[i].current) << std::endl;
-    //}
 #ifndef USE_MALLOC
     Allocator::print_stats();
 #endif
