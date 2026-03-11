@@ -722,7 +722,11 @@ repeat:
                   //<< "mem=" << getMemoryUsageBytes() << ","
                   << "mem=" << getMemoryUsageBytes()/(1024*1024) << "MiB,"
 #endif
-                  << num_ops / (duration * 1e6) << std::endl;
+                  << (!use_thread_perc ? num_ops
+                        //dont count unsuccessful updates when using thread_perc
+                        //  some allocators have a very unbalanced successfull/unsuccessfull count
+                        : (num_ops - (overall_stats.update_count - overall_stats.update_success_count)))
+                          / (duration * 1e6) << std::endl;
       } else {
         std::cout << std::setprecision(4)
                   << P.commandName() << ","
