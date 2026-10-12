@@ -722,6 +722,9 @@ repeat:
                   //<< "mem=" << getMemoryUsageBytes() << ","
                   << "mem=" << getMemoryUsageBytes()/(1024*1024) << "MiB,"
 #endif
+                  //with thread_perc, also print every operation attempted (failed
+                  //updates included) before the last field, which parsers read
+                  << (use_thread_perc ? "attempts=" + std::to_string(num_ops / (duration * 1e6)) + "," : "")
                   << (!use_thread_perc ? num_ops
                         //dont count unsuccessful updates when using thread_perc
                         //  some allocators have a very unbalanced successfull/unsuccessfull count
