@@ -214,7 +214,7 @@ struct pool_allocator {
       std::optional<void*> r = large_buckets[i-num_small].pop();
       while (r) {
         large_allocated -= sizes[i];
-        ::operator delete(*r, std::align_val_t{max_alignment});
+        ::operator delete(*r);
         r = large_buckets[i-num_small].pop();
       }
     }
